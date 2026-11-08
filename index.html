@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#123d36">
+  <meta name="description" content="Sistema local para briefings, uniformes y personal de Las Flores. Trabaja sin conexión y exporta archivos Excel independientes.">
+  <title>Las Flores | Control interno</title>
+  <style>:root{--deep:#123d36;--green:#176451;--lightgreen:#e9f3ec;--gold:#c8ab6e;--ink:#1b322c;--muted:#63746c;--line:#dce5dd;--surface:#fff;--bg:#f5f7f4;--red:#a9423c;--redbg:#fff0ed;--amber:#916817;--amberbg:#fff7e5;--shadow:0 9px 25px rgba(20,60,44,.045)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.48}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.43;cursor:not-allowed}a{color:var(--green)}:focus-visible{outline:3px solid #bca15c;outline-offset:2px}
+.global-header{position:sticky;top:0;z-index:25;background:var(--deep);color:#fff;box-shadow:0 3px 15px #132f2720}.header-inner{max-width:1160px;margin:auto;min-height:75px;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand-link{background:transparent;border:0;color:#fff;display:flex;align-items:center;gap:12px;text-align:left;padding:0}.brand-link strong{display:block;letter-spacing:.1em;font-size:14px}.brand-link small{display:block;color:#b8cec3;font-size:10px;letter-spacing:.12em}.brand-mark{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;border:1px solid #bba16a;color:#e7d3a1;font:26px Georgia,serif;letter-spacing:-.09em}.header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.save-indicator{color:#cde0d5;border:1px solid #47756b;border-radius:99px;padding:7px 11px;font-size:12px;white-space:nowrap}.save-indicator.dirty{color:#ffe1a8;border-color:#93784d}.save-indicator.error{color:#ffcecc;border-color:#b35d58}.header-actions .button.ghost{color:#fff;border-color:#537b70;background:transparent}
+.container{max-width:1160px;margin:0 auto;padding:26px 22px 70px;min-height:calc(100dvh - 135px)}.page-heading{margin:6px 0 21px}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--green);margin:0 0 8px}.page-title{font:normal 37px/1.2 Georgia,serif;letter-spacing:-.035em;margin:0 0 8px}.page-subtitle{color:var(--muted);font-size:14px;margin:0;max-width:820px}.page-heading .heading-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}.back{border:1px solid var(--line);background:#fff;color:var(--green);padding:7px 11px;font-size:12px;font-weight:750;border-radius:10px;min-height:36px}.subnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 22px}.subnav[hidden]{display:none}.subnav button{background:#fff;color:#486156;border:1px solid var(--line);border-radius:11px;font-size:13px;font-weight:700;min-height:42px;padding:10px 15px}.subnav button.active{background:var(--green);border-color:var(--green);color:white}
+.home-intro{text-align:center;max-width:750px;margin:50px auto 34px}.home-intro h1{font:normal 42px/1.18 Georgia,serif;letter-spacing:-.035em;margin:12px 0}.home-intro p{color:var(--muted);margin:0;font-size:15px}.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:19px;max-width:780px;margin:0 auto}.home-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;gap:8px;border:1px solid #346e5c;border-radius:20px;min-height:198px;padding:25px 28px;background:var(--deep);color:#fff;box-shadow:var(--shadow);transition:transform .15s ease,background .15s ease}.home-card:hover{background:#225c4c;transform:translateY(-2px)}.home-card .home-icon{font-size:28px;color:var(--gold);border:1px solid #557e70;border-radius:13px;width:51px;height:51px;display:grid;place-items:center}.home-icon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.home-card strong{font-size:20px}.home-card span:last-child{color:#d0e1d7;font-size:13px}.home-card:last-child{grid-column:1 / -1;min-height:150px;align-items:center;text-align:center;background:#24594a}.home-notice{max-width:780px;margin:21px auto;color:var(--muted);font-size:12px;text-align:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}.panel-head{padding:17px 21px;border-bottom:1px solid #e8eee9;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.panel-head h2{font-size:17px;margin:0}.panel-head p{font-size:12px;color:var(--muted);margin:3px 0 0}.panel-body{padding:20px}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.right{margin-left:auto}.space-between{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.button{border:1px solid #cddbd0;background:#fff;color:var(--ink);border-radius:11px;padding:10px 15px;min-height:43px;font-size:13px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;white-space:nowrap}.button:hover{background:#f5f9f5}.button.primary{background:var(--green);color:#fff;border-color:var(--green)}.button.primary:hover{background:#114b3c}.button.ghost{background:#f7faf8}.button.warn{color:var(--red);border-color:#e5bbb5}.button.tiny{padding:7px 11px;min-height:34px;font-size:12px}.button.block{width:100%}.button.gold{background:#f5ebd9;border-color:#e9d9bd;color:#75551d}.button.selected{box-shadow:inset 0 0 0 2px #1d6d56;background:var(--lightgreen);border-color:var(--green);color:var(--green)}.button.selected.bad-select{box-shadow:inset 0 0 0 2px #a9423c;background:var(--redbg);border-color:var(--red);color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:17px}.kpi{padding:17px;border:1px solid var(--line);border-radius:15px;background:#fff}.kpi .number{font-size:30px;font-weight:800;line-height:1.12;letter-spacing:-.04em}.kpi .label{font-size:12px;color:var(--muted);margin-top:6px}.kpi.green .number{color:var(--green)}.kpi.amber .number{color:var(--amber)}.kpi.red .number{color:var(--red)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}.field label,.field-label{font-size:12px;font-weight:800;color:#395347}.field input,.field textarea,.field select,.input{min-height:44px;width:100%;padding:10px 12px;border:1px solid #cbd8d0;border-radius:10px;color:var(--ink);background:#fff}.field textarea{min-height:98px;resize:vertical}.field small,.small{font-size:12px;color:var(--muted)}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.stack{display:grid;gap:13px}.date-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.date-row .field{min-width:185px}.callout{background:var(--lightgreen);border:1px solid #d3e6d8;border-radius:12px;color:#265744;font-size:13px;padding:13px 15px;margin-bottom:16px}.callout.warn{background:var(--amberbg);border-color:#eddba8;color:#785a20}.callout.danger{background:var(--redbg);border-color:#edc7c1;color:#873e37}.callout p{margin:4px 0 0}.subtle{color:var(--muted)}.center{text-align:center}.empty{padding:35px 18px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:5px}
+.person-row{display:grid;grid-template-columns:minmax(155px,1fr) auto;align-items:center;gap:14px;padding:16px 20px;border-top:1px solid #edf0ed}.person-row:first-child{border-top:0}.identity{display:flex;gap:11px;align-items:center;min-width:0}.avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ee;color:var(--green);font-weight:800;font-size:13px}.person-name{font-weight:780;overflow-wrap:anywhere}.person-detail{font-size:12px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.status{display:inline-block;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:750;background:#f1f4f0;color:#56645c;white-space:nowrap}.status.ok{background:#e5f3e9;color:#146c46}.status.bad{background:var(--redbg);color:var(--red)}.status.warn{background:var(--amberbg);color:var(--amber)}.status.blue{background:#e9f2fa;color:#315d88}.person-brief{grid-template-columns:minmax(145px,1fr) minmax(230px,auto)}.brief-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.brief-buttons .button{padding:8px 11px;min-height:39px}.brief-second{font-size:12px;color:var(--muted);margin-top:5px}.brief-actions{display:grid;gap:6px;justify-items:end}
+.tablewrap{overflow-x:auto}.table{border-collapse:collapse;width:100%;min-width:690px;font-size:13px}.table th{background:#f7faf7;text-align:left;padding:12px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:#54665d}.table td{border-bottom:1px solid #eef0ed;padding:12px;vertical-align:middle}.table tr:last-child td{border-bottom:0}.table td .button{white-space:normal}.table .nowrap{white-space:nowrap}.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.check-row{padding:13px 0;border-bottom:1px solid #e9eee9;display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:13px;align-items:center}.check-row:last-child{border-bottom:0}.check-row strong{display:block;font-size:14px}.check-row small{display:block;color:var(--muted);font-size:11px}.checks{display:flex;gap:6px;flex-wrap:wrap}.weekdays{display:flex;gap:7px;flex-wrap:wrap}.weekdays label{background:#f9fbf9;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px}.weekdays input{accent-color:var(--green)}.checklist{display:flex;align-items:center;gap:8px;padding:8px 0}.checklist input{width:17px;height:17px;accent-color:var(--green)}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 12px;font-size:12px}.chip.selected{background:var(--green);color:#fff;border-color:var(--green)}
+.modal-layer{position:fixed;inset:0;background:rgba(12,32,24,.57);z-index:40;display:none;align-items:center;justify-content:center;padding:12px}.modal-layer.open{display:flex}.modal{background:#fff;width:min(100%,680px);max-height:94dvh;overflow:auto;border-radius:19px;box-shadow:0 25px 60px rgba(3,30,13,.3)}.modal-head{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;z-index:1;border-bottom:1px solid var(--line);padding:16px 19px}.modal-head h2{font-size:18px;margin:0}.modal-body{padding:20px;display:grid;gap:15px}.modal-foot{padding:14px 19px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line)}.close{font-size:22px;border:1px solid var(--line);background:#fff;border-radius:8px;width:34px;height:34px;display:grid;place-items:center}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--deep);color:#fff;border-radius:11px;padding:12px 17px;max-width:min(92vw,620px);font-size:13px;box-shadow:0 10px 25px #132f2760;display:none;z-index:70}.toast.visible{display:block}.footer{text-align:center;font-size:11px;color:#82928a;border-top:1px solid var(--line);padding:19px 12px}.muted-note{font-size:12px;color:var(--muted);margin:0}.period{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.period .field{min-width:150px}.tag-list{display:flex;gap:8px;flex-wrap:wrap}.label-group{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-top:8px}
+@media(max-width:750px){.header-inner{padding:10px 14px;min-height:68px}.container{padding:20px 13px 55px}.page-title{font-size:30px}.home-intro{margin:24px auto 25px}.home-intro h1{font-size:33px}.home-card{padding:18px;min-height:164px}.home-card strong{font-size:17px}.home-card:last-child{min-height:133px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fields,.two-col,.three-col{grid-template-columns:1fr}.panel-body{padding:16px}.panel-head{padding:14px 16px}.person-row{padding:14px 15px;grid-template-columns:1fr}.person-row .actions,.brief-actions,.brief-buttons{justify-content:flex-start;justify-items:start}.person-brief{grid-template-columns:1fr}.subnav{gap:6px}.subnav button{padding:9px 12px;font-size:12px}.check-row{grid-template-columns:1fr}.modal-layer{align-items:flex-end;padding:0}.modal{max-height:92dvh;border-radius:18px 18px 0 0}.modal-body{padding:15px}.hide-xs{display:none}.save-indicator{font-size:11px}.header-actions{gap:6px}}
+@media(max-width:420px){.home-grid{gap:10px}.home-card{padding:15px;min-height:154px}.home-card .home-icon{width:42px;height:42px;font-size:23px}.home-card strong{font-size:15px}.home-card span:last-child{font-size:11px}.header-actions .button{padding:5px 7px}}
+@media print{.global-header,.subnav,.footer,.button,.modal-layer{display:none!important}.container{padding:0}.panel{break-inside:avoid}}
+</style>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    .pwa-update-banner{display:none;background:#f7edda;border-bottom:1px solid #d4b87c;color:#503e1f;padding:12px 22px;position:sticky;top:75px;z-index:24}
+    .pwa-update-banner.show{display:block}
+    .pwa-update-inner{max-width:1160px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .pwa-update-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pwa-update-actions button{background:#123d36;color:#fff;padding:8px 14px;border:none;border-radius:9px;font-weight:700;cursor:pointer}
+    .pwa-update-actions button.secondary{background:transparent;border:1px solid #987744;color:#503e1f}
+    @media(max-width:600px){.pwa-update-banner{top:70px;padding:10px 15px}}
+  </style>
+</head>
+<body>
+  <header class="global-header">
+    <div class="header-inner">
+      <button id="homeLogo" class="brand-link" type="button" aria-label="Volver al inicio" data-action="home">
+        <span class="brand-mark">LF</span>
+        <span><strong>LAS FLORES</strong><small>CONTROL INTERNO</small></span>
+      </button>
+      <div class="header-actions">
+        <span id="saveIndicator" class="save-indicator" role="status" aria-live="polite">Preparando…</span>
+        <button class="button ghost tiny" type="button" data-action="settings" title="Guardado y respaldos">⚙ <span class="hide-xs">Configuración</span></button>
+      </div>
+    </div>
+  </header>
+  <main class="container">
+    <section id="pageHeading" class="page-heading"></section>
+    <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
+    <div id="app" aria-live="off"></div>
+  </main>
+  <footer class="footer">LAS FLORES · Uso interno · Los datos permanecen en este navegador, salvo los archivos que exportes.</footer>
+  <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
+    <div class="pwa-update-inner">
+      <div><strong>Actualización disponible</strong><div style="font-size:12px">Guarda los cambios pendientes antes de actualizar. Los registros locales se conservarán.</div></div>
+      <div class="pwa-update-actions"><button id="pwaInstallUpdate" type="button">Actualizar aplicación</button><button id="pwaDismissUpdate" class="secondary" type="button">Después</button></div>
+    </div>
+  </div>
+  <input type="file" id="backupFile" accept=".json,application/json" hidden>
+  <script>(()=>{
+'use strict';
+const KEY='lasflores.control.v2', LEGACY='lasflores.uniformes.v1', PREF_KEY='lasflores.control.prefs.v2';
+const WEEK=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const ISSUE_GROUPS={
+  'Uniforme':['Uniforme sucio o incompleto','Uniforme sin planchar','Mandil sucio o en mal estado'],
+  'Presentación personal':['Cabello sin cumplir la presentación exigida','Sin toca o redecilla','Uñas largas o sucias'],
+  'Implementos':['Sin sacacorchos','Sin trapo limpio','Sin lapicero','Sin encendedor']
+};
+const DEFAULT_REQ=[
+  ['toca','Toca o redecilla','Presentación personal',0],
+  ['trapo','Trapo limpio','Implementos',0],
+  ['mandil','Mandil limpio','Uniforme',0],
+  ['lapiceros','Lapiceros (mínimo 3)','Implementos',3],
+  ['unas','Uñas cortas','Presentación personal',0],
+  ['sacacorchos','Sacacorchos','Implementos',0],
+  ['camisa','Camisa limpia y planchada','Uniforme',0],
+  ['cabello','Cabello corto o recogido','Presentación personal',0]
+];
+const $=selector=>document.querySelector(selector);
+const pad=n=>String(n).padStart(2,'0');
+const dateISO=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromISO=s=>{const a=String(s||'').split('-').map(Number);return new Date(a[0],(a[1]||1)-1,a[2]||1,12)};
+const formatDate=s=>s?fromISO(s).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const timestamp=()=>new Date().toISOString();
+const uid=()=>crypto?.randomUUID?.()||('lf-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const displayTime=s=>s?new Date(s).toLocaleString('es-PE'):'—';
+const initials=name=>String(name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('');
+const percentage=(a,b)=>b?Math.round(a/b*100)+'%':'—';
+const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,active:true,createdAt:timestamp()}));
+function empty(){return {app:'lasflores-control',version:2,staff:[],inspections:[],rosters:{},checklists:[],requirements:reqDefaults(),briefings:[],sessions:{},audit:[],backupAt:null,createdAt:timestamp()};}
+function normalize(data){
+  if(!data||typeof data!=='object'||!Array.isArray(data.staff)||!Array.isArray(data.inspections)||!data.rosters||typeof data.rosters!=='object'||Array.isArray(data.rosters))throw Error('Archivo de datos inválido');
+  if(data.app!=='lasflores-uniformes'&&data.app!=='lasflores-control')throw Error('El respaldo no pertenece a Las Flores');
+  const base=empty();
+  const next={...base,...data,app:'lasflores-control',version:2};
+  next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false}));
+  next.checklists=Array.isArray(data.checklists)?data.checklists:[];
+  next.requirements=Array.isArray(data.requirements)?data.requirements:reqDefaults();
+  next.briefings=Array.isArray(data.briefings)?data.briefings:[];
+  next.sessions=data.sessions&&typeof data.sessions==='object'?data.sessions:{};
+  next.audit=Array.isArray(data.audit)?data.audit.slice(-1500):[];
+  return next;
+}
+let state, savedJSON='', prefs={autoSave:true},dirty=false,saveError='',storageAvailable=true;
+let view='home',theDate=dateISO(),staffDate=dateISO(),briefDate=dateISO(),briefGroup='11';
+let selectedPerson='', uniformIssueSelection=[],editingInspectionId='';
+let reportModule='uniform',reportType='week',reportDate=dateISO(),reportMonth=dateISO().slice(0,7);
+let staffSearch='',historySearch='',briefHistorySearch='',historyStart='',historyEnd='',toastTimer,statsMonth=dateISO().slice(0,7),statsPerson='all',briefShowAll=false;
+function load(){
+  try{
+    const p=localStorage.getItem(PREF_KEY);if(p) prefs={autoSave:JSON.parse(p).autoSave!==false};
+    const saved=localStorage.getItem(KEY);
+    const previous=!saved?localStorage.getItem(LEGACY):null;
+    const raw=saved||previous;
+    state=raw?normalize(JSON.parse(raw)):empty();
+    savedJSON=saved||'';
+    if(previous&&!saved){if(!persist(true))toast('Importa el respaldo JSON original si los datos no aparecen.');}
+  }catch(error){
+    console.error(error);storageAvailable=false;state=empty();savedJSON='';saveError='No se pudo leer el almacenamiento';
+    setTimeout(()=>alert('No se pudo abrir correctamente el almacenamiento local. No registres información hasta revisar el navegador o recuperar un respaldo JSON.'),100);
+  }
+  updateSaveIndicator();
+}
+function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),3600);}
+function updateSaveIndicator(){
+  const el=$('#saveIndicator');if(!el)return;
+  el.className='save-indicator'+(saveError?' error':dirty?' dirty':'');
+  el.textContent=saveError?'⚠ Error al guardar':dirty?'● Cambios sin guardar':prefs.autoSave?'✓ Guardado automático':'✓ Guardado manual';
+  el.title=saveError||(!prefs.autoSave?'El modo manual requiere pulsar Guardar cambios':'Cada modificación se guarda al confirmarla');
+}
+let lastSnapshotTime=0;
+function persist(force=false){
+  try{
+    const current=JSON.stringify(state);
+    if(current===savedJSON&&!force){dirty=false;saveError='';updateSaveIndicator();return true;}
+    localStorage.setItem(KEY,current);savedJSON=current;dirty=false;storageAvailable=true;saveError='';updateSaveIndicator();
+    if(Date.now()-lastSnapshotTime>10*60*1000){lastSnapshotTime=Date.now();createSnapshot(current,false).catch(()=>{});}
+    return true;
+  }catch(error){
+    console.error('No se pudieron guardar los datos',error);dirty=true;saveError='Almacenamiento lleno o bloqueado';updateSaveIndicator();
+    toast('No se pudo guardar. Descarga un respaldo y revisa el almacenamiento.');return false;
+  }
+}
+function mutate(action,detail=''){
+  state.audit.push({id:uid(),at:timestamp(),action,detail});
+  if(state.audit.length>1500)state.audit.splice(0,state.audit.length-1500);
+  if(prefs.autoSave)persist();else{dirty=true;saveError='';updateSaveIndicator();}
+}
+function setAutoSave(on){
+  if(on&&dirty&&!persist()){toast('Primero resuelve el error de guardado.');return;}
+  const was=prefs.autoSave;prefs.autoSave=on;
+  try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs));}catch(error){prefs.autoSave=was;toast('No se pudo guardar la preferencia.');return;}
+  updateSaveIndicator();toast(on?'Autoguardado activado.':'Autoguardado desactivado. Utiliza «Guardar cambios».');render();
+}
+window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
+window.addEventListener('storage',event=>{if(event.key===KEY&&event.newValue!==savedJSON){toast('Los datos cambiaron en otra pestaña. Recarga antes de seguir editando.');}});
+const worker=id=>state.staff.find(p=>p.id===id);
+const inspection=(day,id)=>state.inspections.find(x=>x.date===day&&x.staffId===id&&!x.voidedAt);
+const checklist=(day,id)=>state.checklists.find(x=>x.date===day&&x.staffId===id);
+const briefing=(day,id)=>state.briefings.find(x=>x.date===day&&x.staffId===id);
+const dayNum=date=>fromISO(date).getDay();
+function defaultStatus(w,date){return (w.restDays||[]).includes(dayNum(date))?'rest':'working';}
+function scheduleStatus(date,id){const saved=state.rosters[date]?.staff?.[id];const p=worker(id);if(p?.active===false&&date>=dateISO()&&!inspection(date,id)&&!checklist(date,id)&&!briefing(date,id))return 'off';return saved|| (p?.active===false?'off':p?defaultStatus(p,date):'off');}
+function activeFor(date,w){return w.active!==false||state.rosters[date]?.staff?.[w.id]!==undefined||!!inspection(date,w.id)||!!checklist(date,w.id)||!!briefing(date,w.id);}
+function forDate(date){return state.staff.filter(w=>activeFor(date,w)).map(w=>({worker:w,status:scheduleStatus(date,w.id)})).sort((a,b)=>{
+  const aw=isScheduled(a.status),bw=isScheduled(b.status);return Number(bw)-Number(aw)||a.worker.name.localeCompare(b.worker.name,'es');
+});}
+function ensureDay(date){if(state.rosters[date])return state.rosters[date];
+  const s={};for(const w of state.staff)if(w.active!==false)s[w.id]=defaultStatus(w,date);
+  return state.rosters[date]={staff:s,createdAt:timestamp()};
+}
+function isScheduled(status){return ['working','support'].includes(status);}
+const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+function updateSchedule(date,id,value){
+  const r=inspection(date,id),b=briefing(date,id),c=checklist(date,id);
+  if(!isScheduled(value)&&(r||b||c)){toast('Este trabajador tiene controles registrados. Corrige esos controles antes de quitarlo de la programación.');return;}
+  const roster=ensureDay(date);roster.staff[id]=value;roster.updatedAt=timestamp();mutate('Cambiar programación',`${worker(id)?.name||id} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
+}
+function getSection(){
+  if(view==='home')return null;
+  if(['brief','brief-pending','brief-history','brief-stats','brief-export'].includes(view))return 'brief';
+  if(['uniform','implements','requirements','uniform-history','uniform-export'].includes(view))return 'uniform';
+  return 'personal';
+}
+function sectionNav(){const section=getSection();if(!section)return [];
+  if(section==='brief')return [['brief','Asistencia'],['brief-pending','Por informar'],['brief-history','Historial'],['brief-stats','Estadísticas'],['brief-export','Excel']];
+  if(section==='uniform')return [['uniform','Revisión diaria'],['implements','Implementos'],['requirements','Requisitos'],['uniform-history','Historial'],['uniform-export','Excel']];
+  return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
+}
+function navigate(v){if(!['home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','uniform-history','uniform-export','personal','settings'].includes(v))return;view=v;render();window.scrollTo({top:0,behavior:'instant'});}
+function setHeading(title,subtitle){
+  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="home">← Inicio</button><span class="eyebrow" style="margin:0">SISTEMA DE CONTROL INTERNO</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
+}
+function render(){
+  if(view==='home'){
+    $('#pageHeading').innerHTML='';$('#subnav').hidden=true;renderHome();updateSaveIndicator();return;
+  }
+  const nav=sectionNav();$('#subnav').hidden=false;
+  $('#subnav').innerHTML=nav.map(([v,label])=>`<button type="button" data-nav="${v}" class="${v===view?'active':''}" ${v===view?'aria-current="page"':''}>${h(label)}</button>`).join('');
+  if(view==='personal')renderPersonal();
+  else if(view==='settings')renderSettings();
+  else if(view==='uniform')renderUniform();
+  else if(view==='implements')renderImplements();
+  else if(view==='requirements')renderRequirements();
+  else if(view==='uniform-history')renderUniformHistory();
+  else if(view==='uniform-export')renderExport('uniform');
+  else if(view==='brief')renderBrief();
+  else if(view==='brief-pending')renderPending();
+  else if(view==='brief-history')renderBriefHistory();
+  else if(view==='brief-stats')renderBriefStats();
+  else if(view==='brief-export')renderExport('brief');
+  updateSaveIndicator();
+}
+function renderHome(){
+  $('#app').innerHTML=`<div class="home-intro"><span class="eyebrow">GUARDIANES DE LA CULTURA AYACUCHANA</span><h1>¿Qué deseas gestionar?</h1><p>Selecciona el área de trabajo. Cada módulo tiene sus propios registros y reportes.</p></div>
+    <div class="home-grid">
+      <button class="home-card" data-nav="brief"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4.5h6M9 9h6M9 13h6M9 17h4"/></svg></span><strong>Briefings</strong><span>Asistencias, pendientes de informar e historial</span></button>
+      <button class="home-card" data-nav="uniform"><span class="home-icon"><svg viewBox="0 0 24 24"><path d="m4 7 5-4h6l5 4 2 5-5 2-1-3v10H8V11l-1 3-5-2 2-5Z"/></svg></span><strong>Control de uniformes</strong><span>Revisiones, implementos y correcciones</span></button>
+      <button class="home-card" data-nav="personal"><span class="home-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20v-2a6 6 0 0 1 12 0v2H2ZM17 11a3 3 0 1 0-1-5.8M16 14a5 5 0 0 1 6 5v1h-5"/></svg></span><strong>Personal</strong><span>Trabajadores, estados, descansos y apoyos</span></button>
+    </div><div class="home-notice">Sin conexión · ${state.staff.filter(p=>p.active!==false).length} trabajadores activos · ${prefs.autoSave?'Autoguardado activado':'Guardado manual activado'}</div>`;
+}
+function kpi(n,label,kind=''){return `<div class="kpi ${kind}"><div class="number">${h(n)}</div><div class="label">${h(label)}</div></div>`;}
+function emptyHint(title,body){return `<div class="empty"><strong>${h(title)}</strong>${h(body)}</div>`;}
+function dateField(id,date,label='Fecha'){return `<div class="field"><label for="${id}">${h(label)}</label><input id="${id}" type="date" value="${h(date)}"></div>`;}
+function personIdentity(w,desc=''){return `<div class="identity"><span class="avatar">${h(initials(w.name))}</span><div><div class="person-name">${h(w.name)}</div><div class="person-detail">${h(desc||[w.position||'Mozo',w.category?'Categoría '+w.category:''].filter(Boolean).join(' · '))}</div></div></div>`;}
+function badge(label,kind=''){return `<span class="status ${kind}">${h(label)}</span>`;}
+// PERSONAL: registro único y programación por fecha.
+function renderPersonal(){
+  setHeading('Personal','Agrega, edita o desactiva trabajadores. Los apoyos y descansos especiales solo afectan la fecha seleccionada.');
+  const people=state.staff.filter(w=>w.name.toLocaleLowerCase('es').includes(staffSearch.toLocaleLowerCase('es'))).sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.name.localeCompare(b.name,'es'));
+  const list=people.map(w=>{
+    const s=scheduleStatus(staffDate,w.id);
+    return `<div class="person-row" data-staff-item data-search="${h(w.name.toLocaleLowerCase('es'))}">
+      ${personIdentity(w,`${w.position||'Mozo'} · Descansa: ${(w.restDays||[]).map(d=>WEEK[d]).join(', ')||'Sin asignar'} · Grupo: ${w.briefingGroup?w.briefingGroup+':00':'Sin asignar'}`)}
+      <div class="actions">
+        ${badge(w.active===false?'Inactivo':'Activo',w.active===false?'':'ok')}
+        <select class="input" style="width:auto;min-width:125px" aria-label="Situación del día de ${h(w.name)}" data-schedule="${h(w.id)}" ${w.active===false?'disabled':''}>${scheduleOptions(s)}</select>
+        <button class="button tiny" data-action="edit-person" data-id="${h(w.id)}">Editar</button>
+        <button class="button tiny ${w.active===false?'':'warn'}" data-action="toggle-person" data-id="${h(w.id)}">${w.active===false?'Reactivar':'Desactivar'}</button>
+        <button class="button tiny" data-action="remove-person" data-id="${h(w.id)}" title="Quitar de la lista">Quitar</button>
+      </div></div>`;
+  }).join('');
+  $('#app').innerHTML=`
+    <div class="kpis">${kpi(state.staff.filter(w=>w.active!==false).length,'Activos','green')}${kpi(state.staff.filter(w=>w.active===false).length,'Inactivos')}${kpi(forDate(staffDate).filter(p=>isScheduled(p.status)).length,'Trabajan o apoyan')}${kpi(forDate(staffDate).filter(p=>p.status==='support').length,'Apoyos del día','amber')}</div>
+    <div class="panel"><div class="panel-head"><div><h2>Programación del día</h2><p>Cambiar una fecha no modifica los descansos habituales.</p></div>${dateField('staffDate',staffDate,'Fecha que deseas modificar')}</div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Lista de trabajadores</h2><p>Una sola lista compartida con Briefings y Uniformes.</p></div><div class="toolbar"><button class="button" data-action="bulk-person">Pegar nombres</button><button class="button primary" data-action="add-person">+ Agregar trabajador</button></div></div>
+      <div class="panel-body"><div class="field"><label for="staffSearch">Buscar</label><input id="staffSearch" value="${h(staffSearch)}" placeholder="Nombre del trabajador"></div></div>
+      <div id="staffRows">${list||emptyHint('No hay trabajadores registrados','Agrega tu equipo para comenzar.')}</div></div>
+    <div class="callout"><b>Activo no significa que esté trabajando hoy.</b> Por ejemplo, puedes dejar a alguien activo, mantener su descanso habitual y cambiar únicamente la fecha seleccionada a «Apoyo».</div>`;
+}
+function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
+function openPerson(w=null){
+  const rests=w?.restDays||[];
+  modal(w?'Modificar trabajador':'Agregar trabajador',`<form id="personForm" class="stack">
+    <div class="field"><label>Nombre completo *</label><input name="name" maxlength="120" required value="${h(w?.name||'')}" placeholder="Nombre y apellidos"></div>
+    <div class="fields"><div class="field"><label>Puesto</label><select name="position">${['Mozo','Recepción','Caja','Lavavasos','Apoyo','Otro'].map(v=>`<option ${v===(w?.position||'Mozo')?'selected':''}>${v}</option>`).join('')}</select></div>
+    <div class="field"><label>Categoría</label><select name="category"><option value="">Sin categoría</option>${[1,2,3,4].map(x=>`<option value="${x}" ${String(w?.category||'')===String(x)?'selected':''}>${x}</option>`).join('')}</select></div></div>
+    <div class="field"><label>Grupo habitual del briefing</label><select name="briefingGroup"><option value="">Por asignar</option><option value="11" ${w?.briefingGroup==='11'?'selected':''}>11:00 a. m.</option><option value="12" ${w?.briefingGroup==='12'?'selected':''}>12:00 p. m.</option></select><small>Si cambia de grupo solo por un día, podrás seleccionarlo al registrar la asistencia.</small></div>
+    <div class="field"><label>Día(s) de descanso habitual</label><div class="weekdays">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" name="restDay" value="${d}" ${rests.includes(d)?'checked':''}> ${WEEK[d]}</label>`).join('')}</div></div>
+    <input type="hidden" name="id" value="${h(w?.id||'')}"></form>`,
+    `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-person">Guardar trabajador</button>`);
+}
+function savePerson(){
+  const form=$('#personForm');if(!form)return;
+  const name=form.elements.name.value.trim().replace(/\s+/g,' '),id=form.elements.id.value;
+  if(!name){toast('Escribe el nombre del trabajador.');return;}
+  if(state.staff.some(p=>p.id!==id&&p.name.toLocaleLowerCase('es')===name.toLocaleLowerCase('es'))){toast('El trabajador ya existe.');return;}
+  const data={name,position:form.elements.position.value,category:form.elements.category.value,briefingGroup:form.elements.briefingGroup.value,restDays:[...form.querySelectorAll('[name="restDay"]:checked')].map(c=>Number(c.value))};
+  if(id){Object.assign(worker(id),data,{updatedAt:timestamp()});}else{state.staff.push({id:uid(),...data,active:true,createdAt:timestamp()});}
+  mutate(id?'Editar trabajador':'Agregar trabajador',name);closeModal();render();toast('Trabajador guardado.');
+}
+function openBulk(){modal('Agregar varios trabajadores',`<div class="field"><label>Un nombre por línea</label><textarea id="bulkNames" rows="9" placeholder="Anais\nJeraldine\nLeo"></textarea><small>Se omitirán los nombres que ya estén registrados. Podrás editar sus datos luego.</small></div>`,`<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-bulk">Agregar nombres</button>`);}
+function saveBulk(){
+  const names=[...new Set($('#bulkNames').value.split(/\r?\n/).map(s=>s.trim().replace(/\s+/g,' ')).filter(s=>s&&s.length<=120))].slice(0,300);
+  let n=0;for(const name of names){if(state.staff.some(w=>w.name.toLocaleLowerCase('es')===name.toLocaleLowerCase('es')))continue;state.staff.push({id:uid(),name,position:'Mozo',category:'',briefingGroup:'',restDays:[],active:true,createdAt:timestamp()});n++;}
+  if(n)mutate('Agregar personal en bloque',n+' trabajadores');closeModal();render();toast(`${n} trabajador(es) agregado(s).`);
+}
+function togglePerson(id){const w=worker(id);if(!w)return;w.active=w.active===false;w.updatedAt=timestamp();mutate(w.active?'Reactivar trabajador':'Desactivar trabajador',w.name);render();toast(w.active?'Trabajador reactivado.':'Trabajador inactivo. Su historial se conserva.');}
+function removePerson(id){
+  const w=worker(id);if(!w)return;
+  const old=state.inspections.some(r=>r.staffId===id)||state.checklists.some(r=>r.staffId===id)||state.briefings.some(r=>r.staffId===id)||Object.values(state.rosters).some(r=>r.staff?.[id]!==undefined);
+  if(old){if(w.active===false){toast('Este trabajador está archivado y conserva su historial.');return;}if(confirm(`«${w.name}» tiene registros. Para conservarlos se desactivará, no se eliminará. ¿Continuar?`))togglePerson(id);return;}
+  if(!confirm(`¿Quitar definitivamente a ${w.name}? No tiene registros históricos.`))return;
+  state.staff=state.staff.filter(p=>p.id!==id);mutate('Eliminar trabajador sin historial',w.name);render();toast('Trabajador quitado.');
+}
+// UNIFORMES: se conservan los registros de la versión anterior.
+function correctionStatus(r){if(!r||r.result==='conforme')return 'No requerida';const issues=r.issues||[],resolved=r.resolvedIssues||[];const n=issues.filter(i=>!resolved.includes(i)).length;return n===0?'Corregido':n<issues.length?'Parcial':'Pendiente';}
+function renderUniform(){
+  setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
+  const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
+  const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
+  const cells=people.map(({worker:w,status})=>{
+    const r=inspection(theDate,w.id),eligible=isScheduled(status);
+    return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
+      <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
+      ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}</div></div>`;
+  }).join('');
+  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}</div>
+   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
+   <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
+   <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Puedes revisar a trabajadores con situación «Trabaja» o «Apoyo».</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
+}
+function markUniformOk(id){const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id))||inspection(theDate,id))return;
+  ensureDay(theDate);state.inspections.push({id:uid(),staffId:id,staffName:w.name,categoryAt:w.category||'',date:theDate,result:'conforme',issues:[],resolvedIssues:[],note:'',createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null});
+  mutate('Inspección conforme',`${w.name} · ${theDate}`);render();toast('Inspección conforme registrada.');}
+function openUniformObserved(id,old=null){
+  const w=worker(id);if(!w)return;
+  selectedPerson=id;editingInspectionId=old?.id||'';uniformIssueSelection=[...(old?.issues||[])];
+  modal(old?'Editar observación':'Registrar incumplimientos',`<div class="callout"><b>${h(w.name)}</b> · ${formatDate(theDate)}. Selecciona los incumplimientos detectados.</div>
+    ${Object.entries(ISSUE_GROUPS).map(([title,items])=>`<div class="stack"><span class="label-group">${h(title)}</span><div class="chips">${items.map(issue=>`<button type="button" class="chip ${uniformIssueSelection.includes(issue)?'selected':''}" data-action="toggle-uniform-issue" data-issue="${h(issue)}">${uniformIssueSelection.includes(issue)?'✓ ':''}${h(issue)}</button>`).join('')}</div></div>`).join('')}
+    <div class="field"><label>Observación opcional</label><textarea id="uniformNote" maxlength="1200">${h(old?.note||'')}</textarea></div>`,
+    `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-uniform-observed">Guardar observación</button>`);
+}
+function saveUniformObserved(){if(!uniformIssueSelection.length){toast('Selecciona al menos un incumplimiento.');return;}
+  const w=worker(selectedPerson),note=$('#uniformNote').value.trim().slice(0,1200);
+  let r=editingInspectionId?state.inspections.find(x=>x.id===editingInspectionId):null;
+  if(r){r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Editar faltantes',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])],note:r.note||''}});r.result='observado';r.issues=[...uniformIssueSelection];r.resolvedIssues=(r.resolvedIssues||[]).filter(x=>r.issues.includes(x));r.note=note;r.updatedAt=timestamp();r.correctedAt=r.resolvedIssues.length===r.issues.length?timestamp():null;}
+  else{if(inspection(theDate,selectedPerson)){toast('Ya hay una inspección registrada.');return;}ensureDay(theDate);r={id:uid(),staffId:selectedPerson,staffName:w?.name||'',categoryAt:w?.category||'',date:theDate,result:'observado',issues:[...uniformIssueSelection],resolvedIssues:[],note,createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null};state.inspections.push(r);}
+  mutate(editingInspectionId?'Editar observación':'Inspección observada',`${w?.name} · ${theDate}`);closeModal();render();toast('Observación registrada.');
+}
+function inspectDetails(r){if(!r)return;const w=worker(r.staffId);selectedPerson=r.staffId;editingInspectionId=r.id;
+  modal('Detalle de inspección',`<div class="callout"><b>${h(w?.name||r.staffName||'Trabajador')}</b> · ${h(formatDate(r.date))}<p>Resultado: ${h(r.result==='conforme'?'Conforme':'Observado')} · ${h(r.voidedAt?'Anulada':correctionStatus(r))}</p></div>
+    ${r.result==='observado'&&!r.voidedAt?`<div class="stack"><div><b>Corrección de incumplimientos</b><p class="muted-note">Marca solo los puntos que hayan sido corregidos. El registro original permanece.</p></div>${(r.issues||[]).map(x=>`<label class="checklist"><input type="checkbox" class="correction" value="${h(x)}" ${(r.resolvedIssues||[]).includes(x)?'checked':''}> ${h(x)}</label>`).join('')}</div>`:'<p>La inspección fue registrada conforme.</p>'}
+    ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}<p class="muted-note">Registro: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
+    `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`<button class="button" data-action="edit-uniform" data-id="${h(r.id)}">Editar faltantes</button><button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
+}
+function saveUniformCorrections(id){const r=state.inspections.find(x=>x.id===id);if(!r)return;
+  r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Correcciones',before:{resolvedIssues:[...(r.resolvedIssues||[])]}});r.resolvedIssues=[...$('#modal').querySelectorAll('.correction:checked')].map(x=>x.value);r.correctedAt=r.resolvedIssues.length===(r.issues||[]).length?timestamp():null;r.updatedAt=timestamp();mutate('Corregir incumplimientos',`${worker(r.staffId)?.name||''} · ${r.date}`);closeModal();render();toast('Corrección actualizada.');
+}
+function deleteUniform(id){const r=state.inspections.find(x=>x.id===id);if(!r||!confirm('¿Anular esta inspección? Se conservará constancia en el historial de acciones.'))return;
+  r.voidedAt=timestamp();r.changes=r.changes||[];r.changes.push({at:r.voidedAt,kind:'Anulación',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])]}});mutate('Anular inspección',`${worker(r.staffId)?.name||r.staffId} · ${r.date} · ${r.result}`);closeModal();render();toast('Inspección anulada.');
+}
+function renderUniformHistory(){
+  setHeading('Historial de uniformes','Consulta revisiones pasadas, observaciones originales y correcciones.');
+  const rows=state.inspections.filter(r=>(!historySearch||worker(r.staffId)?.name.toLocaleLowerCase('es').includes(historySearch.toLocaleLowerCase('es'))||r.staffName?.toLocaleLowerCase('es').includes(historySearch.toLocaleLowerCase('es')))&&(!historyStart||r.date>=historyStart)&&(!historyEnd||r.date<=historyEnd)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt?.localeCompare(a.createdAt||'')).slice(0,500);
+  $('#app').innerHTML=`<div class="panel"><div class="panel-body"><div class="date-row"><div class="field"><label>Buscar trabajador</label><input id="uniformHistorySearch" value="${h(historySearch)}" placeholder="Nombre"></div>${dateField('uniformHistoryFrom',historyStart,'Desde')}${dateField('uniformHistoryTo',historyEnd,'Hasta')}<button class="button" data-action="clear-uniform-filters">Limpiar filtros</button></div></div></div>
+    <div class="panel"><div class="panel-head"><h2>${rows.length} inspecciones mostradas</h2></div><div class="tablewrap"><table class="table"><thead><tr><th>Fecha</th><th>Trabajador</th><th>Resultado original</th><th>Corrección</th><th>Acción</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${h(formatDate(r.date))}</td><td>${h(worker(r.staffId)?.name||r.staffName||'Desconocido')}</td><td>${badge(r.voidedAt?'Anulada':r.result==='conforme'?'Conforme':'Observado',r.voidedAt?'':r.result==='conforme'?'ok':'bad')}</td><td>${h(r.voidedAt?'Anulada':correctionStatus(r))}</td><td><button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver detalle</button></td></tr>`).join('')||`<tr><td colspan="5">No hay inspecciones en este período.</td></tr>`}</tbody></table></div></div>`;
+}
+// IMPLEMENTOS Y PRESENTACIÓN: requisitos versionados por inspección.
+function getChecklistItems(r){return r?.items||[];}
+function checklistSummary(r){const items=getChecklistItems(r);return {total:items.length,reviewed:items.filter(i=>!!i.status).length,good:items.filter(i=>i.status==='ok').length,bad:items.filter(i=>i.status==='bad'&&!i.resolvedAt).length,corrected:items.filter(i=>i.status==='bad'&&i.resolvedAt).length};}
+function renderImplements(){
+  setHeading('Implementos y presentación','Revisión rápida por trabajador. Cada requisito tiene los estados Cumple, No cumple y Sin revisar.');
+  const list=forDate(theDate),working=list.filter(x=>isScheduled(x.status)),full=working.filter(x=>{const s=checklistSummary(checklist(theDate,x.worker.id));return s.total>0&&s.reviewed===s.total;}).length;
+  const pend=working.reduce((n,x)=>n+checklistSummary(checklist(theDate,x.worker.id)).bad,0);
+  $('#app').innerHTML=`<div class="kpis">${kpi(working.length,'Programados y apoyos')}${kpi(full,'Checklists completos','green')}${kpi(working.length-full,'Pendientes de revisión','amber')}${kpi(pend,'Incumplimientos pendientes','red')}</div>
+    <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha del checklist')}<button class="button" data-nav="requirements">Configurar requisitos</button></div></div>
+    <div class="callout">Un punto que no se haya revisado aparecerá como <b>Sin revisar</b>. Nunca lo marcaremos automáticamente como incumplimiento.</div>
+    <div class="panel"><div class="panel-head"><div><h2>Checklist de implementos</h2><p>Requisitos activos: ${state.requirements.filter(r=>r.active!==false).length}</p></div></div>
+    ${list.map(({worker:w,status})=>{const r=checklist(theDate,w.id),s=checklistSummary(r);return `<div class="person-row">${personIdentity(w,statusLabel(status))}<div class="actions">${!isScheduled(status)?badge(statusLabel(status)):badge(r?`${s.reviewed}/${s.total} revisados`:'Sin revisar',r&&s.reviewed===s.total?'ok':'warn')}${s.bad?badge(s.bad+' pendiente(s)','bad'):''}${isScheduled(status)?`<button class="button tiny primary" data-action="open-checklist" data-id="${h(w.id)}">Revisar</button>`:''}</div></div>`;}).join('')||emptyHint('Sin personal','Agrega trabajadores en el módulo Personal.')}</div>`;
+}
+function ensureChecklist(id){let r=checklist(theDate,id);if(r)return r;
+  const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return null;
+  ensureDay(theDate);r={id:uid(),date:theDate,staffId:id,staffName:w.name,categoryAt:w.category||'',items:state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null,quantity:null,resolvedAt:null})),createdAt:timestamp(),updatedAt:timestamp()};
+  state.checklists.push(r);return r;
+}
+function openChecklist(id,scroll=0){const w=worker(id);if(!w)return;
+  const r=checklist(theDate,id),items=r?.items||state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null})),summary=checklistSummary(r||{items});
+  modal(`Implementos · ${w.name}`,`<div class="callout"><b>${h(formatDate(theDate))}</b> · ${summary.reviewed}/${summary.total} revisados · ${summary.bad} pendientes. Los criterios se conservarán como estaban al iniciar esta inspección.</div>
+    ${items.length?items.map(i=>`<div class="check-row"><div><strong>${h(i.label)}</strong><small>${h(i.group)}${i.minQty?` · Mínimo ${i.minQty}`:''}${i.resolvedAt?' · Corregido':''}</small>${i.minQty?`<div class="field" style="max-width:120px;margin-top:7px"><label>Cantidad real</label><input type="number" min="0" max="100" inputmode="numeric" data-check-qty="${h(id)}" data-req="${h(i.reqId)}" value="${i.quantity??''}" placeholder="Cantidad"></div>`:''}</div>
+      <div class="checks"><button class="button tiny ${i.status==='ok'?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="ok">✓ Cumple</button><button class="button tiny ${i.status==='bad'?'selected bad-select':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="bad">× No cumple</button><button class="button tiny ${!i.status?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="none">Sin revisar</button>${i.status==='bad'?`<button class="button tiny" data-action="check-resolve" data-id="${h(id)}" data-req="${h(i.reqId)}">${i.resolvedAt?'↩ Reabrir':'✓ Corregido'}</button>`:''}</div></div>`).join(''):emptyHint('No hay requisitos activos','Agrégalos desde la pantalla Requisitos.')}
+    <p class="muted-note">Marcar «No cumple» conserva el incumplimiento original aunque después se corrija.</p>`,
+    `<button class="button" data-action="close-modal">Cerrar</button><button class="button gold" data-action="check-all" data-id="${h(id)}" ${!items.length?'disabled':''}>Todos cumplen</button>`);
+  $('#modal').scrollTop=scroll;
+}
+function answerChecklist(id,reqId,status){
+  if(!isScheduled(scheduleStatus(theDate,id)))return;
+  const scroll=$('#modal').scrollTop,r=ensureChecklist(id);if(!r)return;
+  const item=r.items.find(x=>x.reqId===reqId);if(!item)return;
+  item.status=status==='none'?null:status;if(item.minQty&&status==='ok')item.quantity=Math.max(item.minQty,Number(item.quantity)||0);item.resolvedAt=null;r.updatedAt=timestamp();mutate('Revisar implemento',`${worker(id)?.name||''} · ${item.label} · ${item.status||'Sin revisar'}`);openChecklist(id,scroll);
+}
+function setChecklistQuantity(id,reqId,value){
+  const r=ensureChecklist(id);if(!r)return;const item=r.items.find(i=>i.reqId===reqId);if(!item||!item.minQty)return;
+  item.quantity=value===''?null:Math.max(0,Math.min(100,Number(value)||0));
+  item.status=item.quantity===null?null:item.quantity>=item.minQty?'ok':'bad';item.resolvedAt=null;r.updatedAt=timestamp();
+  mutate('Cantidad de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.quantity??'Sin revisar'}`);openChecklist(id,$('#modal').scrollTop);
+}
+function resolveChecklist(id,reqId){const scroll=$('#modal').scrollTop,r=checklist(theDate,id),item=r?.items.find(x=>x.reqId===reqId);if(!item||item.status!=='bad')return;
+  item.resolvedAt=item.resolvedAt?null:timestamp();r.updatedAt=timestamp();mutate('Corrección de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.resolvedAt?'Corregido':'Reabierto'}`);openChecklist(id,scroll);
+}
+function markChecklistAll(id){const w=worker(id);if(!w||!confirm(`¿Confirmas que revisaste todos los implementos de ${w.name} y que todos cumplen?`))return;
+  const r=ensureChecklist(id);if(!r)return;for(const item of r.items){item.status='ok';item.resolvedAt=null;}r.updatedAt=timestamp();mutate('Checklist completo conforme',`${w.name} · ${theDate}`);openChecklist(id);toast('Todos los puntos marcados conforme.');
+}
+function renderRequirements(){
+  setHeading('Configurar requisitos','Agrega o modifica los criterios de evaluación sin cambiar los registros antiguos.');
+  $('#app').innerHTML=`<div class="panel"><div class="panel-head"><div><h2>Criterios de inspección</h2><p>Puedes desactivar un requisito y volver a activarlo cuando lo necesites.</p></div><button class="button primary" data-action="add-requirement">+ Nuevo requisito</button></div>
+    ${[...state.requirements].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.group.localeCompare(b.group)).map(r=>`<div class="person-row"><div><div class="person-name">${h(r.label)}</div><div class="person-detail">${h(r.group)}${r.minQty?' · Cantidad mínima: '+r.minQty:''}</div></div><div class="actions">${badge(r.active!==false?'Activo':'Desactivado',r.active!==false?'ok':'')}
+       <button class="button tiny" data-action="edit-requirement" data-id="${h(r.id)}">Editar</button><button class="button tiny" data-action="toggle-requirement" data-id="${h(r.id)}">${r.active!==false?'Desactivar':'Activar'}</button><button class="button tiny" data-action="remove-requirement" data-id="${h(r.id)}">Quitar</button></div></div>`).join('')||emptyHint('Sin requisitos','Agrega los criterios para tu checklist.')}</div>
+    <div class="callout">Los requisitos se copian al checklist de cada trabajador cuando inicia su revisión. Si modificas o desactivas uno, las inspecciones anteriores conservarán el nombre y la evaluación originales.</div>`;
+}
+function openRequirement(r=null){modal(r?'Editar requisito':'Nuevo requisito',`<form id="requirementForm" class="stack"><input type="hidden" name="id" value="${h(r?.id||'')}">
+    <div class="field"><label>Nombre del requisito *</label><input name="label" maxlength="100" value="${h(r?.label||'')}" required placeholder="Ej. Encendedor"></div>
+    <div class="field"><label>Grupo</label><select name="group">${['Uniforme','Presentación personal','Implementos','Otro'].map(x=>`<option ${r?.group===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="field"><label>Cantidad mínima (0 si no aplica)</label><input type="number" name="minQty" min="0" max="100" value="${h(r?.minQty||0)}"></div></form>`,
+    `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-requirement">Guardar requisito</button>`);
+}
+function saveRequirement(){const f=$('#requirementForm');if(!f)return;const label=f.elements.label.value.trim(),id=f.elements.id.value,minQty=Math.max(0,Math.min(100,Number(f.elements.minQty.value)||0));
+  if(!label){toast('Indica el nombre del requisito.');return;}
+  if(state.requirements.some(x=>x.id!==id&&x.label.toLowerCase()===label.toLowerCase()&&x.active!==false)){toast('Ya hay un requisito activo con ese nombre.');return;}
+  const data={label,group:f.elements.group.value,minQty};if(id)Object.assign(state.requirements.find(x=>x.id===id),data,{updatedAt:timestamp()});else state.requirements.push({id:uid(),...data,active:true,createdAt:timestamp()});
+  mutate(id?'Editar requisito':'Crear requisito',label);closeModal();render();toast('Requisito guardado.');
+}
+function toggleRequirement(id){const r=state.requirements.find(x=>x.id===id);if(!r)return;r.active=r.active===false;r.updatedAt=timestamp();mutate(r.active?'Activar requisito':'Desactivar requisito',r.label);render();}
+function removeRequirement(id){const r=state.requirements.find(x=>x.id===id);if(!r)return;
+  if(state.checklists.some(c=>c.items.some(i=>i.reqId===id))){r.active=false;r.updatedAt=timestamp();mutate('Archivar requisito con historial',r.label);render();toast('Requisito archivado: sus evaluaciones históricas permanecen.');return;}
+  if(!confirm(`¿Eliminar «${r.label}»? Todavía no tiene evaluaciones.`))return;
+  state.requirements=state.requirements.filter(x=>x.id!==id);mutate('Eliminar requisito sin historial',r.label);render();
+}
+// BRIEFINGS: asistencia y recepción de la comunicación son hechos independientes.
+function briefPeople(date,group){return forDate(date).filter(({worker:w,status})=>{
+  if(!isScheduled(status))return false;
+  const r=briefing(date,w.id);return r?r.group===group:briefShowAll||!w.briefingGroup||w.briefingGroup===group;
+});}
+function briefStats(date){const ids=new Set(forDate(date).filter(p=>isScheduled(p.status)).map(x=>x.worker.id));const records=state.briefings.filter(r=>r.date===date&&ids.has(r.staffId));
+  return {total:ids.size,present:records.filter(r=>r.presence==='asistio').length,pending:records.filter(r=>r.presence==='mesa'&&!r.informedAt).length,informed:records.filter(r=>r.presence==='mesa'&&r.informedAt).length,absent:records.filter(r=>r.presence==='falta').length,registered:records.length};}
+function renderBrief(){
+  setHeading('Briefings','Control de asistencia de los grupos de 11:00 y 12:00, con seguimiento individual de quienes atienden mesas.');
+  const stats=briefStats(briefDate),people=briefPeople(briefDate,briefGroup),session=state.sessions[briefDate+':'+briefGroup],unassigned=people.filter(x=>!x.worker.briefingGroup&&!briefing(briefDate,x.worker.id)).length;
+  $('#app').innerHTML=`<div class="kpis">${kpi(stats.total,'Programados y apoyos')}${kpi(stats.present,'Asistieron','green')}${kpi(stats.pending,'Por informar','amber')}${kpi(stats.absent,'Faltas injustificadas','red')}</div>
+    <div class="panel"><div class="panel-body date-row">${dateField('briefDate',briefDate,'Fecha del briefing')}
+      <div class="field"><label>Grupo</label><select id="briefGroup"><option value="11" ${briefGroup==='11'?'selected':''}>11:00 a. m.</option><option value="12" ${briefGroup==='12'?'selected':''}>12:00 p. m.</option></select></div>
+      <button class="button" data-action="toggle-brief-all">${briefShowAll?'Solo mi grupo':'Mostrar otros grupos'}</button><button class="button right" data-nav="brief-pending">Ver pendientes de informar (${stats.pending})</button></div></div>
+    ${unassigned?`<div class="callout warn"><b>${unassigned} trabajador(es) aún sin grupo habitual.</b> Puedes registrar su asistencia en el grupo actual y asignarles un grupo desde Personal.</div>`:''}
+    <div class="panel"><div class="panel-head"><div><h2>Registro de ${briefGroup}:00</h2><p>Pulsa una opción por trabajador. «Atendiendo mesa» no es una falta.</p></div>${badge(people.length+' trabajador(es)')}</div>
+    ${people.map(({worker:w,status})=>{const r=briefing(briefDate,w.id);const x=r?.presence||'none';return `<div class="person-row person-brief">
+      <div>${personIdentity(w,`${statusLabel(status)} · ${w.briefingGroup?'Grupo '+w.briefingGroup+':00':'Sin grupo habitual'}`)}<div class="brief-second">${x==='mesa'?(r?.informedAt?'<span style="color:#16724d">✓ Informado personalmente</span>':'Pendiente de comunicación'):x==='asistio'?'Participó presencialmente':x==='falta'?'No asistió sin justificación':'Sin registrar'}</div></div>
+      <div class="brief-actions"><div class="brief-buttons"><button class="button tiny ${x==='asistio'?'selected':''}" data-action="brief-mark" data-id="${h(w.id)}" data-value="asistio">✓ Asistió</button>
+      <button class="button tiny ${x==='mesa'?'selected':''}" data-action="brief-mark" data-id="${h(w.id)}" data-value="mesa">Atendiendo mesa</button>
+      <button class="button tiny ${x==='falta'?'selected bad-select':''}" data-action="brief-mark" data-id="${h(w.id)}" data-value="falta">Falta</button>
+      ${x!=='none'?`<button class="button tiny" data-action="brief-mark" data-id="${h(w.id)}" data-value="none" title="Quitar estado">↺</button>`:''}</div>
+      ${x==='mesa'?`<button class="button tiny ${r?.informedAt?'selected':'primary'}" data-action="brief-inform" data-id="${h(w.id)}">${r?.informedAt?'✓ Informado':'Marcar como informado'}</button>`:''}</div></div>`;}).join('')||emptyHint('Sin trabajadores en este grupo','Asigna los grupos de briefing desde Personal o corrige la programación del día.')}</div>
+    <div class="panel"><div class="panel-head"><div><h2>Tema del briefing</h2><p>Se escribe una sola vez por grupo y fecha.</p></div></div>
+      <div class="panel-body stack"><div class="field"><label for="briefTopics">Indicaciones comunicadas</label><textarea id="briefTopics" maxlength="3000" placeholder="Ej. Comandar correctamente; respetar el horario del almuerzo; funciones de manteles…">${h(session?.topics||'')}</textarea></div>
+      <div class="toolbar"><button class="button primary" data-action="save-topics">Guardar temas</button><span class="small">${session?.updatedAt?'Actualizado: '+h(displayTime(session.updatedAt)):'Sin temas registrados'}</span></div></div></div>`;
+}
+function markBriefing(id,presence){const w=worker(id);if(!w||!isScheduled(scheduleStatus(briefDate,id)))return;
+  ensureDay(briefDate);let r=briefing(briefDate,id);if(presence==='none'){
+    if(r){state.briefings=state.briefings.filter(x=>x.id!==r.id);mutate('Limpiar registro de briefing',`${w.name} · ${briefDate}`);}
+  }else{
+    if(r){r.presence=presence;r.group=briefGroup;if(presence!=='mesa')r.informedAt=null;r.updatedAt=timestamp();}
+    else state.briefings.push({id:uid(),date:briefDate,staffId:id,staffName:w.name,categoryAt:w.category||'',group:briefGroup,presence,informedAt:null,createdAt:timestamp(),updatedAt:timestamp()});
+    mutate('Asistencia de briefing',`${w.name} · ${briefDate} · ${presence}`);
+  }
+  render();
+}
+function markBriefingInformed(id){const r=briefing(briefDate,id);if(!r||r.presence!=='mesa')return;
+  r.informedAt=r.informedAt?null:timestamp();r.updatedAt=timestamp();mutate('Comunicación posterior de briefing',`${worker(id)?.name||r.staffName} · ${briefDate} · ${r.informedAt?'Informado':'Pendiente'}`);render();toast(r.informedAt?'Comunicación personal registrada.':'Comunicación marcada como pendiente.');
+}
+function saveTopics(){const text=$('#briefTopics').value.trim();const key=briefDate+':'+briefGroup;
+  if(!text&&!state.sessions[key]){toast('Escribe los temas antes de guardar.');return;}
+  if(!text){if(!confirm('¿Borrar los temas de este grupo y fecha?'))return;delete state.sessions[key];}
+  else state.sessions[key]={date:briefDate,group:briefGroup,topics:text,updatedAt:timestamp()};
+  mutate('Actualizar temas del briefing',`${briefDate} · ${briefGroup}:00`);render();toast('Temas guardados.');
+}
+function renderPending(){
+  setHeading('Pendientes de informar','Trabajadores que atendían mesas durante el briefing y aún no recibieron las indicaciones.');
+  const pending=state.briefings.filter(x=>x.presence==='mesa'&&!x.informedAt).sort((a,b)=>b.date.localeCompare(a.date));
+  $('#app').innerHTML=`<div class="panel"><div class="panel-head"><div><h2>${pending.length} comunicación(es) pendiente(s)</h2><p>Incluye fechas anteriores para que ninguna indicación quede olvidada.</p></div></div>
+    ${pending.map(r=>`<div class="person-row">${personIdentity(worker(r.staffId)||{name:r.staffName||'Trabajador'},`${formatDate(r.date)} · Grupo ${r.group}:00 · Atendiendo mesa`)}<div class="actions"><button class="button primary tiny" data-action="brief-inform-history" data-id="${h(r.id)}">✓ Ya fue informado</button></div></div>`).join('')||emptyHint('Sin comunicaciones pendientes','Todos los trabajadores registrados como «Atendiendo mesa» ya fueron informados.')}</div>`;
+}
+function markInformedHistory(id){const r=state.briefings.find(x=>x.id===id);if(!r||r.presence!=='mesa')return;r.informedAt=timestamp();r.updatedAt=timestamp();mutate('Comunicación posterior de briefing',`${r.staffName} · ${r.date}`);render();toast('Trabajador informado.');}
+const presenceName=s=>({asistio:'Asistió',mesa:'Atendiendo mesa',falta:'Falta injustificada'})[s]||'Sin registrar';
+function renderBriefHistory(){
+  setHeading('Historial de briefings','Consulta quién asistió, quién atendió mesas y quién recibió después la comunicación.');
+  const rows=state.briefings.filter(r=>(!briefHistorySearch||worker(r.staffId)?.name.toLocaleLowerCase('es').includes(briefHistorySearch.toLocaleLowerCase('es'))||r.staffName?.toLocaleLowerCase('es').includes(briefHistorySearch.toLocaleLowerCase('es')))&&(!historyStart||r.date>=historyStart)&&(!historyEnd||r.date<=historyEnd)).sort((a,b)=>b.date.localeCompare(a.date)||a.group.localeCompare(b.group)).slice(0,500);
+  $('#app').innerHTML=`<div class="panel"><div class="panel-body date-row"><div class="field"><label>Buscar trabajador</label><input id="briefHistorySearch" value="${h(briefHistorySearch)}" placeholder="Nombre"></div>${dateField('briefHistoryFrom',historyStart,'Desde')}${dateField('briefHistoryTo',historyEnd,'Hasta')}<button class="button" data-action="clear-brief-filters">Limpiar filtros</button></div></div>
+    <div class="panel"><div class="panel-head"><h2>${rows.length} registros mostrados</h2></div><div class="tablewrap"><table class="table"><thead><tr><th>Fecha</th><th>Grupo</th><th>Trabajador</th><th>Asistencia presencial</th><th>Comunicación recibida</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${h(formatDate(r.date))}</td><td>${h(r.group)}:00</td><td>${h(worker(r.staffId)?.name||r.staffName||'Desconocido')}</td><td>${badge(presenceName(r.presence),r.presence==='asistio'?'ok':r.presence==='falta'?'bad':'warn')}</td><td>${badge(r.presence==='asistio'?'Sí, presencial':r.informedAt?'Sí, posterior':'Pendiente',r.presence==='asistio'||r.informedAt?'ok':'warn')}</td></tr>`).join('')||'<tr><td colspan="5">No hay registros en este período.</td></tr>'}</tbody></table></div></div>`;
+}
+function renderBriefStats(){
+  setHeading('Estadísticas de briefings','Compara asistencia presencial y comunicación recibida. Los porcentajes se calculan solo sobre registros realizados.');
+  const people=state.staff.filter(w=>w.active!==false||state.briefings.some(r=>r.staffId===w.id));
+  const list=state.briefings.filter(r=>r.date.startsWith(statsMonth)&&(statsPerson==='all'||r.staffId===statsPerson));
+  const present=list.filter(r=>r.presence==='asistio').length;
+  const communicated=list.filter(r=>r.presence==='asistio'||!!r.informedAt).length;
+  const absences=list.filter(r=>r.presence==='falta').length;
+  const monthRows=people.filter(w=>statsPerson==='all'||w.id===statsPerson).map(w=>{
+    const rs=list.filter(r=>r.staffId===w.id),att=rs.filter(r=>r.presence==='asistio').length,com=rs.filter(r=>r.presence==='asistio'||r.informedAt).length;
+    return `<tr><td>${h(w.name)}</td><td>${rs.length}</td><td>${att}</td><td>${percentage(att,rs.length)}</td><td>${percentage(com,rs.length)}</td><td>${rs.filter(r=>r.presence==='mesa'&&!r.informedAt).length}</td></tr>`;
+  }).join('');
+  $('#app').innerHTML=`<div class="panel"><div class="panel-body date-row"><div class="field"><label>Mes</label><input id="statsMonth" type="month" value="${h(statsMonth)}"></div><div class="field"><label>Trabajador</label><select id="statsPerson"><option value="all">Todos los trabajadores</option>${people.map(w=>`<option value="${h(w.id)}" ${w.id===statsPerson?'selected':''}>${h(w.name)}</option>`).join('')}</select></div></div></div>
+  <div class="kpis">${kpi(list.length,'Registros realizados')}${kpi(percentage(present,list.length),'Asistencia presencial','green')}${kpi(percentage(communicated,list.length),'Comunicación recibida','green')}${kpi(absences,'Faltas injustificadas','red')}</div>
+  <div class="panel"><div class="panel-head"><h2>Resultados por trabajador</h2></div><div class="tablewrap"><table class="table"><thead><tr><th>Trabajador</th><th>Registros</th><th>Asistió</th><th>% presencial</th><th>% comunicado</th><th>Por informar</th></tr></thead><tbody>${monthRows||'<tr><td colspan="6">No hay trabajadores.</td></tr>'}</tbody></table></div></div>
+  <div class="callout warn">Los porcentajes usan los registros realizados, no todas las jornadas programadas. Para evaluar cobertura total también debes verificar quiénes siguen «Sin registrar». Una ausencia por atención de mesa no se considera falta.</div>`;
+}
+
+// REPORTES: libros XLSX separados, empaquetados en ZIP si se solicita todo.
+function reportRange(){
+  if(reportType==='day')return {start:reportDate,end:reportDate,label:'Diario'};
+  if(reportType==='week'){const d=fromISO(reportDate);d.setDate(d.getDate()-((d.getDay()+6)%7));const start=dateISO(d);d.setDate(d.getDate()+6);return {start,end:dateISO(d),label:'Semanal'};}
+  const [y,m]=reportMonth.split('-').map(Number);return {start:`${y}-${pad(m)}-01`,end:dateISO(new Date(y,m,0,12)),label:'Mensual'};
+}
+function periodHTML(){const p=reportRange();return `<div class="period"><div class="field"><label>Período</label><select id="reportType"><option value="day" ${reportType==='day'?'selected':''}>Diario</option><option value="week" ${reportType==='week'?'selected':''}>Semanal</option><option value="month" ${reportType==='month'?'selected':''}>Mensual</option></select></div>
+    ${reportType==='month'?`<div class="field"><label>Mes</label><input type="month" id="reportMonth" value="${h(reportMonth)}"></div>`:`${dateField('reportDate',reportDate,'Fecha')}`}
+    <div class="small">Desde <b>${h(formatDate(p.start))}</b> hasta <b>${h(formatDate(p.end))}</b></div></div>`;}
+function renderExport(module){
+  reportModule=module;
+  setHeading('Reportes Excel',`Descarga ${module==='uniform'?'los controles de uniformes e implementos':'las asistencias de briefings'} en un libro independiente o todos los reportes en un ZIP.`);
+  $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Seleccionar fechas</h2></div><div class="panel-body">${periodHTML()}</div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Libro de uniformes</h2><p>Uniformes, implementos, personas, pendientes y programación.</p></div></div><div class="panel-body"><button class="button primary block" data-action="export-uniform">↓ Descargar Uniformes.xlsx</button></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Libro de briefings</h2><p>Asistencia, comunicación posterior, pendientes y temas.</p></div></div><div class="panel-body"><button class="button primary block" data-action="export-brief">↓ Descargar Briefings.xlsx</button></div></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Descargar todo junto</h2><p>Un archivo ZIP que contiene dos libros Excel independientes. No se mezclan los datos.</p></div></div><div class="panel-body"><button class="button gold" data-action="export-all">↓ Descargar ambos libros (.zip)</button></div></div>
+    <div class="callout">Los Excel son reportes para consultar o compartir, no archivos de guardado. Para recuperar registros y seguir editándolos, utiliza el respaldo JSON.</div>`;
+}
+function identityOf(record){const w=worker(record.staffId);return w?.name||record.staffName||'Trabajador no encontrado';}
+function workbookUniform(start,end,label){
+  const ir=state.inspections.filter(r=>r.date>=start&&r.date<=end&&!r.voidedAt).sort((a,b)=>a.date.localeCompare(b.date));
+  const cr=state.checklists.filter(r=>r.date>=start&&r.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
+  const scheduled=[];
+  for(const [date,roster] of Object.entries(state.rosters)){if(date<start||date>end)continue;for(const [id,status] of Object.entries(roster.staff||{}))scheduled.push({date,id,status});}
+  const unique=[...new Set([...ir.map(x=>x.staffId),...cr.map(x=>x.staffId),...scheduled.map(x=>x.id)])];
+  const personRows=[['Trabajador','Categoría','Inspecciones','Conformes','Observadas','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
+  for(const id of unique){const i=ir.filter(x=>x.staffId===id),c=cr.filter(x=>x.staffId===id),d=scheduled.filter(x=>x.id===id&&isScheduled(x.status));
+    personRows.push([worker(id)?.name||i[0]?.staffName||c[0]?.staffName||'Desconocido',worker(id)?.category||'',i.length,i.filter(x=>x.result==='conforme').length,i.filter(x=>x.result==='observado').length,percentage(i.length,d.length),c.length,c.reduce((n,r)=>n+checklistSummary(r).reviewed,0),c.reduce((n,r)=>n+checklistSummary(r).bad,0)]);
+  }
+  const inspectionRows=[['Fecha','Trabajador','Categoría registrada','Resultado original','Incumplimientos','Pendientes','Corrección','Observaciones','Creado el','Última modificación']];
+  ir.forEach(r=>inspectionRows.push([r.date,identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',r.result==='conforme'?'Conforme':'Observado',(r.issues||[]).join(' | '),(r.issues||[]).filter(x=>!(r.resolvedIssues||[]).includes(x)).join(' | '),correctionStatus(r),r.note||'',r.createdAt||'',r.updatedAt||'']));
+  const checks=[['Fecha','Trabajador','Categoría registrada','Requisito','Grupo','Mínimo','Estado inicial','Corrección','Registrado el']];
+  cr.forEach(r=>(r.items||[]).forEach(i=>checks.push([r.date,identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',i.label,i.group,i.minQty||'',i.status==='ok'?'Cumple':i.status==='bad'?'No cumple':'Sin revisar',i.status==='bad'?(i.resolvedAt?'Corregido':'Pendiente'):'—',r.createdAt||''])));
+  const pending=[checks[0],...checks.slice(1).filter(r=>r[6]==='No cumple'&&r[7]==='Pendiente')];
+  const rosterRows=[['Fecha','Trabajador','Situación programada','Uniforme','Implementos']];
+  scheduled.sort((a,b)=>a.date.localeCompare(b.date));scheduled.forEach(r=>{const i=inspection(r.date,r.id),c=checklist(r.date,r.id);const s=checklistSummary(c);rosterRows.push([r.date,worker(r.id)?.name||'Desconocido',statusLabel(r.status),i?(i.result==='conforme'?'Conforme':'Observado'):'Sin revisar',c?`${s.reviewed}/${s.total} revisados`:'Sin revisar']);});
+  const sum=[['LAS FLORES · CONTROL DE UNIFORMES'],['Período',label],['Desde',start],['Hasta',end],['Generado el',displayTime(timestamp())],[],['INDICADOR','VALOR'],
+    ['Inspecciones de uniformes',ir.length],['Conformes',ir.filter(r=>r.result==='conforme').length],['Observadas',ir.filter(r=>r.result==='observado').length],['Checklists de implementos',cr.length],['Requisitos evaluados',checks.length-1],['Incumplimientos pendientes en implementos',pending.length-1],['Días con programación confirmada',new Set(scheduled.map(x=>x.date)).size],[],['NOTAS'],['Sin revisar no equivale a No cumple.'],['La categoría histórica se conserva cuando se registró en la app actualizada.'],['La programación incluye solo fechas expresamente guardadas.']];
+  const anuladas=[['Fecha','Trabajador','Resultado original','Motivo','Anulada el'],...state.inspections.filter(r=>r.date>=start&&r.date<=end&&r.voidedAt).map(r=>[r.date,identityOf(r),r.result,'Anulación manual',r.voidedAt])];
+  return makeXlsx([{name:'Resumen',rows:sum},{name:'Por trabajador',rows:personRows,headerRow:1},{name:'Uniformes',rows:inspectionRows,headerRow:1,dateCols:[0]},{name:'Implementos',rows:checks,headerRow:1,dateCols:[0]},{name:'Pendientes',rows:pending,headerRow:1,dateCols:[0]},{name:'Programación',rows:rosterRows,headerRow:1,dateCols:[0]},{name:'Anuladas',rows:anuladas,headerRow:1,dateCols:[0]}]);
+}
+function workbookBrief(start,end,label){
+  const records=state.briefings.filter(r=>r.date>=start&&r.date<=end).sort((a,b)=>a.date.localeCompare(b.date)||a.group.localeCompare(b.group));
+  const sessionRecords=Object.values(state.sessions).filter(r=>r.date>=start&&r.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
+  const people=[...new Set(records.map(r=>r.staffId))];
+  const personRows=[['Trabajador','Asistió','Atendiendo mesa','Informado posteriormente','Faltas injustificadas','Comunicación recibida']];
+  people.forEach(id=>{const rs=records.filter(r=>r.staffId===id);personRows.push([worker(id)?.name||rs[0]?.staffName||'Desconocido',rs.filter(r=>r.presence==='asistio').length,rs.filter(r=>r.presence==='mesa').length,rs.filter(r=>r.presence==='mesa'&&r.informedAt).length,rs.filter(r=>r.presence==='falta').length,percentage(rs.filter(r=>r.presence==='asistio'||r.informedAt).length,rs.length)]);});
+  const attendance=[['Fecha','Grupo','Trabajador','Categoría registrada','Asistencia','Recibió comunicación','Informado posteriormente el','Registrado el','Última modificación']];
+  records.forEach(r=>attendance.push([r.date,r.group+':00',identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',presenceName(r.presence),r.presence==='asistio'||r.informedAt?'Sí':'No',r.informedAt||'',r.createdAt||'',r.updatedAt||'']));
+  const pending=[attendance[0],...attendance.slice(1).filter(r=>r[4]==='Atendiendo mesa'&&r[5]==='No')];
+  const topics=[['Fecha','Grupo','Temas comunicados','Última actualización'],...sessionRecords.map(r=>[r.date,r.group+':00',r.topics,r.updatedAt||''])];
+  const program=[['Fecha','Trabajador','Situación programada','Estado de briefing']];
+  Object.entries(state.rosters).filter(([d])=>d>=start&&d<=end).forEach(([date,r])=>Object.entries(r.staff||{}).forEach(([id,status])=>{
+    const b=briefing(date,id);program.push([date,worker(id)?.name||b?.staffName||'Desconocido',statusLabel(status),b?presenceName(b.presence):isScheduled(status)?'Sin registrar':'No aplica']);
+  }));
+  const sum=[['LAS FLORES · CONTROL DIARIO DE BRIEFINGS'],['Período',label],['Desde',start],['Hasta',end],['Generado el',displayTime(timestamp())],[],['INDICADOR','VALOR'],
+    ['Registros de asistencia',records.length],['Asistió presencialmente',records.filter(r=>r.presence==='asistio').length],['Atendiendo mesa',records.filter(r=>r.presence==='mesa').length],['Informados posteriormente',records.filter(r=>r.presence==='mesa'&&r.informedAt).length],['Comunicaciones pendientes',pending.length-1],['Faltas injustificadas',records.filter(r=>r.presence==='falta').length],['Sesiones con temas registrados',sessionRecords.length],[],['NOTAS'],['Atender una mesa no es una falta injustificada.'],['La asistencia presencial y la comunicación recibida se contabilizan por separado.'],['Un registro sin revisar no equivale a una falta.']];
+  return makeXlsx([{name:'Resumen',rows:sum},{name:'Por trabajador',rows:personRows,headerRow:1},{name:'Asistencias',rows:attendance,headerRow:1,dateCols:[0]},{name:'Por informar',rows:pending,headerRow:1,dateCols:[0]},{name:'Temas',rows:topics,headerRow:1,dateCols:[0]},{name:'Programación',rows:program,headerRow:1,dateCols:[0]}]);
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),45000);}
+async function exportReport(which){
+  if(dirty&&!confirm('Tienes cambios sin guardar. El reporte incluirá lo que ves, pero esos cambios podrían perderse al cerrar. ¿Continuar?'))return;
+  const p=reportRange(),suffix=`${p.label}_${p.start}_${p.end}`;
+  try{
+    if(which==='uniform'){downloadBlob(workbookUniform(p.start,p.end,p.label),`Las_Flores_Uniformes_${suffix}.xlsx`);}
+    else if(which==='brief'){downloadBlob(workbookBrief(p.start,p.end,p.label),`Las_Flores_Briefings_${suffix}.xlsx`);}
+    else{
+      const one=new Uint8Array(await workbookUniform(p.start,p.end,p.label).arrayBuffer());
+      const two=new Uint8Array(await workbookBrief(p.start,p.end,p.label).arrayBuffer());
+      downloadBlob(new Blob([zipFiles([[`Las_Flores_Uniformes_${suffix}.xlsx`,one],[`Las_Flores_Briefings_${suffix}.xlsx`,two]])],{type:'application/zip'}),`Las_Flores_Reportes_${suffix}.zip`);
+    }
+    toast('Reporte generado. Revisa la carpeta de descargas.');
+  }catch(error){console.error(error);toast('Error al crear el Excel. Revisa la consola del navegador.');}
+}
+// RESPALDOS: almacenamiento local principal + puntos de recuperación en IndexedDB.
+let dbPromise;
+function snapshotDb(){
+  if(!('indexedDB' in window))return Promise.reject(Error('IndexedDB no disponible'));
+  if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{
+    const request=indexedDB.open('LasFlores_Recuperacion',1);
+    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('snapshots'))request.result.createObjectStore('snapshots',{keyPath:'id',autoIncrement:true});};
+    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||Error('Error IndexedDB'));
+  }).catch(e=>{dbPromise=null;throw e;});return dbPromise;
+}
+async function createSnapshot(data,force=false){
+  if(!data)return;
+  try{const db=await snapshotDb();await new Promise((resolve,reject)=>{
+    const tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').add({at:timestamp(),data,forced:force});
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+  // Mantener los últimos 25 puntos de recuperación.
+  const points=await listSnapshots();if(points.length>25){await new Promise((resolve,reject)=>{const tx=db.transaction('snapshots','readwrite');points.slice(25).forEach(p=>tx.objectStore('snapshots').delete(p.id));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+  }catch(e){
+    // Si IndexedDB está bloqueado, se intenta una copia local compacta.
+    try{const key='lasflores.control.recovery.v2',arr=JSON.parse(localStorage.getItem(key)||'[]');arr.unshift({id:'local-'+Date.now(),at:timestamp(),data,forced:force});localStorage.setItem(key,JSON.stringify(arr.slice(0,3)));}catch(_){/* se mantiene la base principal */}
+  }
+}
+async function listSnapshots(){
+  try{const db=await snapshotDb();const arr=await new Promise((resolve,reject)=>{const r=db.transaction('snapshots','readonly').objectStore('snapshots').getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});return arr.sort((a,b)=>b.id-a.id);}
+  catch(e){try{return JSON.parse(localStorage.getItem('lasflores.control.recovery.v2')||'[]');}catch(_){return [];}}
+}
+async function restoreSnapshot(id){const snapshots=await listSnapshots(),snap=snapshots.find(s=>String(s.id)===String(id));if(!snap)return toast('No se encontró el punto de recuperación.');
+  if(!confirm(`¿Restaurar el estado del ${displayTime(snap.at)}? Los cambios actuales se reemplazarán. Descarga un respaldo antes si lo necesitas.`))return;
+  try{if(savedJSON)await createSnapshot(savedJSON,true);const restored=normalize(JSON.parse(snap.data));state=restored;if(persist(true)){closeModal();render();toast('Punto de recuperación restaurado.');}}
+  catch(e){console.error(e);toast('No se pudo restaurar ese punto de recuperación.');}
+}
+function exportBackup(){
+  if(dirty&&!persist())return;
+  if(!savedJSON&&!persist(true))return;
+  state.backupAt=timestamp();if(!persist(true))return;
+  downloadBlob(new Blob([JSON.stringify(state,null,2)],{type:'application/json;charset=utf-8'}),`Las_Flores_Respaldo_${dateISO()}.json`);render();toast('Respaldo JSON descargado.');
+}
+async function importBackup(file){if(!file)return;
+  if(file.size>30*1024*1024)return toast('El respaldo supera el límite de 30 MB.');
+  try{
+    const parsed=normalize(JSON.parse(await file.text()));
+    if(!confirm(`¿Restaurar este respaldo? Contiene ${parsed.staff.length} trabajadores, ${parsed.inspections.length} inspecciones y ${parsed.briefings.length} registros de briefing. Reemplazará los datos actuales.`))return;
+    if(savedJSON)await createSnapshot(savedJSON,true);
+    state=parsed;if(!persist(true))return;render();toast('Respaldo restaurado.');
+  }catch(error){console.error(error);toast('Archivo JSON inválido o incompatible. No se cambió la base de datos.');}
+  finally{$('#backupFile').value='';}
+}
+async function renderRecoveryList(){const element=$('#recoveryList');if(!element)return;
+  const values=await listSnapshots();if(!$('#recoveryList'))return;
+  $('#recoveryList').innerHTML=values.length?values.slice(0,10).map(v=>`<div class="person-row"><div><b>${h(displayTime(v.at))}</b><div class="small">Copia interna · ${v.forced?'Manual':'Automática'}</div></div><button class="button tiny" data-action="restore-snapshot" data-id="${h(v.id)}">Restaurar</button></div>`).join(''):emptyHint('No hay copias internas','Las copias de recuperación aparecerán después de guardar registros.');
+}
+function renderSettings(){
+  setHeading('Guardado y respaldos','Elige autoguardado o guardado manual, crea puntos de recuperación y descarga un JSON para proteger tus datos.');
+  $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Modo de guardado</h2>${badge(prefs.autoSave?'Automático':'Manual',prefs.autoSave?'ok':'warn')}</div>
+    <div class="panel-body stack"><div class="fields"><div class="field"><label>Cómo guardar</label><select id="saveMode"><option value="auto" ${prefs.autoSave?'selected':''}>Guardar automáticamente cada cambio</option><option value="manual" ${!prefs.autoSave?'selected':''}>Guardar solamente cuando yo lo indique</option></select></div><div class="field"><label>Estado actual</label><input readonly value="${saveError?'ERROR: '+h(saveError):dirty?'Cambios sin guardar':'Todos los cambios confirmados guardados'}"></div></div>
+    <div class="toolbar"><button class="button primary" data-action="manual-save" ${!dirty?'disabled':''}>Guardar cambios ahora</button><span class="small">En modo manual recibirás una advertencia si intentas cerrar con cambios pendientes.</span></div></div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, uniformes, implementos, briefings y configuraciones de requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Copias internas de recuperación</h2><p>Guardadas en el navegador, separadas de la base principal.</p></div></div><div class="panel-body stack"><p class="small">Se crea una copia periódica y puedes crear una manualmente. No reemplazan al respaldo JSON externo.</p><button class="button block" data-action="snapshot-now">+ Crear punto de recuperación</button><div id="recoveryList">Cargando copias…</div></div></div></div>
+    <div class="callout warn"><b>Importante:</b> los datos locales y las copias internas pueden perderse si se borran los datos del navegador, se cambia de navegador o se avería la tablet. Descarga regularmente el respaldo JSON y guárdalo fuera del dispositivo.</div>
+    <div class="callout">La versión anterior de Uniformes se importa automáticamente cuando es accesible en el mismo navegador y origen. Si abriste el HTML desde otra ubicación y no aparecen los datos antiguos, exporta el JSON desde la aplicación anterior e impórtalo aquí.</div>`;
+  renderRecoveryList();
+}
+  const TE=new TextEncoder();function utf8(x){return TE.encode(x);}
+  function xml(s){return String(s==null?'':s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g,'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
+  function excelCol(c){let s='';for(c++;c;c=Math.floor((c-1)/26))s=String.fromCharCode(65+(c-1)%26)+s;return s;}
+  function excelSerial(d){let date=fromISO(d);return Math.round((Date.UTC(date.getFullYear(),date.getMonth(),date.getDate())-Date.UTC(1899,11,30))/864e5);}
+  function crc32(buf){let crc=0xffffffff;for(let byte of buf){crc^=byte;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return(crc^0xffffffff)>>>0;}
+  function zipFiles(entries){let loc=[],cent=[],offset=0;const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];for(let [filename,value] of entries){let name=utf8(filename),bytes=typeof value==='string'?utf8(value):value,crc=crc32(bytes);let local=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(bytes.length),...u32(bytes.length),...u16(name.length),...u16(0),...name]);loc.push(local,bytes);cent.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(bytes.length),...u32(bytes.length),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset),...name]));offset+=local.length+bytes.length;}let centralSize=cent.reduce((a,b)=>a+b.length,0),end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(entries.length),...u16(entries.length),...u32(centralSize),...u32(offset),...u16(0)]),all=[...loc,...cent,end],total=all.reduce((a,b)=>a+b.length,0),out=new Uint8Array(total),p=0;for(let a of all){out.set(a,p);p+=a.length;}return out;}
+  function worksheetXml(sh){let rows=sh.rows,maxCol=Math.max(1,...rows.map(x=>x.length)),h=sh.headerRow||0;const cls=(v,c,row)=>{if(v==null||v==='')return '';let ref=excelCol(c)+(row+1),style=(row===h-1&&h?' s="1"':row===0&&!h?' s="2"':'');if(typeof v==='number'&&Number.isFinite(v))return `<c r="${ref}"${style}><v>${v}</v></c>`;if(sh.dateCols?.includes(c)&&/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return `<c r="${ref}" s="3"><v>${excelSerial(v)}</v></c>`;return `<c r="${ref}" t="inlineStr"${style}><is><t xml:space="preserve">${xml(v)}</t></is></c>`;};let dataRows=rows.map((row,i)=>`<row r="${i+1}"${i===h-1?' ht="25" customHeight="1"':''}>${row.map((v,j)=>cls(v,j,i)).join('')}</row>`).join('');let widths=Array.from({length:maxCol},(_,i)=>{let longest=Math.max(...rows.slice(0,80).map(r=>String(r[i]??'').length),10);return `<col min="${i+1}" max="${i+1}" width="${Math.min(46,Math.max(13,longest+3))}" customWidth="1"/>`;}).join('');return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0">${h?`<pane ySplit="${h}" topLeftCell="A${h+1}" activePane="bottomLeft" state="frozen"/>`:''}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="16"/><cols>${widths}</cols><sheetData>${dataRows}</sheetData>${h&&rows.length>h?`<autoFilter ref="A${h}:${excelCol(maxCol-1)}${rows.length}"/>`:''}<pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/></worksheet>`;}
+  function makeXlsx(sheets){const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships';let entries=[];let types=`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;entries.push(['[Content_Types].xml',types],['_rels/.rels',`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rel}/officeDocument" Target="xl/workbook.xml"/></Relationships>`]);entries.push(['xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="${ns}" xmlns:r="${rel}"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${xml(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`]);entries.push(['xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="${rel}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="${rel}/styles" Target="styles.xml"/></Relationships>`]);entries.push(['xl/styles.xml',`<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="${ns}"><fonts count="3"><font><sz val="11"/><name val="Aptos"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Aptos"/></font><font><b/><sz val="15"/><color rgb="FF123D36"/><name val="Aptos Display"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF17584A"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`]);sheets.forEach((s,i)=>entries.push([`xl/worksheets/sheet${i+1}.xml`,worksheetXml(s)]));return new Blob([zipFiles(entries)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});}
+
+// MODALES, EVENTOS Y ARRANQUE.
+function modal(title,body,footer=''){
+  $('#modal').innerHTML=`<div class="modal-head"><h2 id="modalHeading">${h(title)}</h2><button class="close" data-action="close-modal" aria-label="Cerrar">×</button></div><div class="modal-body">${body}</div><div class="modal-foot">${footer||'<button class="button" data-action="close-modal">Cerrar</button>'}</div>`;
+  $('#modalLayer').classList.add('open');$('#modalLayer').setAttribute('aria-hidden','false');
+}
+function closeModal(){$('#modalLayer').classList.remove('open');$('#modalLayer').setAttribute('aria-hidden','true');$('#modal').innerHTML='';}
+function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
+  switch(action){
+    case 'home':navigate('home');break;
+    case 'settings':navigate('settings');break;
+    case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'add-person':openPerson();break;
+    case 'edit-person':openPerson(worker(id));break;
+    case 'save-person':savePerson();break;
+    case 'bulk-person':openBulk();break;
+    case 'save-bulk':saveBulk();break;
+    case 'toggle-person':togglePerson(id);break;
+    case 'remove-person':removePerson(id);break;
+    case 'uniform-ok':markUniformOk(id);break;
+    case 'uniform-bad':openUniformObserved(id);break;
+    case 'toggle-uniform-issue':{
+      const issue=el.dataset.issue;uniformIssueSelection=uniformIssueSelection.includes(issue)?uniformIssueSelection.filter(x=>x!==issue):[...uniformIssueSelection,issue];
+      el.classList.toggle('selected',uniformIssueSelection.includes(issue));el.textContent=(uniformIssueSelection.includes(issue)?'✓ ':'')+issue;break;
+    }
+    case 'save-uniform-observed':saveUniformObserved();break;
+    case 'detail-inspection':inspectDetails(state.inspections.find(r=>r.id===id));break;
+    case 'save-uniform-corrections':saveUniformCorrections(id);break;
+    case 'edit-uniform':{const r=state.inspections.find(x=>x.id===id);if(!r)return;theDate=r.date;openUniformObserved(r.staffId,r);break;}
+    case 'convert-uniform':{const r=state.inspections.find(x=>x.id===id);if(!r||!confirm('¿Cambiar esta inspección conforme a observada por error de registro?'))return;theDate=r.date;openUniformObserved(r.staffId,r);break;}
+    case 'delete-uniform':deleteUniform(id);break;
+    case 'clear-uniform-filters':historySearch=historyStart=historyEnd='';render();break;
+    case 'open-checklist':openChecklist(id);break;
+    case 'check-answer':answerChecklist(id,el.dataset.req,el.dataset.value);break;
+    case 'check-resolve':resolveChecklist(id,el.dataset.req);break;
+    case 'check-all':markChecklistAll(id);break;
+    case 'add-requirement':openRequirement();break;
+    case 'edit-requirement':openRequirement(state.requirements.find(r=>r.id===id));break;
+    case 'save-requirement':saveRequirement();break;
+    case 'toggle-requirement':toggleRequirement(id);break;
+    case 'remove-requirement':removeRequirement(id);break;
+    case 'toggle-brief-all':briefShowAll=!briefShowAll;render();break;
+    case 'brief-mark':markBriefing(id,el.dataset.value);break;
+    case 'brief-inform':markBriefingInformed(id);break;
+    case 'brief-inform-history':markInformedHistory(id);break;
+    case 'save-topics':saveTopics();break;
+    case 'clear-brief-filters':briefHistorySearch=historyStart=historyEnd='';render();break;
+    case 'export-uniform':exportReport('uniform');break;
+    case 'export-brief':exportReport('brief');break;
+    case 'export-all':exportReport('all');break;
+    case 'backup-download':exportBackup();break;
+    case 'backup-import':$('#backupFile').click();break;
+    case 'snapshot-now':if(dirty&&!persist())return;createSnapshot(savedJSON,true).then(()=>{renderRecoveryList();toast('Punto de recuperación creado.');});break;
+    case 'restore-snapshot':restoreSnapshot(id);break;
+    case 'close-modal':closeModal();break;
+  }
+}
+document.addEventListener('click',event=>{
+  const nav=event.target.closest('[data-nav]');if(nav){navigate(nav.dataset.nav);return;}
+  const action=event.target.closest('[data-action]');if(action)handleAction(action);
+});
+document.addEventListener('change',event=>{
+  const x=event.target;
+  if(x.matches('[data-schedule]')){updateSchedule(staffDate,x.dataset.schedule,x.value);return;}
+  if(x.id==='staffDate'){staffDate=x.value||dateISO();render();return;}
+  if(x.id==='uniformDate'){theDate=x.value||dateISO();render();return;}
+  if(x.id==='briefDate'){briefDate=x.value||dateISO();render();return;}
+  if(x.id==='briefGroup'){briefGroup=x.value;render();return;}
+  if(x.id==='uniformHistoryFrom'||x.id==='briefHistoryFrom'){historyStart=x.value;render();return;}
+  if(x.id==='uniformHistoryTo'||x.id==='briefHistoryTo'){historyEnd=x.value;render();return;}
+  if(x.id==='reportType'){reportType=x.value;render();return;}
+  if(x.id==='reportDate'){reportDate=x.value;render();return;}
+  if(x.id==='reportMonth'){reportMonth=x.value;render();return;}
+  if(x.matches('[data-check-qty]')){setChecklistQuantity(x.dataset.checkQty,x.dataset.req,x.value);return;}
+  if(x.id==='statsMonth'){statsMonth=x.value||dateISO().slice(0,7);render();return;}
+  if(x.id==='statsPerson'){statsPerson=x.value;render();return;}
+  if(x.id==='saveMode'){setAutoSave(x.value==='auto');return;}
+});
+document.addEventListener('input',event=>{
+  const x=event.target;
+  if(x.id==='staffSearch'){
+    staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
+  }
+  if(x.id==='uniformHistorySearch'){
+    historySearch=x.value;render();const input=$('#uniformHistorySearch');input?.focus();input?.setSelectionRange(historySearch.length,historySearch.length);
+  }
+  if(x.id==='briefHistorySearch'){
+    briefHistorySearch=x.value;render();const input=$('#briefHistorySearch');input?.focus();input?.setSelectionRange(briefHistorySearch.length,briefHistorySearch.length);
+  }
+});
+document.addEventListener('submit',event=>event.preventDefault());
+$('#backupFile').addEventListener('change',event=>importBackup(event.target.files?.[0]));
+$('#modalLayer').addEventListener('click',event=>{if(event.target===$('#modalLayer'))closeModal();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#modalLayer').classList.contains('open'))closeModal();});
+// El botón manual está disponible desde cualquier módulo, sin regresar al menú principal.
+$('#saveIndicator').insertAdjacentHTML('afterend','<button id="globalSave" class="button tiny gold" type="button" data-action="manual-save" hidden>Guardar cambios</button>');
+const originalIndicator=updateSaveIndicator;
+updateSaveIndicator=function(){originalIndicator();const b=$('#globalSave');if(b){b.hidden=prefs.autoSave||!dirty;b.disabled=!dirty;b.textContent='Guardar cambios';}};
+load();render();
+// Actualizaciones PWA: publicar código nuevo NO envía ni modifica los registros guardados.
+// La nueva versión se activa al confirmarlo y solo si no hay cambios pendientes.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  let pwaRegistration=null, pwaWaiting=null, pwaApproved=false, pwaDismissed=false;
+  const banner=document.getElementById('pwaUpdate');
+  function showPwaUpdate(worker){
+    if(!worker || !navigator.serviceWorker.controller)return;
+    pwaWaiting=worker;
+    if(!pwaDismissed){banner.hidden=false;banner.classList.add('show');}
+  }
+  function watchPwa(reg){
+    if(reg.waiting)showPwaUpdate(reg.waiting);
+    reg.addEventListener('updatefound',()=>{
+      const w=reg.installing;if(!w)return;
+      w.addEventListener('statechange',()=>{if(w.state==='installed' && navigator.serviceWorker.controller)showPwaUpdate(w);});
+    });
+  }
+  document.getElementById('pwaDismissUpdate').addEventListener('click',()=>{
+    pwaDismissed=true;banner.hidden=true;banner.classList.remove('show');
+  });
+  document.getElementById('pwaInstallUpdate').addEventListener('click',()=>{
+    if(dirty){toast('Primero pulsa «Guardar cambios» para evitar perder información.');return;}
+    if(!pwaWaiting){toast('No hay una actualización pendiente.');return;}
+    pwaApproved=true;
+    document.getElementById('pwaInstallUpdate').disabled=true;
+    document.getElementById('pwaInstallUpdate').textContent='Actualizando…';
+    pwaWaiting.postMessage({type:'SKIP_WAITING'});
+  });
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(pwaApproved&&!dirty)location.reload();
+  });
+  window.addEventListener('online',()=>{pwaRegistration?.update().catch(()=>{});});
+  navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
+    .then(reg=>{pwaRegistration=reg;watchPwa(reg);reg.update().catch(()=>{});})
+    .catch(error=>console.warn('No se pudo registrar el modo offline:',error));
+  setInterval(()=>{if(navigator.onLine)pwaRegistration?.update().catch(()=>{});},60*60*1000);
+}
+})();
+</script>
+</body>
+</html>
