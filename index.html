@@ -92,7 +92,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0001 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0002 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -152,7 +152,23 @@ function normalize(data){
   if(data.app!=='lasflores-uniformes'&&data.app!=='lasflores-control')throw Error('El respaldo no pertenece a Las Flores');
   const base=empty();
   const next={...base,...data,app:'lasflores-control',version:2};
-  next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false}));
+  next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false,
+    scheduleMode:x.scheduleMode==='weekend'?'weekend':'regular',
+    vacations:Array.isArray(x.vacations)?x.vacations.filter(v=>v&&/^\d{4}-\d{2}-\d{2}$/.test(v.start||'')&&/^\d{4}-\d{2}-\d{2}$/.test(v.end||'')&&v.start<=v.end).map(v=>({id:v.id||uid(),start:v.start,end:v.end,note:String(v.note||'').slice(0,300),createdAt:v.createdAt||timestamp()})):[]
+  }));
+  // En versiones anteriores rosters.staff almacenaba copias de la programación habitual.
+  // Conservar las excepciones identificables, pero no congelar nuevos horarios o vacaciones.
+  next.rosters=Object.fromEntries(Object.entries(next.rosters).map(([date,roster])=>{
+    if(!roster||typeof roster!=='object')return [date,{staff:{},overrides:{}}];
+    if(roster.overrides&&typeof roster.overrides==='object')return [date,roster];
+    const overrides={};
+    for(const [id,status] of Object.entries(roster.staff||{})){
+      const w=next.staff.find(x=>x.id===id);
+      const oldBase=w?.restDays?.includes(fromISO(date).getDay())?'rest':'working';
+      if(w&&status!==oldBase)overrides[id]=status;
+    }
+    return [date,{...roster,overrides}];
+  }));
   next.functionChecks=Array.isArray(data.functionChecks)?data.functionChecks:[];
   next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
   next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
@@ -182,7 +198,7 @@ function normalize(data){
 }
 let state, savedJSON='', prefs={autoSave:true},dirty=false,saveError='',storageAvailable=true;
 let view='home',theDate=dateISO(),staffDate=dateISO(),briefDate=dateISO(),briefGroup='11';
-let selectedPerson='', uniformIssueSelection=[],editingInspectionId='';
+let selectedPerson='', uniformIssueSelection=[],editingInspectionId='',showUnscheduledUniform=false;
 let incidentSearch='',incidentFilterCategory='all',incidentFilterStatus='all',incidentFilterArea='all',incidentFilterFrom='',incidentFilterTo='',incidentStatsMonth=dateISO().slice(0,7);
 let reportModule='uniform',reportType='week',reportDate=dateISO(),reportMonth=dateISO().slice(0,7);
 let staffSearch='',historySearch='',briefHistorySearch='',historyStart='',historyEnd='',toastTimer,statsMonth=dateISO().slice(0,7),statsPerson='all',briefShowAll=false,deliverySearch='',deliveryMaterial='all',deliveryPerson='all',deliveryStart='',deliveryEnd='',uniformNoteDraft='',uniformNoteDraftFor='';
@@ -244,22 +260,42 @@ const inspection=(day,id)=>state.inspections.find(x=>x.date===day&&x.staffId===i
 const checklist=(day,id)=>state.checklists.find(x=>x.date===day&&x.staffId===id);
 const briefing=(day,id)=>state.briefings.find(x=>x.date===day&&x.staffId===id);
 const dayNum=date=>fromISO(date).getDay();
-function defaultStatus(w,date){return (w.restDays||[]).includes(dayNum(date))?'rest':'working';}
-function scheduleStatus(date,id){const saved=state.rosters[date]?.staff?.[id];const p=worker(id);if(p?.active===false&&date>=dateISO()&&!inspection(date,id)&&!checklist(date,id)&&!briefing(date,id))return 'off';return saved|| (p?.active===false?'off':p?defaultStatus(p,date):'off');}
+function vacationOn(w,date){return (w?.vacations||[]).find(v=>v.start<=date&&date<=v.end)||null;}
+function defaultStatus(w,date){
+  if(vacationOn(w,date))return 'vacation';
+  if(w.scheduleMode==='weekend')return [0,6].includes(dayNum(date))?'support':'off';
+  return (w.restDays||[]).includes(dayNum(date))?'rest':'working';
+}
+function scheduleStatus(date,id){
+  const p=worker(id),roster=state.rosters[date];
+  if(!p)return 'off';
+  if(p.active===false&&date>=dateISO()&&!inspection(date,id)&&!checklist(date,id)&&!briefing(date,id))return 'off';
+  // Las vacaciones tienen prioridad sobre los estados anteriores, salvo que se retire el período.
+  if(vacationOn(p,date))return 'vacation';
+  if(Object.prototype.hasOwnProperty.call(roster?.overrides||{},id))return roster.overrides[id];
+  // Las fechas históricas mantienen el estado de su programación registrada.
+  if(date<dateISO()&&Object.prototype.hasOwnProperty.call(roster?.staff||{},id))return roster.staff[id];
+  return p.active===false?'off':defaultStatus(p,date);
+}
 function activeFor(date,w){return w.active!==false||state.rosters[date]?.staff?.[w.id]!==undefined||!!inspection(date,w.id)||!!checklist(date,w.id)||!!briefing(date,w.id);}
 function forDate(date){return state.staff.filter(w=>activeFor(date,w)).map(w=>({worker:w,status:scheduleStatus(date,w.id)})).sort((a,b)=>{
   const aw=isScheduled(a.status),bw=isScheduled(b.status);return Number(bw)-Number(aw)||a.worker.name.localeCompare(b.worker.name,'es');
 });}
-function ensureDay(date){if(state.rosters[date])return state.rosters[date];
-  const s={};for(const w of state.staff)if(w.active!==false)s[w.id]=defaultStatus(w,date);
-  return state.rosters[date]={staff:s,createdAt:timestamp()};
+function ensureDay(date){
+  if(state.rosters[date]){state.rosters[date].overrides=state.rosters[date].overrides||{};return state.rosters[date];}
+  const staff={};for(const w of state.staff)if(w.active!==false)staff[w.id]=defaultStatus(w,date);
+  return state.rosters[date]={staff,overrides:{},createdAt:timestamp()};
 }
 function isScheduled(status){return ['working','support'].includes(status);}
-const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',vacation:'Vacaciones',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+function hasDayControls(date,id){return !!(inspection(date,id)||briefing(date,id)||checklist(date,id)||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt));}
 function updateSchedule(date,id,value){
-  const r=inspection(date,id),b=briefing(date,id),c=checklist(date,id);
-  if(!isScheduled(value)&&(r||b||c||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt))){toast('Este trabajador tiene controles registrados. Corrige esos controles antes de quitarlo de la programación.');return;}
-  const roster=ensureDay(date);roster.staff[id]=value;roster.updatedAt=timestamp();mutate('Cambiar programación',`${worker(id)?.name||id} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
+  const w=worker(id);if(!w)return;
+  if(value==='vacation'&&!vacationOn(w,date)){toast('Registra las fechas de vacaciones desde el botón Vacaciones del trabajador.');render();return;}
+  if(!isScheduled(value)&&hasDayControls(date,id)){toast('Este trabajador ya tiene controles en esa fecha. Revisa los registros antes de marcarlo como no programado.');render();return;}
+  if(vacationOn(w,date)&&value!=='vacation'){toast('El trabajador tiene vacaciones registradas ese día. Primero modifica el período de vacaciones.');render();return;}
+  const roster=ensureDay(date);roster.staff[id]=value;roster.overrides[id]=value;roster.updatedAt=timestamp();
+  mutate('Cambiar programación',`${w.name} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
 }
 function getSection(){
   if(view==='home')return null;
@@ -389,29 +425,30 @@ function personIdentity(w,desc=''){return `<div class="identity"><span class="av
 function badge(label,kind=''){return `<span class="status ${kind}">${h(label)}</span>`;}
 // PERSONAL: registro único y programación por fecha.
 function renderPersonal(){
-  setHeading('Personal','Agrega, edita o desactiva trabajadores. Los apoyos y descansos especiales solo afectan la fecha seleccionada.');
+  setHeading('Personal','Configura horarios habituales, apoyos de fin de semana, vacaciones y excepciones por fecha.');
   const people=state.staff.filter(w=>w.name.toLocaleLowerCase('es').includes(staffSearch.toLocaleLowerCase('es'))).sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.name.localeCompare(b.name,'es'));
   const list=people.map(w=>{
     const s=scheduleStatus(staffDate,w.id);
     return `<div class="person-row" data-staff-item data-search="${h(w.name.toLocaleLowerCase('es'))}">
-      ${personIdentity(w,`${w.position||'Mozo'} · Descansa: ${(w.restDays||[]).map(d=>WEEK[d]).join(', ')||'Sin asignar'} · Grupo: ${w.briefingGroup?w.briefingGroup+':00':'Sin asignar'}`)}
+      ${personIdentity(w,`${w.position||'Mozo'} · ${w.scheduleMode==='weekend'?'Apoyo sábado y domingo':'Descansa: '+((w.restDays||[]).map(d=>WEEK[d]).join(', ')||'Sin asignar')} · Grupo: ${w.briefingGroup?w.briefingGroup+':00':'Sin asignar'}`)}
       <div class="actions">
         ${badge(w.active===false?'Inactivo':'Activo',w.active===false?'':'ok')}
         <select class="input" style="width:auto;min-width:125px" aria-label="Situación del día de ${h(w.name)}" data-schedule="${h(w.id)}" ${w.active===false?'disabled':''}>${scheduleOptions(s)}</select>
         <button class="button tiny" data-action="edit-person" data-id="${h(w.id)}">Editar</button>
+        <button class="button tiny" data-action="vacation-manage" data-id="${h(w.id)}">Vacaciones${(w.vacations||[]).length?' ('+w.vacations.length+')':''}</button>
         <button class="button tiny ${w.active===false?'':'warn'}" data-action="toggle-person" data-id="${h(w.id)}">${w.active===false?'Reactivar':'Desactivar'}</button>
         <button class="button tiny" data-action="remove-person" data-id="${h(w.id)}" title="Quitar de la lista">Quitar</button>
       </div></div>`;
   }).join('');
   $('#app').innerHTML=`
-    <div class="kpis">${kpi(state.staff.filter(w=>w.active!==false).length,'Activos','green')}${kpi(state.staff.filter(w=>w.active===false).length,'Inactivos')}${kpi(forDate(staffDate).filter(p=>isScheduled(p.status)).length,'Trabajan o apoyan')}${kpi(forDate(staffDate).filter(p=>p.status==='support').length,'Apoyos del día','amber')}</div>
-    <div class="panel"><div class="panel-head"><div><h2>Programación del día</h2><p>Cambiar una fecha no modifica los descansos habituales.</p></div>${dateField('staffDate',staffDate,'Fecha que deseas modificar')}</div></div>
+    <div class="kpis">${kpi(state.staff.filter(w=>w.active!==false).length,'Activos','green')}${kpi(state.staff.filter(w=>w.active===false).length,'Inactivos')}${kpi(forDate(staffDate).filter(p=>isScheduled(p.status)).length,'Trabajan o apoyan')}${kpi(forDate(staffDate).filter(p=>p.status==='support').length,'Apoyos del día','amber')}${kpi(forDate(staffDate).filter(p=>p.status==='vacation').length,'De vacaciones')}</div>
+    <div class="panel"><div class="panel-head"><div><h2>Programación del día</h2><p>La situación diaria es independiente de la contratación. En vacaciones o con controles registrados debes revisar el calendario antes de cambiar estados.</p></div>${dateField('staffDate',staffDate,'Fecha que deseas modificar')}</div></div>
     <div class="panel"><div class="panel-head"><div><h2>Lista de trabajadores</h2><p>Una sola lista compartida con Briefings y Uniformes.</p></div><div class="toolbar"><button class="button" data-action="bulk-person">Pegar nombres</button><button class="button primary" data-action="add-person">+ Agregar trabajador</button></div></div>
       <div class="panel-body"><div class="field"><label for="staffSearch">Buscar</label><input id="staffSearch" value="${h(staffSearch)}" placeholder="Nombre del trabajador"></div></div>
       <div id="staffRows">${list||emptyHint('No hay trabajadores registrados','Agrega tu equipo para comenzar.')}</div></div>
-    <div class="callout"><b>Activo no significa que esté trabajando hoy.</b> Por ejemplo, puedes dejar a alguien activo, mantener su descanso habitual y cambiar únicamente la fecha seleccionada a «Apoyo».</div>`;
+    <div class="callout"><b>Activo no significa que trabaje hoy.</b> Los apoyos de sábado y domingo quedan «No programados» de lunes a viernes. Las vacaciones se configuran por fechas y no cuentan como «Sin revisar». No desactives al personal por sus vacaciones.</div>`;
 }
-function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
+function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['vacation','Vacaciones'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
 function openPerson(w=null){
   const rests=w?.restDays||[];
   modal(w?'Modificar trabajador':'Agregar trabajador',`<form id="personForm" class="stack">
@@ -419,7 +456,8 @@ function openPerson(w=null){
     <div class="fields"><div class="field"><label>Puesto</label><select name="position">${['Mozo','Recepción','Caja','Lavavasos','Apoyo','Otro'].map(v=>`<option ${v===(w?.position||'Mozo')?'selected':''}>${v}</option>`).join('')}</select></div>
     <div class="field"><label>Categoría</label><select name="category"><option value="">Sin categoría</option>${[1,2,3,4].map(x=>`<option value="${x}" ${String(w?.category||'')===String(x)?'selected':''}>${x}</option>`).join('')}</select></div></div>
     <div class="field"><label>Grupo habitual del briefing</label><select name="briefingGroup"><option value="">Por asignar</option><option value="11" ${w?.briefingGroup==='11'?'selected':''}>11:00 a. m.</option><option value="12" ${w?.briefingGroup==='12'?'selected':''}>12:00 p. m.</option></select><small>Si cambia de grupo solo por un día, podrás seleccionarlo al registrar la asistencia.</small></div>
-    <div class="field"><label>Día(s) de descanso habitual</label><div class="weekdays">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" name="restDay" value="${d}" ${rests.includes(d)?'checked':''}> ${WEEK[d]}</label>`).join('')}</div></div>
+    <div class="field"><label>Programación habitual</label><select name="scheduleMode"><option value="regular" ${w?.scheduleMode!=='weekend'?'selected':''}>Personal habitual (según descansos)</option><option value="weekend" ${w?.scheduleMode==='weekend'?'selected':''}>Apoyo solo sábados y domingos</option></select><small>Los apoyos de fin de semana no estarán programados de lunes a viernes, salvo excepción manual.</small></div>
+    <div class="field"><label>Día(s) de descanso habitual del personal regular</label><div class="weekdays">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" name="restDay" value="${d}" ${rests.includes(d)?'checked':''}> ${WEEK[d]}</label>`).join('')}</div></div>
     <input type="hidden" name="id" value="${h(w?.id||'')}"></form>`,
     `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-person">Guardar trabajador</button>`);
 }
@@ -428,9 +466,44 @@ function savePerson(){
   const name=form.elements.name.value.trim().replace(/\s+/g,' '),id=form.elements.id.value;
   if(!name){toast('Escribe el nombre del trabajador.');return;}
   if(state.staff.some(p=>p.id!==id&&p.name.toLocaleLowerCase('es')===name.toLocaleLowerCase('es'))){toast('El trabajador ya existe.');return;}
-  const data={name,position:form.elements.position.value,category:form.elements.category.value,briefingGroup:form.elements.briefingGroup.value,restDays:[...form.querySelectorAll('[name="restDay"]:checked')].map(c=>Number(c.value))};
-  if(id){Object.assign(worker(id),data,{updatedAt:timestamp()});}else{state.staff.push({id:uid(),...data,active:true,createdAt:timestamp()});}
+  const data={name,position:form.elements.position.value,category:form.elements.category.value,briefingGroup:form.elements.briefingGroup.value,scheduleMode:form.elements.scheduleMode.value==='weekend'?'weekend':'regular',restDays:[...form.querySelectorAll('[name="restDay"]:checked')].map(c=>Number(c.value))};
+  if(id){Object.assign(worker(id),data,{updatedAt:timestamp()});}else{state.staff.push({id:uid(),...data,vacations:[],active:true,createdAt:timestamp()});}
   mutate(id?'Editar trabajador':'Agregar trabajador',name);closeModal();render();toast('Trabajador guardado.');
+}
+
+function openVacations(id){
+  const w=worker(id);if(!w)return;
+  const items=(w.vacations||[]).slice().sort((a,b)=>b.start.localeCompare(a.start));
+  const listing=items.map(v=>`<div class="person-row"><div><b>${h(formatDate(v.start))} – ${h(formatDate(v.end))}</b><div class="small">${h(v.note||'Sin observación')}</div></div><button class="button tiny warn" data-action="vacation-remove" data-id="${h(id)}" data-vacation="${h(v.id)}">Quitar</button></div>`).join('');
+  modal('Vacaciones · '+w.name,`<div class="callout">Registra períodos autorizados. El trabajador permanece activo y volverá automáticamente a su programación habitual al finalizar las vacaciones.</div>
+    <div class="panel"><div class="panel-head"><h2>Períodos registrados</h2></div>${listing||emptyHint('Sin vacaciones','Agrega fechas de inicio y fin para este trabajador.')}</div>
+    <form id="vacationForm" class="stack"><div class="fields"><div class="field"><label>Desde *</label><input type="date" name="start" required value="${dateISO()}"></div><div class="field"><label>Hasta *</label><input type="date" name="end" required value="${dateISO()}"></div></div><div class="field"><label>Observación (opcional)</label><input name="note" maxlength="300" placeholder="Ej. Vacaciones autorizadas"></div></form>`,
+    `<button class="button" data-action="close-modal">Cerrar</button><button class="button primary" data-action="vacation-add" data-id="${h(id)}">+ Guardar período</button>`);
+}
+function vacationHasControls(id,start,end){
+  return state.inspections.some(r=>r.staffId===id&&!r.voidedAt&&r.date>=start&&r.date<=end)
+   ||state.checklists.some(r=>r.staffId===id&&r.date>=start&&r.date<=end)
+   ||state.briefings.some(r=>r.staffId===id&&r.date>=start&&r.date<=end)
+   ||state.functionChecks.some(r=>r.staffId===id&&!r.voidedAt&&r.date>=start&&r.date<=end);
+}
+function addVacation(id){
+  const w=worker(id),f=$('#vacationForm');if(!w||!f)return;
+  const start=f.elements.start.value,end=f.elements.end.value,note=f.elements.note.value.trim().slice(0,300);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){toast('Revisa las fechas de inicio y fin.');return;}
+  if((w.vacations||[]).some(v=>start<=v.end&&end>=v.start)){toast('Este período se superpone con otras vacaciones registradas.');return;}
+  if(vacationHasControls(id,start,end)){toast('Existen inspecciones, briefings o funciones registradas en ese período. Revísalas antes de asignar vacaciones.');return;}
+  w.vacations=w.vacations||[];
+  w.vacations.push({id:uid(),start,end,note,createdAt:timestamp()});
+  w.updatedAt=timestamp();mutate('Registrar vacaciones',w.name+' · '+start+' a '+end);
+  openVacations(id);toast('Vacaciones registradas.');
+}
+function removeVacation(id,vacId){
+  const w=worker(id);if(!w)return;
+  const v=(w.vacations||[]).find(x=>x.id===vacId);if(!v)return;
+  if(!confirm('¿Quitar las vacaciones del '+formatDate(v.start)+' al '+formatDate(v.end)+'? La programación habitual volverá a aplicarse.'))return;
+  w.vacations=w.vacations.filter(x=>x.id!==vacId);w.updatedAt=timestamp();
+  mutate('Quitar vacaciones',w.name+' · '+v.start+' a '+v.end);
+  openVacations(id);toast('Período retirado.');
 }
 function openBulk(){modal('Agregar varios trabajadores',`<div class="field"><label>Un nombre por línea</label><textarea id="bulkNames" rows="9" placeholder="Anais\nJeraldine\nLeo"></textarea><small>Se omitirán los nombres que ya estén registrados. Podrás editar sus datos luego.</small></div>`,`<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-bulk">Agregar nombres</button>`);}
 function saveBulk(){
@@ -441,7 +514,7 @@ function saveBulk(){
 function togglePerson(id){const w=worker(id);if(!w)return;w.active=w.active===false;w.updatedAt=timestamp();mutate(w.active?'Reactivar trabajador':'Desactivar trabajador',w.name);render();toast(w.active?'Trabajador reactivado.':'Trabajador inactivo. Su historial se conserva.');}
 function removePerson(id){
   const w=worker(id);if(!w)return;
-  const old=state.functionChecks.some(r=>r.staffId===id)||state.inspections.some(r=>r.staffId===id)||state.checklists.some(r=>r.staffId===id)||state.briefings.some(r=>r.staffId===id)||Object.values(state.rosters).some(r=>r.staff?.[id]!==undefined);
+  const old=state.functionChecks.some(r=>r.staffId===id)||state.inspections.some(r=>r.staffId===id)||state.checklists.some(r=>r.staffId===id)||state.briefings.some(r=>r.staffId===id)||Object.values(state.rosters).some(r=>r.staff?.[id]!==undefined||r.overrides?.[id]!==undefined)||(w.vacations||[]).length>0;
   if(old){if(w.active===false){toast('Este trabajador está archivado y conserva su historial.');return;}if(confirm(`«${w.name}» tiene registros. Para conservarlos se desactivará, no se eliminará. ¿Continuar?`))togglePerson(id);return;}
   if(!confirm(`¿Quitar definitivamente a ${w.name}? No tiene registros históricos.`))return;
   state.staff=state.staff.filter(p=>p.id!==id);mutate('Eliminar trabajador sin historial',w.name);render();toast('Trabajador quitado.');
@@ -530,14 +603,14 @@ function renderUniform(){
   setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
   const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
   const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
-  const cells=people.map(({worker:w,status})=>{
+  const cells=people.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
     const r=inspection(theDate,w.id),eligible=isScheduled(status);
     return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
       <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
       ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}</div></div>`;
   }).join('');
-  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}</div>
-   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
+  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}</div>
+   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver descansos, vacaciones y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
    <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
    <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Puedes revisar a trabajadores con situación «Trabaja» o «Apoyo».</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
 }
@@ -557,19 +630,46 @@ function openUniformObserved(id,old=null){
 function saveUniformObserved(){if(!uniformIssueSelection.length){toast('Selecciona al menos un incumplimiento.');return;}
   const w=worker(selectedPerson),note=$('#uniformNote').value.trim().slice(0,1200);
   let r=editingInspectionId?state.inspections.find(x=>x.id===editingInspectionId):null;
-  if(r){r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Editar faltantes',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])],note:r.note||''}});r.result='observado';r.issues=[...uniformIssueSelection];r.resolvedIssues=(r.resolvedIssues||[]).filter(x=>r.issues.includes(x));snapshotIssueLabels(r);r.note=note;r.updatedAt=timestamp();r.correctedAt=r.resolvedIssues.length===r.issues.length?timestamp():null;}
+  if(r){r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Editar faltantes',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])],note:r.note||''}});r.result='observado';r.issues=[...uniformIssueSelection];r.resolvedIssues=(r.resolvedIssues||[]).filter(x=>r.issues.includes(x));snapshotIssueLabels(r);r.note=note;r.updatedAt=timestamp();r.correctedAt=r.resolvedIssues.length===r.issues.length?(r.correctedAt||timestamp()):null;}
   else{if(inspection(theDate,selectedPerson)){toast('Ya hay una inspección registrada.');return;}ensureDay(theDate);r={id:uid(),staffId:selectedPerson,staffName:w?.name||'',categoryAt:w?.category||'',date:theDate,result:'observado',issues:[...uniformIssueSelection],resolvedIssues:[],note,createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null};snapshotIssueLabels(r);state.inspections.push(r);}
   uniformNoteDraft='';uniformNoteDraftFor='';
   mutate(editingInspectionId?'Editar observación':'Inspección observada',`${w?.name} · ${theDate}`);closeModal();render();toast('Observación registrada.');
 }
-function inspectDetails(r){if(!r)return;const w=worker(r.staffId);selectedPerson=r.staffId;editingInspectionId=r.id;
-  modal('Detalle de inspección',`<div class="callout"><b>${h(w?.name||r.staffName||'Trabajador')}</b> · ${h(formatDate(r.date))}<p>Resultado: ${h(r.result==='conforme'?'Conforme':'Observado')} · ${h(r.voidedAt?'Anulada':correctionStatus(r))}</p></div>
-    ${r.result==='observado'&&!r.voidedAt?`<div class="stack"><div><b>Corrección de incumplimientos</b><p class="muted-note">Marca solo los puntos que hayan sido corregidos. El registro original permanece.</p></div>${(r.issues||[]).map(x=>`<label class="checklist"><input type="checkbox" class="correction" value="${h(x)}" ${(r.resolvedIssues||[]).includes(x)?'checked':''}> ${h(issueLabel(x,r))}</label>`).join('')}</div>`:'<p>La inspección fue registrada conforme.</p>'}
-    ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}<p class="muted-note">Registro: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
+function inspectDetails(r){if(!r)return;
+  const w=worker(r.staffId);selectedPerson=r.staffId;editingInspectionId=r.id;
+  const details=r.correctionDetails||{};
+  const items=(r.issues||[]).map(x=>`<label class="checklist"><input type="checkbox" class="correction" value="${h(x)}" ${(r.resolvedIssues||[]).includes(x)?'checked':''}> <span>${h(issueLabel(x,r))}${details[x]?.at?'<small style="display:block">Verificado '+h(displayTime(details[x].at))+' por '+h(details[x].by||'No especificado')+'</small>':(r.resolvedIssues||[]).includes(x)?'<small style="display:block">Corregido en versión anterior (sin hora individual registrada)</small>':''}</span></label>`).join('');
+  const log=(r.correctionEvents||[]).slice(-12).reverse().map(x=>`<div class="small">${h(displayTime(x.at))} · ${h(x.kind==='revertir'?'Corrección retirada':'Corregido')} · ${h(issueLabel(x.issueId,r))} · ${h(x.by||'Sin identificar')}</div>`).join('');
+  modal('Detalle de inspección',`<div class="callout"><b>${h(w?.name||r.staffName||'Trabajador')}</b> · ${h(formatDate(r.date))}
+    <p>Resultado inicial: <b>${h(r.result==='conforme'?'Conforme':'Observado')}</b> · Situación posterior: <b>${h(r.voidedAt?'Anulada':correctionStatus(r))}</b></p></div>
+    ${r.result==='observado'&&!r.voidedAt?`<div class="stack"><div><b>Corrección de incumplimientos</b><p class="muted-note">Marca solo los puntos que verificaste. La observación inicial nunca se convierte en Conforme.</p></div>${items}
+      <div class="field"><label>Verificado por (obligatorio si hay cambios)</label><input id="uniformVerifier" maxlength="90" placeholder="Nombre de quien comprueba la corrección"></div>
+      <div class="small">La hora se registra automáticamente al guardar la corrección.</div>
+      </div>`:'<p>La inspección inicial fue registrada conforme o está anulada.</p>'}
+    ${log?`<div class="callout"><b>Historial de verificaciones</b><div class="stack">${log}</div></div>`:''}
+    ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}
+    <p class="muted-note">Registrado: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
     `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`<button class="button" data-action="edit-uniform" data-id="${h(r.id)}">Editar faltantes</button><button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
 }
-function saveUniformCorrections(id){const r=state.inspections.find(x=>x.id===id);if(!r)return;
-  r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Correcciones',before:{resolvedIssues:[...(r.resolvedIssues||[])]}});r.resolvedIssues=[...$('#modal').querySelectorAll('.correction:checked')].map(x=>x.value);r.correctedAt=r.resolvedIssues.length===(r.issues||[]).length?timestamp():null;r.updatedAt=timestamp();mutate('Corregir incumplimientos',`${worker(r.staffId)?.name||''} · ${r.date}`);closeModal();render();toast('Corrección actualizada.');
+function saveUniformCorrections(id){
+  const r=state.inspections.find(x=>x.id===id);if(!r||r.voidedAt||r.result!=='observado')return;
+  const selected=[...$('#modal').querySelectorAll('.correction:checked')].map(x=>x.value);
+  const old=r.resolvedIssues||[],added=selected.filter(x=>!old.includes(x)),removed=old.filter(x=>!selected.includes(x));
+  if(!added.length&&!removed.length){closeModal();toast('No hubo cambios en las correcciones.');return;}
+  const verifier=($('#uniformVerifier')?.value||'').trim();
+  if(!verifier){toast('Indica quién verificó la corrección.');return;}
+  const at=timestamp();
+  r.changes=r.changes||[];
+  r.changes.push({at,kind:'Correcciones',by:verifier,before:{resolvedIssues:[...old]}});
+  r.correctionDetails=r.correctionDetails||{};
+  r.correctionEvents=r.correctionEvents||[];
+  for(const x of added){r.correctionDetails[x]={at,by:verifier};r.correctionEvents.push({at,by:verifier,kind:'corregir',issueId:x});}
+  for(const x of removed){delete r.correctionDetails[x];r.correctionEvents.push({at,by:verifier,kind:'revertir',issueId:x});}
+  r.resolvedIssues=selected;
+  r.correctedAt=selected.length===(r.issues||[]).length?at:null;
+  r.updatedAt=at;
+  mutate('Verificar correcciones de uniforme',`${worker(r.staffId)?.name||''} · ${r.date} · ${verifier}`);
+  closeModal();render();toast('Corrección registrada. El incumplimiento inicial permanece.');
 }
 function deleteUniform(id){const r=state.inspections.find(x=>x.id===id);if(!r||!confirm('¿Anular esta inspección? Se conservará constancia en el historial de acciones.'))return;
   r.voidedAt=timestamp();r.changes=r.changes||[];r.changes.push({at:r.voidedAt,kind:'Anulación',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])]}});mutate('Anular inspección',`${worker(r.staffId)?.name||r.staffId} · ${r.date} · ${r.result}`);closeModal();render();toast('Inspección anulada.');
@@ -1085,7 +1185,7 @@ function workbookUniform(start,end,label){
   const ir=state.inspections.filter(r=>r.date>=start&&r.date<=end&&!r.voidedAt).sort((a,b)=>a.date.localeCompare(b.date));
   const cr=state.checklists.filter(r=>r.date>=start&&r.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
   const scheduled=[];
-  for(const [date,roster] of Object.entries(state.rosters)){if(date<start||date>end)continue;for(const [id,status] of Object.entries(roster.staff||{}))scheduled.push({date,id,status});}
+  for(const [date,roster] of Object.entries(state.rosters)){if(date<start||date>end)continue;const ids=new Set([...Object.keys(roster.staff||{}),...Object.keys(roster.overrides||{})]);for(const id of ids)scheduled.push({date,id,status:scheduleStatus(date,id)});}
   const unique=[...new Set([...ir.map(x=>x.staffId),...cr.map(x=>x.staffId),...scheduled.map(x=>x.id)])];
   const personRows=[['Trabajador','Categoría','Inspecciones','Conformes','Observadas','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
   for(const id of unique){const i=ir.filter(x=>x.staffId===id),c=cr.filter(x=>x.staffId===id),d=scheduled.filter(x=>x.id===id&&isScheduled(x.status));
@@ -1096,15 +1196,15 @@ function workbookUniform(start,end,label){
   del.forEach(d=>deliveryRows.push([d.date,identityOf(d),deliveryMaterialName(d),d.quantity,deliveryReasonName(d),d.deliveredBy,d.status==='entregada'?'Entregada':d.status==='devuelta'?'Devuelta':'Anulada',d.returnedAt?d.returnedAt.slice(0,10):'',d.returnedNote||'',d.voidedAt||'',d.voidReason||'',d.createdAt||'']));
   const deliveryPersonRows=[['Trabajador','Trapo','Mandil','Camisa','Toca','Otro','Total de unidades','Entregas vigentes']];
   deliveryPersonSummary(del).forEach(s=>deliveryPersonRows.push([s.name,s.Trapo,s.Mandil,s.Camisa,s.Toca,s.Otro,s.Trapo+s.Mandil+s.Camisa+s.Toca+s.Otro,s.count]));
-  const inspectionRows=[['Fecha','Trabajador','Categoría registrada','Resultado original','Incumplimientos','Pendientes','Corrección','Observaciones','Creado el','Última modificación']];
-  ir.forEach(r=>inspectionRows.push([r.date,identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',r.result==='conforme'?'Conforme':'Observado',(r.issues||[]).map(x=>issueLabel(x,r)).join(' | '),(r.issues||[]).filter(x=>!(r.resolvedIssues||[]).includes(x)).map(x=>issueLabel(x,r)).join(' | '),correctionStatus(r),r.note||'',r.createdAt||'',r.updatedAt||'']));
+  const inspectionRows=[['Fecha','Trabajador','Categoría registrada','Resultado original','Incumplimientos','Pendientes','Corrección','Observaciones','Creado el','Última modificación','Verificaciones realizadas (fecha · responsable · requisito)']];
+  ir.forEach(r=>inspectionRows.push([r.date,identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',r.result==='conforme'?'Conforme':'Observado',(r.issues||[]).map(x=>issueLabel(x,r)).join(' | '),(r.issues||[]).filter(x=>!(r.resolvedIssues||[]).includes(x)).map(x=>issueLabel(x,r)).join(' | '),correctionStatus(r),r.note||'',r.createdAt||'',r.updatedAt||'',(r.correctionEvents||[]).map(ev=>displayTime(ev.at)+' · '+(ev.by||'Sin indicar')+' · '+(ev.kind==='revertir'?'Corrección revertida: ':'Corregido: ')+issueLabel(ev.issueId,r)).join(' | ')]));
   const checks=[['Fecha','Trabajador','Categoría registrada','Requisito','Grupo','Mínimo','Estado inicial','Corrección','Registrado el']];
   cr.forEach(r=>(r.items||[]).forEach(i=>checks.push([r.date,identityOf(r),r.categoryAt||worker(r.staffId)?.category||'',i.label,i.group,i.minQty||'',i.status==='ok'?'Cumple':i.status==='bad'?'No cumple':'Sin revisar',i.status==='bad'?(i.resolvedAt?'Corregido':'Pendiente'):'—',r.createdAt||''])));
   const pending=[checks[0],...checks.slice(1).filter(r=>r[6]==='No cumple'&&r[7]==='Pendiente')];
   const rosterRows=[['Fecha','Trabajador','Situación programada','Uniforme','Implementos']];
   scheduled.sort((a,b)=>a.date.localeCompare(b.date));scheduled.forEach(r=>{const i=inspection(r.date,r.id),c=checklist(r.date,r.id);const s=checklistSummary(c);rosterRows.push([r.date,worker(r.id)?.name||'Desconocido',statusLabel(r.status),i?(i.result==='conforme'?'Conforme':'Observado'):'Sin revisar',c?`${s.reviewed}/${s.total} revisados`:'Sin revisar']);});
   const sum=[['LAS FLORES · CONTROL DE UNIFORMES'],['Período',label],['Desde',start],['Hasta',end],['Generado el',displayTime(timestamp())],[],['INDICADOR','VALOR'],
-    ['Inspecciones de uniformes',ir.length],['Conformes',ir.filter(r=>r.result==='conforme').length],['Observadas',ir.filter(r=>r.result==='observado').length],['Checklists de implementos',cr.length],['Requisitos evaluados',checks.length-1],['Incumplimientos pendientes en implementos',pending.length-1],['Entregas de materiales',del.length],['Unidades entregadas (vigentes)',del.filter(d=>d.status==='entregada').reduce((n,d)=>n+(Number(d.quantity)||0),0)],['Devoluciones de materiales',del.filter(d=>d.status==='devuelta').length],['Entregas anuladas',del.filter(d=>d.status==='anulada').length],['Días con programación confirmada',new Set(scheduled.map(x=>x.date)).size],[],['NOTAS'],['Sin revisar no equivale a No cumple.'],['La categoría histórica se conserva cuando se registró en la app actualizada.'],['La programación incluye solo fechas expresamente guardadas.'],['El aviso de entrega reciente considera los 30 días anteriores.']];
+    ['Inspecciones de uniformes',ir.length],['Conformes desde inspección inicial',ir.filter(r=>r.result==='conforme').length],['Observadas desde inspección inicial',ir.filter(r=>r.result==='observado').length],['Observadas corregidas completamente',ir.filter(r=>r.result==='observado'&&correctionStatus(r)==='Corregido').length],['Checklists de implementos',cr.length],['Requisitos evaluados',checks.length-1],['Incumplimientos pendientes en implementos',pending.length-1],['Entregas de materiales',del.length],['Unidades entregadas (vigentes)',del.filter(d=>d.status==='entregada').reduce((n,d)=>n+(Number(d.quantity)||0),0)],['Devoluciones de materiales',del.filter(d=>d.status==='devuelta').length],['Entregas anuladas',del.filter(d=>d.status==='anulada').length],['Días con programación confirmada',new Set(scheduled.map(x=>x.date)).size],[],['NOTAS'],['Sin revisar no equivale a No cumple.'],['Corregido no significa Conforme desde el inicio: las faltas iniciales permanecen registradas.'],['La categoría histórica se conserva cuando se registró en la app actualizada.'],['La programación incluye solo fechas expresamente guardadas.'],['El aviso de entrega reciente considera los 30 días anteriores.']];
   const anuladas=[['Fecha','Trabajador','Resultado original','Motivo','Anulada el'],...state.inspections.filter(r=>r.date>=start&&r.date<=end&&r.voidedAt).map(r=>[r.date,identityOf(r),r.result,'Anulación manual',r.voidedAt])];
   return makeXlsx([{name:'Resumen',rows:sum},{name:'Por trabajador',rows:personRows,headerRow:1},{name:'Uniformes',rows:inspectionRows,headerRow:1,dateCols:[0]},{name:'Implementos',rows:checks,headerRow:1,dateCols:[0]},{name:'Pendientes',rows:pending,headerRow:1,dateCols:[0]},{name:'Entregas',rows:deliveryRows,headerRow:1,dateCols:[0]},{name:'Entregas por trabajador',rows:deliveryPersonRows,headerRow:1},{name:'Programación',rows:rosterRows,headerRow:1,dateCols:[0]},{name:'Anuladas',rows:anuladas,headerRow:1,dateCols:[0]}]);
 }
@@ -1198,7 +1298,7 @@ function renderSettings(){
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Modo de guardado</h2>${badge(prefs.autoSave?'Automático':'Manual',prefs.autoSave?'ok':'warn')}</div>
     <div class="panel-body stack"><div class="fields"><div class="field"><label>Cómo guardar</label><select id="saveMode"><option value="auto" ${prefs.autoSave?'selected':''}>Guardar automáticamente cada cambio</option><option value="manual" ${!prefs.autoSave?'selected':''}>Guardar solamente cuando yo lo indique</option></select></div><div class="field"><label>Tema de la aplicación</label><select id="themeMode"><option value="light" ${prefs.theme!=='dark'?'selected':''}>Claro (día)</option><option value="dark" ${prefs.theme==='dark'?'selected':''}>Oscuro (noche)</option></select></div><div class="field"><label>Estado actual</label><input readonly value="${saveError?'ERROR: '+h(saveError):dirty?'Cambios sin guardar':'Todos los cambios confirmados guardados'}"></div></div>
     <div class="toolbar"><button class="button primary" data-action="manual-save" ${!dirty?'disabled':''}>Guardar cambios ahora</button><span class="small">En modo manual recibirás una advertencia si intentas cerrar con cambios pendientes.</span></div></div></div>
-    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, controles de funciones, uniformes, implementos, entregas de materiales, incidentes y sus acciones, tipos configurables, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, vacaciones, programación de apoyos, descansos, uniformes, historial de correcciones verificadas, controles de funciones, materiales, incidentes, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
     <div class="panel"><div class="panel-head"><div><h2>Copias internas de recuperación</h2><p>Guardadas en el navegador, separadas de la base principal.</p></div></div><div class="panel-body stack"><p class="small">Se crea una copia periódica y puedes crear una manualmente. No reemplazan al respaldo JSON externo.</p><button class="button block" data-action="snapshot-now">+ Crear punto de recuperación</button><div id="recoveryList">Cargando copias…</div></div></div></div>
     <div class="callout warn"><b>Importante:</b> los datos locales y las copias internas pueden perderse si se borran los datos del navegador, se cambia de navegador o se avería la tablet. Descarga regularmente el respaldo JSON y guárdalo fuera del dispositivo.</div>
     <div class="callout">La versión anterior de Uniformes se importa automáticamente cuando es accesible en el mismo navegador y origen. Si abriste el HTML desde otra ubicación y no aparecen los datos antiguos, exporta el JSON desde la aplicación anterior e impórtalo aquí.</div>`;
@@ -1254,6 +1354,9 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'vacation-manage':openVacations(id);break;
+    case 'vacation-add':addVacation(id);break;
+    case 'vacation-remove':removeVacation(id,el.dataset.vacation);break;
     case 'add-person':openPerson();break;
     case 'edit-person':openPerson(worker(id));break;
     case 'save-person':savePerson();break;
@@ -1336,6 +1439,7 @@ document.addEventListener('change',event=>{
   if(x.id==='functionOrder'){functionOrder=x.value;render();return;}
   if(x.matches('[data-schedule]')){updateSchedule(staffDate,x.dataset.schedule,x.value);return;}
   if(x.id==='staffDate'){staffDate=x.value||dateISO();render();return;}
+  if(x.id==='showUnscheduledUniform'){showUnscheduledUniform=x.checked;render();return;}
   if(x.id==='uniformDate'){theDate=x.value||dateISO();render();return;}
   if(x.id==='briefDate'){briefDate=x.value||dateISO();render();return;}
   if(x.id==='briefGroup'){briefGroup=x.value;render();return;}
