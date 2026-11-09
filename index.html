@@ -152,7 +152,23 @@ function normalize(data){
   if(data.app!=='lasflores-uniformes'&&data.app!=='lasflores-control')throw Error('El respaldo no pertenece a Las Flores');
   const base=empty();
   const next={...base,...data,app:'lasflores-control',version:2};
-  next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false}));
+  next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false,
+    scheduleMode:x.scheduleMode==='weekend'?'weekend':'regular',
+    vacations:Array.isArray(x.vacations)?x.vacations.filter(v=>v&&/^\d{4}-\d{2}-\d{2}$/.test(v.start||'')&&/^\d{4}-\d{2}-\d{2}$/.test(v.end||'')&&v.start<=v.end).map(v=>({id:v.id||uid(),start:v.start,end:v.end,note:String(v.note||'').slice(0,300),createdAt:v.createdAt||timestamp()})):[]
+  }));
+  // En versiones anteriores rosters.staff almacenaba copias de la programación habitual.
+  // Conservar las excepciones identificables, pero no congelar nuevos horarios o vacaciones.
+  next.rosters=Object.fromEntries(Object.entries(next.rosters).map(([date,roster])=>{
+    if(!roster||typeof roster!=='object')return [date,{staff:{},overrides:{}}];
+    if(roster.overrides&&typeof roster.overrides==='object')return [date,roster];
+    const overrides={};
+    for(const [id,status] of Object.entries(roster.staff||{})){
+      const w=next.staff.find(x=>x.id===id);
+      const oldBase=w?.restDays?.includes(fromISO(date).getDay())?'rest':'working';
+      if(w&&status!==oldBase)overrides[id]=status;
+    }
+    return [date,{...roster,overrides}];
+  }));
   next.functionChecks=Array.isArray(data.functionChecks)?data.functionChecks:[];
   next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
   next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
@@ -244,22 +260,41 @@ const inspection=(day,id)=>state.inspections.find(x=>x.date===day&&x.staffId===i
 const checklist=(day,id)=>state.checklists.find(x=>x.date===day&&x.staffId===id);
 const briefing=(day,id)=>state.briefings.find(x=>x.date===day&&x.staffId===id);
 const dayNum=date=>fromISO(date).getDay();
-function defaultStatus(w,date){return (w.restDays||[]).includes(dayNum(date))?'rest':'working';}
-function scheduleStatus(date,id){const saved=state.rosters[date]?.staff?.[id];const p=worker(id);if(p?.active===false&&date>=dateISO()&&!inspection(date,id)&&!checklist(date,id)&&!briefing(date,id))return 'off';return saved|| (p?.active===false?'off':p?defaultStatus(p,date):'off');}
+function vacationOn(w,date){return (w?.vacations||[]).find(v=>v.start<=date&&date<=v.end)||null;}
+function defaultStatus(w,date){
+  if(vacationOn(w,date))return 'vacation';
+  if(w.scheduleMode==='weekend')return [0,6].includes(dayNum(date))?'support':'off';
+  return (w.restDays||[]).includes(dayNum(date))?'rest':'working';
+}
+function scheduleStatus(date,id){
+  const p=worker(id),roster=state.rosters[date];
+  if(!p)return 'off';
+  if(p.active===false&&date>=dateISO()&&!inspection(date,id)&&!checklist(date,id)&&!briefing(date,id))return 'off';
+  // Las vacaciones tienen prioridad sobre los estados anteriores, salvo que se retire el período.
+  if(vacationOn(p,date))return 'vacation';
+  if(Object.prototype.hasOwnProperty.call(roster?.overrides||{},id))return roster.overrides[id];
+  // Las fechas históricas mantienen el estado de su programación registrada.
+  if(date<dateISO()&&Object.prototype.hasOwnProperty.call(roster?.staff||{},id))return roster.staff[id];
+  return p.active===false?'off':defaultStatus(p,date);
+}
 function activeFor(date,w){return w.active!==false||state.rosters[date]?.staff?.[w.id]!==undefined||!!inspection(date,w.id)||!!checklist(date,w.id)||!!briefing(date,w.id);}
 function forDate(date){return state.staff.filter(w=>activeFor(date,w)).map(w=>({worker:w,status:scheduleStatus(date,w.id)})).sort((a,b)=>{
   const aw=isScheduled(a.status),bw=isScheduled(b.status);return Number(bw)-Number(aw)||a.worker.name.localeCompare(b.worker.name,'es');
 });}
-function ensureDay(date){if(state.rosters[date])return state.rosters[date];
-  const s={};for(const w of state.staff)if(w.active!==false)s[w.id]=defaultStatus(w,date);
-  return state.rosters[date]={staff:s,createdAt:timestamp()};
+function ensureDay(date){
+  if(state.rosters[date]){state.rosters[date].overrides=state.rosters[date].overrides||{};return state.rosters[date];}
+  const staff={};for(const w of state.staff)if(w.active!==false)staff[w.id]=defaultStatus(w,date);
+  return state.rosters[date]={staff,overrides:{},createdAt:timestamp()};
 }
 function isScheduled(status){return ['working','support'].includes(status);}
-const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',vacation:'Vacaciones',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+function hasDayControls(date,id){return !!(inspection(date,id)||briefing(date,id)||checklist(date,id)||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt));}
 function updateSchedule(date,id,value){
-  const r=inspection(date,id),b=briefing(date,id),c=checklist(date,id);
-  if(!isScheduled(value)&&(r||b||c||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt))){toast('Este trabajador tiene controles registrados. Corrige esos controles antes de quitarlo de la programación.');return;}
-  const roster=ensureDay(date);roster.staff[id]=value;roster.updatedAt=timestamp();mutate('Cambiar programación',`${worker(id)?.name||id} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
+  const w=worker(id);if(!w)return;
+  if(!isScheduled(value)&&hasDayControls(date,id)){toast('Este trabajador ya tiene controles en esa fecha. Revisa los registros antes de marcarlo como no programado.');render();return;}
+  if(vacationOn(w,date)&&value!=='vacation'){toast('El trabajador tiene vacaciones registradas ese día. Primero modifica el período de vacaciones.');render();return;}
+  const roster=ensureDay(date);roster.staff[id]=value;roster.overrides[id]=value;roster.updatedAt=timestamp();
+  mutate('Cambiar programación',`${w.name} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
 }
 function getSection(){
   if(view==='home')return null;
@@ -411,7 +446,7 @@ function renderPersonal(){
       <div id="staffRows">${list||emptyHint('No hay trabajadores registrados','Agrega tu equipo para comenzar.')}</div></div>
     <div class="callout"><b>Activo no significa que esté trabajando hoy.</b> Por ejemplo, puedes dejar a alguien activo, mantener su descanso habitual y cambiar únicamente la fecha seleccionada a «Apoyo».</div>`;
 }
-function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
+function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['vacation','Vacaciones'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
 function openPerson(w=null){
   const rests=w?.restDays||[];
   modal(w?'Modificar trabajador':'Agregar trabajador',`<form id="personForm" class="stack">
