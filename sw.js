@@ -1,5 +1,5 @@
 /* Las Flores PWA. Cambia VERSION al publicar cambios de recursos estáticos. */
-const VERSION = '2.3.0';
+const VERSION = '2.4.0';
 const CACHE = 'las-flores-static-' + VERSION;
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => {
@@ -28,3 +28,4 @@ self.addEventListener('fetch', event => {
   if(!(/\/(?:manifest\.webmanifest|sw\.js|icons\/icon-(?:192|512)\.png)$/.test(path))) return;
   event.respondWith(caches.match(request).then(cached=>cached||fetch(request)));
 });
+

@@ -2,6 +2,15 @@
 
 Aplicación instalable para uso **local** en tablet Android. Incluye Briefings, Control de uniformes/implementos y Personal. La publicación en GitHub Pages solo distribuye los archivos de la aplicación; **no recibe registros de trabajadores ni respaldos**.
 
+## Novedades 2.4.0
+
+- Nuevo acceso **Control de funciones** en el menú principal: Oficina I, Oficina II y funciones generales.
+- Asignación diaria a uno o varios trabajadores programados. Cada persona se evalúa por separado: pendiente de revisar, cumplió o no cumplió (con observación obligatoria).
+- Historial de cambios, anulación y corrección posterior sin convertir una falta en cumplimiento. No permite duplicar fecha/persona/función.
+- Resumen mensual por porcentaje de cumplimiento o incumplimiento, mostrando evaluadas, pendientes y cantidades. Los pendientes y anulados se excluyen del porcentaje; una falta corregida sigue contando como falta. El historial no cambia al modificar descansos futuros.
+- Filtros de persona, área y resultado; desglose de faltas por función y Excel mensual con resumen, detalle y faltas por función.
+- Los controles forman parte del respaldo JSON y las copias internas; respaldos antiguos se abren con la nueva sección vacía.
+
 ## Novedades 2.3.0 (rama `desarrollo`)
 
 - **Tema claro y oscuro** (botón 🌙/☀️ en la cabecera o en «Configuración» → «Tema de la aplicación»): modo día (claro, como siempre) y modo noche (oscuro, con los mismos colores verde y dorado). La elección se guarda en este navegador y se mantiene al cerrar y reabrir la app.
@@ -47,3 +56,4 @@ Para probar la PWA localmente, sirve la carpeta mediante un servidor web de desa
 ## Privacidad
 
 No hay inicio de sesión: cualquier persona con acceso al navegador/perfil que contiene los datos podrá verlos. GitHub Pages distribuye **código público**, no protege con contraseña la app. Para una operación empresarial con varios usuarios/permisos, será necesario un sistema de autenticación y almacenamiento administrado aparte.
+
