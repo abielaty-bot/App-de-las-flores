@@ -424,27 +424,28 @@ function personIdentity(w,desc=''){return `<div class="identity"><span class="av
 function badge(label,kind=''){return `<span class="status ${kind}">${h(label)}</span>`;}
 // PERSONAL: registro único y programación por fecha.
 function renderPersonal(){
-  setHeading('Personal','Agrega, edita o desactiva trabajadores. Los apoyos y descansos especiales solo afectan la fecha seleccionada.');
+  setHeading('Personal','Configura horarios habituales, apoyos de fin de semana, vacaciones y excepciones por fecha.');
   const people=state.staff.filter(w=>w.name.toLocaleLowerCase('es').includes(staffSearch.toLocaleLowerCase('es'))).sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.name.localeCompare(b.name,'es'));
   const list=people.map(w=>{
     const s=scheduleStatus(staffDate,w.id);
     return `<div class="person-row" data-staff-item data-search="${h(w.name.toLocaleLowerCase('es'))}">
-      ${personIdentity(w,`${w.position||'Mozo'} · Descansa: ${(w.restDays||[]).map(d=>WEEK[d]).join(', ')||'Sin asignar'} · Grupo: ${w.briefingGroup?w.briefingGroup+':00':'Sin asignar'}`)}
+      ${personIdentity(w,`${w.position||'Mozo'} · ${w.scheduleMode==='weekend'?'Apoyo sábado y domingo':'Descansa: '+((w.restDays||[]).map(d=>WEEK[d]).join(', ')||'Sin asignar')} · Grupo: ${w.briefingGroup?w.briefingGroup+':00':'Sin asignar'}`)}
       <div class="actions">
         ${badge(w.active===false?'Inactivo':'Activo',w.active===false?'':'ok')}
         <select class="input" style="width:auto;min-width:125px" aria-label="Situación del día de ${h(w.name)}" data-schedule="${h(w.id)}" ${w.active===false?'disabled':''}>${scheduleOptions(s)}</select>
         <button class="button tiny" data-action="edit-person" data-id="${h(w.id)}">Editar</button>
+        <button class="button tiny" data-action="vacation-manage" data-id="${h(w.id)}">Vacaciones${(w.vacations||[]).length?' ('+w.vacations.length+')':''}</button>
         <button class="button tiny ${w.active===false?'':'warn'}" data-action="toggle-person" data-id="${h(w.id)}">${w.active===false?'Reactivar':'Desactivar'}</button>
         <button class="button tiny" data-action="remove-person" data-id="${h(w.id)}" title="Quitar de la lista">Quitar</button>
       </div></div>`;
   }).join('');
   $('#app').innerHTML=`
-    <div class="kpis">${kpi(state.staff.filter(w=>w.active!==false).length,'Activos','green')}${kpi(state.staff.filter(w=>w.active===false).length,'Inactivos')}${kpi(forDate(staffDate).filter(p=>isScheduled(p.status)).length,'Trabajan o apoyan')}${kpi(forDate(staffDate).filter(p=>p.status==='support').length,'Apoyos del día','amber')}</div>
-    <div class="panel"><div class="panel-head"><div><h2>Programación del día</h2><p>Cambiar una fecha no modifica los descansos habituales.</p></div>${dateField('staffDate',staffDate,'Fecha que deseas modificar')}</div></div>
+    <div class="kpis">${kpi(state.staff.filter(w=>w.active!==false).length,'Activos','green')}${kpi(state.staff.filter(w=>w.active===false).length,'Inactivos')}${kpi(forDate(staffDate).filter(p=>isScheduled(p.status)).length,'Trabajan o apoyan')}${kpi(forDate(staffDate).filter(p=>p.status==='support').length,'Apoyos del día','amber')}${kpi(forDate(staffDate).filter(p=>p.status==='vacation').length,'De vacaciones')}</div>
+    <div class="panel"><div class="panel-head"><div><h2>Programación del día</h2><p>La situación diaria es independiente de la contratación. En vacaciones o con controles registrados debes revisar el calendario antes de cambiar estados.</p></div>${dateField('staffDate',staffDate,'Fecha que deseas modificar')}</div></div>
     <div class="panel"><div class="panel-head"><div><h2>Lista de trabajadores</h2><p>Una sola lista compartida con Briefings y Uniformes.</p></div><div class="toolbar"><button class="button" data-action="bulk-person">Pegar nombres</button><button class="button primary" data-action="add-person">+ Agregar trabajador</button></div></div>
       <div class="panel-body"><div class="field"><label for="staffSearch">Buscar</label><input id="staffSearch" value="${h(staffSearch)}" placeholder="Nombre del trabajador"></div></div>
       <div id="staffRows">${list||emptyHint('No hay trabajadores registrados','Agrega tu equipo para comenzar.')}</div></div>
-    <div class="callout"><b>Activo no significa que esté trabajando hoy.</b> Por ejemplo, puedes dejar a alguien activo, mantener su descanso habitual y cambiar únicamente la fecha seleccionada a «Apoyo».</div>`;
+    <div class="callout"><b>Activo no significa que trabaje hoy.</b> Los apoyos de sábado y domingo quedan «No programados» de lunes a viernes. Las vacaciones se configuran por fechas y no cuentan como «Sin revisar». No desactives al personal por sus vacaciones.</div>`;
 }
 function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['vacation','Vacaciones'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
 function openPerson(w=null){
@@ -454,7 +455,8 @@ function openPerson(w=null){
     <div class="fields"><div class="field"><label>Puesto</label><select name="position">${['Mozo','Recepción','Caja','Lavavasos','Apoyo','Otro'].map(v=>`<option ${v===(w?.position||'Mozo')?'selected':''}>${v}</option>`).join('')}</select></div>
     <div class="field"><label>Categoría</label><select name="category"><option value="">Sin categoría</option>${[1,2,3,4].map(x=>`<option value="${x}" ${String(w?.category||'')===String(x)?'selected':''}>${x}</option>`).join('')}</select></div></div>
     <div class="field"><label>Grupo habitual del briefing</label><select name="briefingGroup"><option value="">Por asignar</option><option value="11" ${w?.briefingGroup==='11'?'selected':''}>11:00 a. m.</option><option value="12" ${w?.briefingGroup==='12'?'selected':''}>12:00 p. m.</option></select><small>Si cambia de grupo solo por un día, podrás seleccionarlo al registrar la asistencia.</small></div>
-    <div class="field"><label>Día(s) de descanso habitual</label><div class="weekdays">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" name="restDay" value="${d}" ${rests.includes(d)?'checked':''}> ${WEEK[d]}</label>`).join('')}</div></div>
+    <div class="field"><label>Programación habitual</label><select name="scheduleMode"><option value="regular" ${w?.scheduleMode!=='weekend'?'selected':''}>Personal habitual (según descansos)</option><option value="weekend" ${w?.scheduleMode==='weekend'?'selected':''}>Apoyo solo sábados y domingos</option></select><small>Los apoyos de fin de semana no estarán programados de lunes a viernes, salvo excepción manual.</small></div>
+    <div class="field"><label>Día(s) de descanso habitual del personal regular</label><div class="weekdays">${[1,2,3,4,5,6,0].map(d=>`<label><input type="checkbox" name="restDay" value="${d}" ${rests.includes(d)?'checked':''}> ${WEEK[d]}</label>`).join('')}</div></div>
     <input type="hidden" name="id" value="${h(w?.id||'')}"></form>`,
     `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-person">Guardar trabajador</button>`);
 }
@@ -463,9 +465,44 @@ function savePerson(){
   const name=form.elements.name.value.trim().replace(/\s+/g,' '),id=form.elements.id.value;
   if(!name){toast('Escribe el nombre del trabajador.');return;}
   if(state.staff.some(p=>p.id!==id&&p.name.toLocaleLowerCase('es')===name.toLocaleLowerCase('es'))){toast('El trabajador ya existe.');return;}
-  const data={name,position:form.elements.position.value,category:form.elements.category.value,briefingGroup:form.elements.briefingGroup.value,restDays:[...form.querySelectorAll('[name="restDay"]:checked')].map(c=>Number(c.value))};
-  if(id){Object.assign(worker(id),data,{updatedAt:timestamp()});}else{state.staff.push({id:uid(),...data,active:true,createdAt:timestamp()});}
+  const data={name,position:form.elements.position.value,category:form.elements.category.value,briefingGroup:form.elements.briefingGroup.value,scheduleMode:form.elements.scheduleMode.value==='weekend'?'weekend':'regular',restDays:[...form.querySelectorAll('[name="restDay"]:checked')].map(c=>Number(c.value))};
+  if(id){Object.assign(worker(id),data,{updatedAt:timestamp()});}else{state.staff.push({id:uid(),...data,vacations:[],active:true,createdAt:timestamp()});}
   mutate(id?'Editar trabajador':'Agregar trabajador',name);closeModal();render();toast('Trabajador guardado.');
+}
+
+function openVacations(id){
+  const w=worker(id);if(!w)return;
+  const items=(w.vacations||[]).slice().sort((a,b)=>b.start.localeCompare(a.start));
+  const listing=items.map(v=>`<div class="person-row"><div><b>${h(formatDate(v.start))} – ${h(formatDate(v.end))}</b><div class="small">${h(v.note||'Sin observación')}</div></div><button class="button tiny warn" data-action="vacation-remove" data-id="${h(id)}" data-vacation="${h(v.id)}">Quitar</button></div>`).join('');
+  modal('Vacaciones · '+w.name,`<div class="callout">Registra períodos autorizados. El trabajador permanece activo y volverá automáticamente a su programación habitual al finalizar las vacaciones.</div>
+    <div class="panel"><div class="panel-head"><h2>Períodos registrados</h2></div>${listing||emptyHint('Sin vacaciones','Agrega fechas de inicio y fin para este trabajador.')}</div>
+    <form id="vacationForm" class="stack"><div class="fields"><div class="field"><label>Desde *</label><input type="date" name="start" required value="${dateISO()}"></div><div class="field"><label>Hasta *</label><input type="date" name="end" required value="${dateISO()}"></div></div><div class="field"><label>Observación (opcional)</label><input name="note" maxlength="300" placeholder="Ej. Vacaciones autorizadas"></div></form>`,
+    `<button class="button" data-action="close-modal">Cerrar</button><button class="button primary" data-action="vacation-add" data-id="${h(id)}">+ Guardar período</button>`);
+}
+function vacationHasControls(id,start,end){
+  return state.inspections.some(r=>r.staffId===id&&!r.voidedAt&&r.date>=start&&r.date<=end)
+   ||state.checklists.some(r=>r.staffId===id&&r.date>=start&&r.date<=end)
+   ||state.briefings.some(r=>r.staffId===id&&r.date>=start&&r.date<=end)
+   ||state.functionChecks.some(r=>r.staffId===id&&!r.voidedAt&&r.date>=start&&r.date<=end);
+}
+function addVacation(id){
+  const w=worker(id),f=$('#vacationForm');if(!w||!f)return;
+  const start=f.elements.start.value,end=f.elements.end.value,note=f.elements.note.value.trim().slice(0,300);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){toast('Revisa las fechas de inicio y fin.');return;}
+  if((w.vacations||[]).some(v=>start<=v.end&&end>=v.start)){toast('Este período se superpone con otras vacaciones registradas.');return;}
+  if(vacationHasControls(id,start,end)){toast('Existen inspecciones, briefings o funciones registradas en ese período. Revísalas antes de asignar vacaciones.');return;}
+  w.vacations=w.vacations||[];
+  w.vacations.push({id:uid(),start,end,note,createdAt:timestamp()});
+  w.updatedAt=timestamp();mutate('Registrar vacaciones',w.name+' · '+start+' a '+end);
+  openVacations(id);toast('Vacaciones registradas.');
+}
+function removeVacation(id,vacId){
+  const w=worker(id);if(!w)return;
+  const v=(w.vacations||[]).find(x=>x.id===vacId);if(!v)return;
+  if(!confirm('¿Quitar las vacaciones del '+formatDate(v.start)+' al '+formatDate(v.end)+'? La programación habitual volverá a aplicarse.'))return;
+  w.vacations=w.vacations.filter(x=>x.id!==vacId);w.updatedAt=timestamp();
+  mutate('Quitar vacaciones',w.name+' · '+v.start+' a '+v.end);
+  openVacations(id);toast('Período retirado.');
 }
 function openBulk(){modal('Agregar varios trabajadores',`<div class="field"><label>Un nombre por línea</label><textarea id="bulkNames" rows="9" placeholder="Anais\nJeraldine\nLeo"></textarea><small>Se omitirán los nombres que ya estén registrados. Podrás editar sus datos luego.</small></div>`,`<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-bulk">Agregar nombres</button>`);}
 function saveBulk(){
@@ -1289,6 +1326,9 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'vacation-manage':openVacations(id);break;
+    case 'vacation-add':addVacation(id);break;
+    case 'vacation-remove':removeVacation(id,el.dataset.vacation);break;
     case 'add-person':openPerson();break;
     case 'edit-person':openPerson(worker(id));break;
     case 'save-person':savePerson();break;
