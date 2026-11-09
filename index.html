@@ -264,9 +264,74 @@ function sectionNav(){const section=getSection();if(!section)return [];
   if(section==='functions')return [['functions','Control diario'],['functions-month','Resumen mensual']];
   return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
 }
-function navigate(v){if(!['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings'].includes(v))return;view=v;render();window.scrollTo({top:0,behavior:'instant'});}
+// Historial de navegación para el botón Atrás y el gesto de Android.
+const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings']);
+let navigationReady=false,modalSequence=0;
+const modalSnapshots=new Map();
+function navigationEntry(v,dialogId=null,depth=0){return {lasFloresNavigation:true,view:v,dialogId,depth};}
+function setupNavigation(){
+  try{
+    const previous=history.state;
+    if(previous?.lasFloresNavigation&&NAV_VIEWS.has(previous.view)){
+      view=previous.view;
+      // Al recargar, no recuperar formularios emergentes sin confirmar.
+      history.replaceState(navigationEntry(view,null,Number(previous.depth)||0),'');
+    }else{
+      view='home';
+      history.replaceState(navigationEntry('home',null,0),'');
+    }
+    navigationReady=true;
+  }catch(error){console.warn('Navegación del sistema no disponible:',error);}
+}
+function pushNavigation(v,dialogId=null){
+  if(!navigationReady)return;
+  try{
+    const current=history.state;
+    const depth=current?.lasFloresNavigation?(Number(current.depth)||0):0;
+    history.pushState(navigationEntry(v,dialogId,depth+1),'');
+  }catch(error){console.warn('No se pudo registrar el historial interno:',error);}
+}
+function hideModal(){
+  const layer=$('#modalLayer');
+  layer.classList.remove('open');
+  layer.setAttribute('aria-hidden','true');
+  $('#modal').innerHTML='';
+}
+function navigate(v){
+  if(!NAV_VIEWS.has(v))return;
+  if(v!==view)pushNavigation(v);
+  if($('#modalLayer').classList.contains('open'))hideModal();
+  view=v;render();window.scrollTo({top:0,behavior:'instant'});
+}
+function goBack(){
+  if($('#modalLayer').classList.contains('open')){closeModal();return;}
+  if(navigationReady&&history.state?.lasFloresNavigation&&(Number(history.state.depth)||0)>0){
+    history.back();return;
+  }
+  if(view!=='home')navigate('home');
+}
+window.addEventListener('popstate',event=>{
+  if(!navigationReady)return;
+  const target=event.state;
+  if(!target?.lasFloresNavigation||!NAV_VIEWS.has(target.view)){
+    hideModal();
+    return; // Android puede salir cuando ya no quedan pantallas internas.
+  }
+  if(view!==target.view){
+    view=target.view;
+    render();
+    window.scrollTo({top:0,behavior:'instant'});
+  }
+  if(target.dialogId&&modalSnapshots.has(target.dialogId)){
+    $('#modal').innerHTML=modalSnapshots.get(target.dialogId);
+    $('#modalLayer').classList.add('open');
+    $('#modalLayer').setAttribute('aria-hidden','false');
+  }else{
+    hideModal();
+  }
+});
 function setHeading(title,subtitle){
-  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="home">← Inicio</button><span class="eyebrow" style="margin:0">SISTEMA DE CONTROL INTERNO</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
+  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">SISTEMA DE CONTROL INTERNO</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
 }
 function render(){
   if(view==='home'){
@@ -948,10 +1013,17 @@ function renderSettings(){
 
 // MODALES, EVENTOS Y ARRANQUE.
 function modal(title,body,footer=''){
+  const opening=!$('#modalLayer').classList.contains('open');
+  if(opening)pushNavigation(view,'dialog-'+(++modalSequence));
   $('#modal').innerHTML=`<div class="modal-head"><h2 id="modalHeading">${h(title)}</h2><button class="close" data-action="close-modal" aria-label="Cerrar">×</button></div><div class="modal-body">${body}</div><div class="modal-foot">${footer||'<button class="button" data-action="close-modal">Cerrar</button>'}</div>`;
   $('#modalLayer').classList.add('open');$('#modalLayer').setAttribute('aria-hidden','false');
+  if(navigationReady&&history.state?.dialogId)modalSnapshots.set(history.state.dialogId,$('#modal').innerHTML);
 }
-function closeModal(){$('#modalLayer').classList.remove('open');$('#modalLayer').setAttribute('aria-hidden','true');$('#modal').innerHTML='';}
+function closeModal(){
+  if(!$('#modalLayer').classList.contains('open'))return;
+  hideModal();
+  if(navigationReady&&history.state?.lasFloresNavigation&&history.state.dialogId)history.back();
+}
 function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
   switch(action){
     case 'function-assign':openFunctionAssign(el.dataset.task);break;
@@ -961,6 +1033,7 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'function-void':voidFunctionCheck(id);break;
     case 'function-export':exportFunctionMonth();break;
     case 'home':navigate('home');break;
+    case 'go-back':goBack();break;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
@@ -1081,7 +1154,7 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('#modalLa
 $('#saveIndicator').insertAdjacentHTML('afterend','<button id="globalSave" class="button tiny gold" type="button" data-action="manual-save" hidden>Guardar cambios</button>');
 const originalIndicator=updateSaveIndicator;
 updateSaveIndicator=function(){originalIndicator();const b=$('#globalSave');if(b){b.hidden=prefs.autoSave||!dirty;b.disabled=!dirty;b.textContent='Guardar cambios';}};
-load();render();
+load();setupNavigation();render();
 // Actualizaciones PWA: publicar código nuevo NO envía ni modifica los registros guardados.
 // La nueva versión se activa al confirmarlo y solo si no hay cambios pendientes.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
