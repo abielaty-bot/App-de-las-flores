@@ -943,6 +943,52 @@ function saveIncident(){
  state.incidents.push(r);mutate('Registrar incidente',code+' · '+r.product);closeModal();render();toast(code+' registrado.');
 }
 
+
+function incidentDetails(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r)return;
+ const actions=(r.actions||[]).map(a=>'<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>'+h(a.kind||'Acción')+'</b> · '+h(displayTime(a.at))+'<p class="small">'+h(a.description||'')+'</p><span class="small">Por '+h(a.by||'No indicado')+'</span></div>').join('')||'<p class="small">Sin acciones.</p>';
+ const body='<div class="stack">'+badge(incidentStatusLabels[r.status]||r.status,r.status==='cerrado'?'ok':'warn')+
+ '<h3>'+h(r.product)+'</h3><p class="small">'+h(formatDate(r.occurredDate))+' · '+h(r.occurredTime)+' · '+h(incidentCategories[r.category])+'</p>'+
+ '<div class="fields"><div><b>Área donde se detectó</b><p class="small">'+h(r.detectedArea||'—')+'</p></div><div><b>Origen probable</b><p class="small">'+h(r.originArea||'No determinado')+'</p></div><div><b>Origen confirmado</b><p class="small">'+h(r.confirmedOrigin||'Por verificar')+'</p></div><div><b>Tipo de problema</b><p class="small">'+h(incidentTypeText(r))+'</p></div></div>'+
+ '<div><b>Descripción</b><p class="small">'+h(r.description||'')+'</p></div><div><b>Impacto</b><p class="small">'+h(r.impact||'No determinado')+'</p></div>'+
+ '<div><b>Registrado por</b><p class="small">'+h(r.reporter||'')+'</p></div><div><b>Responsable de seguimiento</b><p class="small">'+h(incidentPersonName(r))+'</p></div>'+
+ '<div><b>Acciones y seguimiento</b>'+actions+'</div>'+
+ (r.status==='cerrado'?'<div class="callout">Verificado y cerrado por '+h(r.closedBy||'')+' · '+h(displayTime(r.closedAt))+'</div>':'')+
+ (r.status==='anulado'?'<div class="callout warn">Anulación: '+h(r.voidReason||'Sin motivo')+'</div>':'')+'</div>';
+ let footer='<button class="button" data-action="close-modal">Cerrar</button>';
+ if(r.status!=='anulado')footer+='<button class="button primary" data-action="incident-followup" data-id="'+h(id)+'">'+(r.status==='cerrado'?'Reabrir / nueva medida':'Nueva acción / cambiar estado')+'</button>';
+ if(r.status!=='anulado'&&r.status!=='cerrado')footer+='<button class="button warn" data-action="incident-void" data-id="'+h(id)+'">Anular</button>';
+ modal(incidentLabel(r)+' · Detalle',body,footer);
+}
+function openIncidentFollowup(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r||r.status==='anulado')return;
+ const states=Object.entries(incidentStatusLabels).filter(([k])=>k!=='anulado').map(([k,label])=>'<option value="'+h(k)+'" '+(k===r.status?'selected':'')+'>'+h(label)+'</option>').join('');
+ const staff='<option value="">Sin asignar</option>'+state.staff.filter(w=>w.active!==false||w.id===r.personId).map(w=>'<option value="'+h(w.id)+'" '+(w.id===r.personId?'selected':'')+'>'+h(w.name)+'</option>').join('');
+ const body='<form id="incidentFollowupForm" class="stack">'+
+ '<div class="field"><label>Estado *</label><select name="status">'+states+'</select></div>'+
+ '<div class="field"><label>Tipo de acción *</label><select name="kind"><option value="correccion">Corrección</option><option value="comunicacion">Comunicación</option><option value="investigacion">Investigación</option><option value="prevencion">Prevención</option><option value="verificacion">Verificación</option></select></div>'+
+ '<div class="field"><label>Medida, resultado o verificación *</label><textarea name="description" maxlength="1500"></textarea></div>'+
+ '<div class="field"><label>Registrado o verificado por *</label><input name="by" maxlength="90"></div>'+
+ '<div class="field"><label>Origen confirmado, solo si se verificó</label><select name="confirmedOrigin"><option value="">Sin confirmar</option>'+INCIDENT_AREAS.map(a=>'<option value="'+h(a)+'" '+(a===r.confirmedOrigin?'selected':'')+'>'+h(a)+'</option>').join('')+'</select></div>'+
+ '<div class="field"><label>Responsable de seguimiento</label><select name="personId">'+staff+'</select></div>'+
+ '<div class="callout">Para cerrar, selecciona la acción Verificación y deja constancia de quién verificó la solución.</div></form>';
+ const footer='<button class="button" data-action="incident-details" data-id="'+h(id)+'">Cancelar</button><button class="button primary" data-action="incident-save-followup" data-id="'+h(id)+'">Guardar seguimiento</button>';
+ modal('Seguimiento · '+incidentLabel(r),body,footer);
+}
+function saveIncidentFollowup(id){
+ const r=state.incidents.find(x=>x.id===id),f=$('#incidentFollowupForm');if(!r||!f||r.status==='anulado')return;
+ const v=k=>String(f.elements[k]?.value||'').trim(),next=v('status');
+ if(!incidentStatusLabels[next]||next==='anulado'||!v('description')||!v('by')){toast('Completa estado, descripción y responsable.');return;}
+ if(next==='cerrado'&&r.status!=='cerrado'&&v('kind')!=='verificacion'){toast('Para cerrar, elige Verificación.');return;}
+ if(next==='cerrado'&&r.status!=='cerrado'&&!confirm('¿Confirmas que la solución fue verificada?'))return;
+ const at=timestamp(),old=r.status;
+ r.actions.push({id:uid(),kind:old==='cerrado'&&next!=='cerrado'?'reapertura':v('kind'),description:v('description'),by:v('by'),at,statusBefore:old,statusAfter:next});
+ r.status=next;r.updatedAt=at;if(v('confirmedOrigin'))r.confirmedOrigin=v('confirmedOrigin');
+ r.personId=v('personId');r.personName=worker(r.personId)?.name||r.personName||'';
+ if(next==='cerrado'){r.closedAt=at;r.closedBy=v('by');}else{r.closedAt=null;r.closedBy='';}
+ mutate('Seguimiento de incidente',r.code+' · '+next);closeModal();render();toast('Seguimiento guardado.');
+}
+
 function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
 function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
 
