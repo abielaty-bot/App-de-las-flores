@@ -910,6 +910,39 @@ function renderIncidentsReports(){
  setHeading('Excel de incidentes','Historial, acciones y estadísticas exportadas en un libro independiente.');
  $('#app').innerHTML='<div class="panel"><div class="panel-head"><h2>Selecciona el período</h2></div><div class="panel-body">'+periodHTML()+'</div></div><div class="panel"><div class="panel-body stack"><p>Hojas: Resumen, Incidentes, Áreas, Tipos y Acciones.</p><button class="button primary block" data-action="incident-export">↓ Descargar Incidentes.xlsx</button><p class="small">Para restaurar registros editables usa el respaldo JSON desde Configuración.</p></div></div>';
 }
+
+function openIncident(){
+ const dt=new Date(),time=pad(dt.getHours())+':'+pad(dt.getMinutes());
+ const staff='<option value="">Sin asignar</option>'+state.staff.filter(w=>w.active!==false).map(w=>'<option value="'+h(w.id)+'">'+h(w.name)+'</option>').join('');
+ const body='<form id="incidentForm" class="stack">'+
+ '<div class="callout warn">Ante un riesgo sanitario, retén el producto y comunica el problema antes de completar este formulario.</div>'+
+ '<div class="fields"><div class="field"><label>Fecha del incidente *</label><input name="occurredDate" type="date" value="'+dateISO()+'"></div><div class="field"><label>Hora *</label><input name="occurredTime" type="time" value="'+time+'"></div></div>'+
+ '<div class="field"><label>Categoría *</label><select id="incidentCategory" name="category"><option value="producto">Alimentos y bebidas</option><option value="operativo">Operaciones y servicio</option></select></div>'+
+ '<div class="fields"><div class="field"><label>Detectado en *</label><select name="detectedArea">'+incidentAreasOptions('Cocina')+'</select></div><div class="field"><label>Origen probable</label><select name="originArea"><option value="">Sin determinar</option>'+incidentAreasOptions('')+'</select></div></div>'+
+ '<div class="field"><label>Producto o proceso *</label><input name="product" maxlength="140" placeholder="Cuy, chicha, comanda, impresora"></div>'+
+ '<div class="field"><label>Tipo de incidente *</label><select id="incidentType" name="typeId">'+incidentTypesOptions('producto')+'</select></div>'+
+ '<div id="incidentOtherTypeWrap" class="field" hidden><label>Otro tipo *</label><input name="typeOther" maxlength="120"></div>'+
+ '<div class="field"><label>Descripción *</label><textarea name="description" maxlength="1500" placeholder="Hechos observados; sin asignar culpas."></textarea></div>'+
+ '<div class="fields"><div class="field"><label>Prioridad *</label><select name="priority"><option value="media">Media</option><option value="baja">Baja</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></div><div class="field"><label>Registrado por *</label><input name="reporter" maxlength="90"></div></div>'+
+ '<div class="field"><label>Impacto</label><select name="impact"><option value="">No determinado</option><option>Antes de servir</option><option>En mesa / cliente afectado</option><option>Después del consumo</option><option>Servicio interrumpido o retrasado</option><option>Otro</option></select></div>'+
+ '<div class="field"><label>Medida inmediata *</label><textarea name="immediateAction" maxlength="850" placeholder="Qué se hizo primero para controlar la situación."></textarea></div>'+
+ '<div class="field"><label>Responsable de seguimiento</label><select name="personId">'+staff+'</select></div></form>';
+ modal('Nuevo incidente',body,'<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="incident-save">Registrar incidente</button>');
+}
+function saveIncident(){
+ const f=$('#incidentForm');if(!f)return;
+ const v=k=>String(f.elements[k]?.value||'').trim();
+ if(['occurredDate','occurredTime','product','description','reporter','immediateAction'].some(k=>!v(k))){toast('Completa los campos obligatorios.');return;}
+ const c=v('category'),type=state.incidentTypes.find(t=>t.id===v('typeId')&&t.category===c&&t.active!==false);
+ if(v('typeId')==='otro'&&!v('typeOther')){toast('Especifica el tipo de incidente.');return;}
+ if(v('typeId')!=='otro'&&!type){toast('Selecciona un tipo de incidente válido.');return;}
+ const year=v('occurredDate').slice(0,4),at=timestamp();
+ const seq=state.incidents.filter(r=>r.occurredDate.startsWith(year)).reduce((n,r)=>{const m=String(r.code||'').match(/-(\d+)$/);return Math.max(n,m?Number(m[1]):0);},0)+1;
+ const code='INC-'+year+'-'+String(seq).padStart(4,'0'),personId=v('personId');
+ const r={id:uid(),code,category:c,occurredDate:v('occurredDate'),occurredTime:v('occurredTime'),detectedArea:v('detectedArea'),originArea:v('originArea'),confirmedOrigin:'',product:v('product'),typeId:type?.id||'',typeLabel:type?.label||v('typeOther'),description:v('description'),priority:v('priority'),reporter:v('reporter'),impact:v('impact'),immediateAction:v('immediateAction'),personId,personName:worker(personId)?.name||'',status:'registrado',createdAt:at,updatedAt:at,closedAt:null,closedBy:'',voidedAt:null,voidReason:'',actions:[{id:uid(),kind:'correccion',description:v('immediateAction'),by:v('reporter'),at,statusAfter:'registrado'}]};
+ state.incidents.push(r);mutate('Registrar incidente',code+' · '+r.product);closeModal();render();toast(code+' registrado.');
+}
+
 function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
 function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
 
