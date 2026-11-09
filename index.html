@@ -1036,6 +1036,29 @@ function removeIncidentType(id){
  state.incidentTypes=state.incidentTypes.filter(x=>x.id!==id);mutate('Eliminar tipo de incidente',t.label);openIncidentTypes();
 }
 
+
+function workbookIncidents(start,end,label){
+ const all=state.incidents.filter(r=>r.occurredDate>=start&&r.occurredDate<=end).sort((a,b)=>a.occurredDate.localeCompare(b.occurredDate)),valid=all.filter(r=>r.status!=='anulado');
+ const rows=[['Código','Fecha','Hora','Categoría','Detectado en','Origen probable','Origen confirmado','Producto o proceso','Tipo de problema','Prioridad','Estado','Impacto','Registrado por','Seguimiento a cargo de','Descripción','Medida inmediata','Creado el','Cerrado el','Cerrado por','Motivo de anulación']];
+ all.forEach(r=>rows.push([r.code||r.id,r.occurredDate,r.occurredTime,incidentCategories[r.category],r.detectedArea,r.originArea||'',r.confirmedOrigin||'',r.product,incidentTypeText(r),INCIDENT_PRIORITIES[r.priority],incidentStatusLabels[r.status],r.impact||'',r.reporter||'',incidentPersonName(r),r.description,r.immediateAction,r.createdAt||'',r.closedAt||'',r.closedBy||'',r.voidReason||'']));
+ const countBy=fn=>{let map=new Map();valid.forEach(r=>{let key=fn(r)||'Sin definir';map.set(key,(map.get(key)||0)+1);});return [...map].sort((a,b)=>b[1]-a[1]);};
+ const areas=[['Área donde se detectó','Número de incidentes'],...countBy(r=>r.detectedArea)];
+ const types=[['Tipo de problema','Número de incidentes'],...countBy(r=>incidentTypeText(r))];
+ const actions=[['Código','Fecha incidente','Fecha de acción','Tipo de acción','Descripción','Realizado por','Estado previo','Estado posterior']];
+ all.forEach(r=>(r.actions||[]).forEach(a=>actions.push([r.code||r.id,r.occurredDate,a.at||'',a.kind||'',a.description||'',a.by||'',incidentStatusLabels[a.statusBefore]||'',incidentStatusLabels[a.statusAfter]||''])));
+ const sum=[['LAS FLORES · REGISTRO DE INCIDENTES'],['Período',label],['Desde',start],['Hasta',end],['Generado',displayTime(timestamp())],[],['INDICADOR','VALOR'],
+ ['Casos vigentes',valid.length],['Alimentos y bebidas',valid.filter(r=>r.category==='producto').length],['Operativos y servicio',valid.filter(r=>r.category==='operativo').length],
+ ['Casos pendientes',valid.filter(r=>r.status!=='cerrado').length],['Cerrados',valid.filter(r=>r.status==='cerrado').length],['Anulados',all.length-valid.length],[],
+ ['NOTAS'],['El área de detección no demuestra origen ni responsabilidad confirmada.'],['Los registros anulados se conservan para auditoría.']];
+ return makeXlsx([{name:'Resumen',rows:sum},{name:'Incidentes',rows,headerRow:1,dateCols:[1]},{name:'Áreas',rows:areas,headerRow:1},{name:'Tipos',rows:types,headerRow:1},{name:'Acciones',rows:actions,headerRow:1,dateCols:[1]}]);
+}
+function exportIncidentReport(){
+ if(dirty&&!confirm('Hay cambios sin guardar. El Excel incluirá los datos actuales, pero podrían perderse al cerrar. ¿Continuar?'))return;
+ const p=reportRange();
+ try{downloadBlob(workbookIncidents(p.start,p.end,p.label),'Las_Flores_Incidentes_'+p.label+'_'+p.start+'_'+p.end+'.xlsx');toast('Excel de incidentes descargado.');}
+ catch(e){console.error(e);toast('No se pudo generar el Excel de incidentes.');}
+}
+
 function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
 function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
 
