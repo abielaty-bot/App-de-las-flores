@@ -989,6 +989,53 @@ function saveIncidentFollowup(id){
  mutate('Seguimiento de incidente',r.code+' · '+next);closeModal();render();toast('Seguimiento guardado.');
 }
 
+
+function openIncidentVoid(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r||['anulado','cerrado'].includes(r.status))return;
+ const body='<div class="callout warn">El registro se marcará anulado, pero no se borrará del historial ni de los reportes.</div><div class="field"><label>Motivo de la anulación *</label><textarea id="incidentVoidReason" maxlength="500"></textarea></div><div class="field"><label>Responsable *</label><input id="incidentVoidBy" maxlength="90"></div>';
+ const foot='<button class="button" data-action="incident-details" data-id="'+h(id)+'">Cancelar</button><button class="button warn" data-action="incident-confirm-void" data-id="'+h(id)+'">Anular incidente</button>';
+ modal('Anulación · '+incidentLabel(r),body,foot);
+}
+function saveIncidentVoid(id){
+ const r=state.incidents.find(x=>x.id===id),reason=$('#incidentVoidReason')?.value.trim(),by=$('#incidentVoidBy')?.value.trim();
+ if(!r||['cerrado','anulado'].includes(r.status)||!reason||!by){toast('Indica motivo y responsable de la anulación.');return;}
+ const at=timestamp();
+ r.actions.push({id:uid(),kind:'anulacion',description:reason,by,at,statusBefore:r.status,statusAfter:'anulado'});
+ r.status='anulado';r.voidReason=reason;r.voidedAt=at;r.updatedAt=at;
+ mutate('Anular incidente',r.code+' · '+reason);closeModal();render();toast('Anulación registrada.');
+}
+function openIncidentTypes(){
+ const cards=['producto','operativo'].map(cat=>'<div class="panel"><div class="panel-head"><h2>'+h(incidentCategories[cat])+'</h2></div>'+
+ state.incidentTypes.filter(t=>t.category===cat).sort((a,b)=>a.label.localeCompare(b.label,'es')).map(t=>'<div class="person-row"><div><b>'+h(t.label)+'</b><div class="small">'+(t.active?'Activo':'Archivado')+'</div></div><div class="actions"><button class="button tiny" data-action="incident-type-edit" data-id="'+h(t.id)+'">Editar</button><button class="button tiny" data-action="incident-type-toggle" data-id="'+h(t.id)+'">'+(t.active?'Desactivar':'Activar')+'</button><button class="button tiny warn" data-action="incident-type-remove" data-id="'+h(t.id)+'">Eliminar</button></div></div>').join('')+'</div>').join('');
+ modal('Tipos de incidentes','<p class="small">Puedes actualizar el catálogo. Los incidentes históricos conservan el nombre registrado.</p>'+cards,'<button class="button" data-action="close-modal">Cerrar</button><button class="button primary" data-action="incident-type-new">+ Nuevo tipo</button>');
+}
+function openIncidentTypeForm(id=''){
+ const t=state.incidentTypes.find(x=>x.id===id);
+ const body='<form id="incidentTypeForm" class="stack"><input type="hidden" name="id" value="'+h(t?.id||'')+'"><div class="field"><label>Nombre *</label><input name="label" maxlength="120" value="'+h(t?.label||'')+'"></div><div class="field"><label>Categoría *</label><select name="category"><option value="producto" '+(t?.category!=='operativo'?'selected':'')+'>Alimentos y bebidas</option><option value="operativo" '+(t?.category==='operativo'?'selected':'')+'>Operaciones y servicio</option></select></div></form>';
+ modal(t?'Editar tipo':'Nuevo tipo',body,'<button class="button" data-action="incident-types">Cancelar</button><button class="button primary" data-action="incident-type-save">Guardar tipo</button>');
+}
+function saveIncidentType(){
+ const f=$('#incidentTypeForm');if(!f)return;
+ const label=f.elements.label.value.trim().replace(/\s+/g,' '),cat=f.elements.category.value,id=f.elements.id.value;
+ if(!label){toast('Escribe el nombre del tipo.');return;}
+ if(state.incidentTypes.some(t=>t.id!==id&&t.category===cat&&t.active!==false&&t.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es'))){toast('Ya existe un tipo activo con ese nombre.');return;}
+ const t=state.incidentTypes.find(x=>x.id===id);
+ if(t){t.label=label;t.category=cat;t.updatedAt=timestamp();mutate('Editar tipo de incidente',label);}
+ else{state.incidentTypes.push({id:'inc-'+uid(),label,category:cat,active:true,createdAt:timestamp(),updatedAt:null});mutate('Crear tipo de incidente',label);}
+ openIncidentTypes();toast('Tipo guardado.');
+}
+function toggleIncidentType(id){
+ const t=state.incidentTypes.find(x=>x.id===id);if(!t)return;
+ t.active=t.active===false;t.updatedAt=timestamp();
+ mutate('Cambiar vigencia tipo de incidente',t.label);openIncidentTypes();
+}
+function removeIncidentType(id){
+ const t=state.incidentTypes.find(x=>x.id===id);if(!t)return;
+ if(state.incidents.some(r=>r.typeId===id)){t.active=false;t.updatedAt=timestamp();mutate('Archivar tipo con historial',t.label);openIncidentTypes();toast('Tipo archivado: el historial se conserva.');return;}
+ if(!confirm('¿Eliminar el tipo «'+t.label+'»?'))return;
+ state.incidentTypes=state.incidentTypes.filter(x=>x.id!==id);mutate('Eliminar tipo de incidente',t.label);openIncidentTypes();
+}
+
 function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
 function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
 
