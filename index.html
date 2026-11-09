@@ -877,6 +877,42 @@ function renderBriefStats(){
   <div class="callout warn">Los porcentajes usan los registros realizados, no todas las jornadas programadas. Para evaluar cobertura total también debes verificar quiénes siguen «Sin registrar». Una ausencia por atención de mesa no se considera falta.</div>`;
 }
 
+
+const incidentCategories={producto:'Alimentos y bebidas',operativo:'Operaciones y servicio'};
+const incidentStatusLabels={registrado:'Registrado','en-atencion':'En atención',verificacion:'Pendiente de verificación',cerrado:'Cerrado',anulado:'Anulado'};
+const incidentAreasOptions=selected=>INCIDENT_AREAS.map(a=>'<option value="'+h(a)+'" '+(a===selected?'selected':'')+'>'+h(a)+'</option>').join('');
+const incidentPersonName=r=>worker(r.personId)?.name||r.personName||'Sin asignar';
+const incidentTypeText=r=>r.typeLabel||state.incidentTypes.find(t=>t.id===r.typeId)?.label||'Otro';
+const incidentLabel=r=>r.code||String(r.id).slice(0,10);
+function incidentTypesOptions(category){return state.incidentTypes.filter(t=>t.category===category&&t.active!==false).map(t=>'<option value="'+h(t.id)+'">'+h(t.label)+'</option>').join('')+'<option value="otro">Otro (especificar)</option>';}
+function incidentFiltered(){return state.incidents.filter(r=>(incidentFilterCategory==='all'||r.category===incidentFilterCategory)&&(incidentFilterStatus==='all'||r.status===incidentFilterStatus)&&(incidentFilterArea==='all'||r.detectedArea===incidentFilterArea)&&(!incidentFilterFrom||r.occurredDate>=incidentFilterFrom)&&(!incidentFilterTo||r.occurredDate<=incidentFilterTo)&&(!incidentSearch||[r.code,r.product,r.description,r.detectedArea,r.typeLabel,r.reporter].join(' ').toLocaleLowerCase('es').includes(incidentSearch.toLocaleLowerCase('es')))).sort((a,b)=>(b.occurredDate||'').localeCompare(a.occurredDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));}
+function incidentCard(r){return '<div class="person-row"><div><b>'+h(incidentLabel(r))+' · '+h(r.product)+'</b><div class="small">'+h(formatDate(r.occurredDate))+' · '+h(incidentCategories[r.category])+' · '+h(r.detectedArea)+'</div><div class="small">'+h(incidentTypeText(r))+' · '+h(INCIDENT_PRIORITIES[r.priority])+'</div></div><div class="actions">'+badge(incidentStatusLabels[r.status]||r.status,r.status==='cerrado'?'ok':r.status==='anulado'?'':r.status==='registrado'?'warn':'blue')+'<button class="button tiny" data-action="incident-details" data-id="'+h(r.id)+'">Ver / Seguimiento</button></div></div>';}
+function renderIncidents(){
+  setHeading('Registro de incidentes','Problemas de alimentos, bebidas y fallas operativas; soluciones, responsables y seguimiento.');
+  const open=state.incidents.filter(r=>!['cerrado','anulado'].includes(r.status)),month=dateISO().slice(0,7),current=state.incidents.filter(r=>r.occurredDate.startsWith(month)&&r.status!=='anulado');
+  $('#app').innerHTML='<div class="kpis">'+kpi(current.length,'Este mes')+kpi(open.length,'Pendientes','amber')+kpi(open.filter(r=>['alta','critica'].includes(r.priority)).length,'Alta y crítica','red')+kpi(current.filter(r=>r.status==='cerrado').length,'Cerrados','green')+'</div><div class="panel"><div class="panel-head"><h2>Registrar un incidente</h2></div><div class="panel-body stack"><button class="button primary block" data-action="incident-new">+ Nuevo incidente</button><div class="toolbar"><button class="button" data-nav="incidents-history">Seguimiento</button><button class="button" data-nav="incidents-stats">Análisis</button><button class="button" data-action="incident-types">Configurar tipos</button></div></div></div><div class="panel"><div class="panel-head"><h2>Casos pendientes recientes</h2></div>'+(open.length?open.slice(-8).reverse().map(incidentCard).join(''):emptyHint('Sin pendientes','Los incidentes por resolver aparecerán aquí.'))+'</div><div class="callout">El área donde se detecta un problema no demuestra que sea el área responsable de originarlo.</div>';
+}
+function renderIncidentsHistory(){
+  setHeading('Seguimiento de incidentes','Filtra registros, revisa acciones y verifica las soluciones.');
+  const list=incidentFiltered();
+  const op=(v,label,current)=>'<option value="'+h(v)+'" '+(v===current?'selected':'')+'>'+h(label)+'</option>';
+  $('#app').innerHTML='<div class="panel"><div class="panel-body stack"><div class="fields"><div class="field"><label>Buscar</label><input id="incidentSearch" value="'+h(incidentSearch)+'" placeholder="Código, producto, descripción"></div><div class="field"><label>Categoría</label><select id="incidentFilterCategory">'+op('all','Todas',incidentFilterCategory)+op('producto','Producto',incidentFilterCategory)+op('operativo','Operativo',incidentFilterCategory)+'</select></div><div class="field"><label>Estado</label><select id="incidentFilterStatus">'+op('all','Todos',incidentFilterStatus)+Object.entries(incidentStatusLabels).map(([v,l])=>op(v,l,incidentFilterStatus)).join('')+'</select></div><div class="field"><label>Área de detección</label><select id="incidentFilterArea">'+op('all','Todas',incidentFilterArea)+INCIDENT_AREAS.map(v=>op(v,v,incidentFilterArea)).join('')+'</select></div><div class="field"><label>Desde</label><input id="incidentFilterFrom" type="date" value="'+h(incidentFilterFrom)+'"></div><div class="field"><label>Hasta</label><input id="incidentFilterTo" type="date" value="'+h(incidentFilterTo)+'"></div></div><div class="toolbar"><button class="button" data-action="incident-filters-clear">Limpiar filtros</button><button class="button primary" data-action="incident-new">+ Nuevo</button></div></div></div><div class="panel"><div class="panel-head"><h2>'+list.length+' registros</h2></div>'+(list.length?list.slice(0,250).map(incidentCard).join(''):emptyHint('Sin resultados','Cambia los filtros o crea un incidente.'))+'</div>';
+}
+function renderIncidentsStats(){
+  setHeading('Análisis de incidentes','Estadísticas de detecciones, tipos de fallas y casos pendientes.');
+  const list=state.incidents.filter(r=>r.occurredDate.startsWith(incidentStatsMonth)&&r.status!=='anulado');
+  const areaMap=new Map(),typeMap=new Map();
+  list.forEach(r=>{areaMap.set(r.detectedArea,(areaMap.get(r.detectedArea)||0)+1);let t=incidentTypeText(r);typeMap.set(t,(typeMap.get(t)||0)+1);});
+  const rows=m=>[...m].sort((a,b)=>b[1]-a[1]).map(([a,n])=>'<div class="space-between"><span>'+h(a)+'</span><b>'+n+'</b></div>').join('')||emptyHint('Sin registros','No se encontraron datos para este mes.');
+  $('#app').innerHTML='<div class="panel"><div class="panel-body"><div class="field"><label>Mes</label><input type="month" id="incidentStatsMonth" value="'+h(incidentStatsMonth)+'"></div></div></div><div class="kpis">'+kpi(list.length,'Total')+kpi(list.filter(r=>r.category==='producto').length,'Producto')+kpi(list.filter(r=>r.category==='operativo').length,'Operativos')+kpi(list.filter(r=>r.status!=='cerrado').length,'Pendientes','amber')+'</div><div class="two-col"><div class="panel"><div class="panel-head"><h2>Áreas de detección</h2></div><div class="panel-body stack">'+rows(areaMap)+'</div></div><div class="panel"><div class="panel-head"><h2>Tipos frecuentes</h2></div><div class="panel-body stack">'+rows(typeMap)+'</div></div></div><div class="callout warn">Más incidentes no equivale automáticamente a peor desempeño. Para comparar áreas es necesario considerar su volumen de trabajo y causas verificadas.</div>';
+}
+function renderIncidentsReports(){
+ setHeading('Excel de incidentes','Historial, acciones y estadísticas exportadas en un libro independiente.');
+ $('#app').innerHTML='<div class="panel"><div class="panel-head"><h2>Selecciona el período</h2></div><div class="panel-body">'+periodHTML()+'</div></div><div class="panel"><div class="panel-body stack"><p>Hojas: Resumen, Incidentes, Áreas, Tipos y Acciones.</p><button class="button primary block" data-action="incident-export">↓ Descargar Incidentes.xlsx</button><p class="small">Para restaurar registros editables usa el respaldo JSON desde Configuración.</p></div></div>';
+}
+function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
+function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
+
 // REPORTES: libros XLSX separados, empaquetados en ZIP si se solicita todo.
 function reportRange(){
   if(reportType==='day')return {start:reportDate,end:reportDate,label:'Diario'};
