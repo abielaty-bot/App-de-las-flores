@@ -92,7 +92,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0002 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0003 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -287,16 +287,75 @@ function ensureDay(date){
   return state.rosters[date]={staff,overrides:{},createdAt:timestamp()};
 }
 function isScheduled(status){return ['working','support'].includes(status);}
-const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',vacation:'Vacaciones',leave:'Permiso',absent:'Ausente',off:'No programado'})[status]||status;
+const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',vacation:'Vacaciones',leave:'Permiso',absent:'Faltó',off:'No programado'})[status]||status;
 function hasDayControls(date,id){return !!(inspection(date,id)||briefing(date,id)||checklist(date,id)||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt));}
 function updateSchedule(date,id,value){
   const w=worker(id);if(!w)return;
-  if(value==='vacation'&&!vacationOn(w,date)){toast('Registra las fechas de vacaciones desde el botón Vacaciones del trabajador.');render();return;}
-  if(!isScheduled(value)&&hasDayControls(date,id)){toast('Este trabajador ya tiene controles en esa fecha. Revisa los registros antes de marcarlo como no programado.');render();return;}
-  if(vacationOn(w,date)&&value!=='vacation'){toast('El trabajador tiene vacaciones registradas ese día. Primero modifica el período de vacaciones.');render();return;}
+  if(value==='vacation'&&!vacationOn(w,date)){toast('Registra las fechas de vacaciones desde el botón Vacaciones del trabajador.');render();return false;}
+  if(!isScheduled(value)&&hasDayControls(date,id)){toast('Este trabajador tiene controles registrados para la fecha. Revísalos antes de marcar descanso, ausencia o día no programado.');render();return false;}
+  if(vacationOn(w,date)&&value!=='vacation'){toast('El trabajador tiene vacaciones registradas ese día. Primero modifica el período de vacaciones.');render();return false;}
+  const previous=scheduleStatus(date,id);
+  if(value===previous)return true;
+  if(value==='absent'&&!isScheduled(previous)&&!confirm('Esta persona no estaba programada para '+formatDate(date)+'. ¿Confirmas que corresponde marcar una falta?')){render();return false;}
   const roster=ensureDay(date);roster.staff[id]=value;roster.overrides[id]=value;roster.updatedAt=timestamp();
-  mutate('Cambiar programación',`${w.name} · ${date} · ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada.');
+  roster.statusHistory=roster.statusHistory||[];roster.statusHistory.push({staffId:id,at:timestamp(),from:previous,to:value});
+  mutate('Cambiar situación diaria',`${w.name} · ${date} · ${statusLabel(previous)} → ${statusLabel(value)}`);render();toast('Situación de la fecha actualizada: '+statusLabel(value)+'.');return true;
 }
+
+// Cambios rápidos de la situación del día desde el módulo Uniformes.
+// No equivalen a una inspección y no borran ninguna observación existente.
+function openUniformDayStatus(id){
+  const w=worker(id);if(!w)return;
+  const value=scheduleStatus(theDate,id),vac=vacationOn(w,theDate);
+  const items=[
+    ['working','Trabaja','Programado para atender hoy'],
+    ['support','Apoyo hoy','Viene como refuerzo excepcional'],
+    ['rest','Descansa','Descanso correspondiente a esta fecha'],
+    ['off','No programado','No tenía turno; por ejemplo, apoyo de fin de semana'],
+    ['absent','Faltó','Tenía que venir, pero no se presentó'],
+    ['leave','Permiso','No asiste por permiso autorizado']
+  ];
+  const rows=items.map(([key,title,description])=>
+   '<button type="button" class="button '+(key===value?'selected':'')+'" style="width:100%;white-space:normal;display:block;text-align:left;min-height:57px" data-action="uniform-set-day" data-id="'+h(id)+'" data-status="'+key+'"><b>'+h(title)+(key===value?' ✓':'')+'</b><span class="small" style="display:block;margin-top:2px">'+h(description)+'</span></button>'
+  ).join('');
+  modal('Situación del día · '+w.name,
+    '<div class="callout"><b>'+h(formatDate(theDate))+'</b> · Situación actual: <b>'+h(statusLabel(value))+'</b><p class="small">Selecciona lo que realmente corresponde a este día. Solo Trabaja o Apoyo requiere revisión de uniformes.</p></div>'+
+    (vac?'<div class="callout warn">Este trabajador tiene vacaciones registradas del '+h(formatDate(vac.start))+' al '+h(formatDate(vac.end))+'. Modifica esas fechas desde Personal.</div>':'')+
+    '<div class="two-col">'+rows+'</div>'+
+    '<div class="callout">Faltó: estaba programado y no llegó. No programado: no tenía turno. Descanso y Permiso no son faltas.</div>',
+    '<button class="button" data-action="close-modal">Cerrar</button><button class="button" data-action="uniform-reset-day" data-id="'+h(id)+'">Restaurar horario habitual</button>'
+  );
+}
+function setUniformDayStatus(id,value){
+  if(!['working','support','rest','off','absent','leave'].includes(value))return;
+  const changed=updateSchedule(theDate,id,value);
+  if(changed){
+    if(!isScheduled(value))showUnscheduledUniform=true;
+    closeModal();render();
+  }
+}
+function resetUniformDayStatus(id){
+  const w=worker(id);if(!w)return;
+  const expected=defaultStatus(w,theDate);
+  if(!isScheduled(expected)&&hasDayControls(theDate,id)){
+    toast('Existen controles registrados. No puedes retirar la programación sin revisar esos registros.');return;
+  }
+  const roster=state.rosters[theDate];
+  if(!roster||!Object.prototype.hasOwnProperty.call(roster.overrides||{},id)){
+    closeModal();toast('Ya se aplica el horario habitual.');return;
+  }
+  const before=scheduleStatus(theDate,id);
+  if(!confirm('¿Restaurar para '+w.name+' el horario habitual: '+statusLabel(expected)+'?'))return;
+  delete roster.overrides[id];
+  roster.staff[id]=expected;
+  roster.statusHistory=roster.statusHistory||[];
+  roster.statusHistory.push({staffId:id,at:timestamp(),from:before,to:expected,reset:true});
+  roster.updatedAt=timestamp();
+  if(!isScheduled(expected))showUnscheduledUniform=true;
+  mutate('Restaurar horario diario',w.name+' · '+theDate+' · '+statusLabel(expected));
+  closeModal();render();toast('Se restauró el horario habitual.');
+}
+
 function getSection(){
   if(view==='home')return null;
   if(['brief','brief-pending','brief-history','brief-stats','brief-export'].includes(view))return 'brief';
@@ -448,7 +507,7 @@ function renderPersonal(){
       <div id="staffRows">${list||emptyHint('No hay trabajadores registrados','Agrega tu equipo para comenzar.')}</div></div>
     <div class="callout"><b>Activo no significa que trabaje hoy.</b> Los apoyos de sábado y domingo quedan «No programados» de lunes a viernes. Las vacaciones se configuran por fechas y no cuentan como «Sin revisar». No desactives al personal por sus vacaciones.</div>`;
 }
-function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['vacation','Vacaciones'],['leave','Permiso'],['absent','Ausente'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
+function scheduleOptions(selected){return [['working','Trabaja'],['support','Apoyo'],['rest','Descanso'],['vacation','Vacaciones'],['leave','Permiso'],['absent','Faltó'],['off','No programado']].map(([v,t])=>`<option value="${v}" ${v===selected?'selected':''}>${t}</option>`).join('');}
 function openPerson(w=null){
   const rests=w?.restDays||[];
   modal(w?'Modificar trabajador':'Agregar trabajador',`<form id="personForm" class="stack">
@@ -603,16 +662,18 @@ function renderUniform(){
   setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
   const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
   const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
+  const absentToday=people.filter(x=>x.status==='absent').length;
   const cells=people.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
     const r=inspection(theDate,w.id),eligible=isScheduled(status);
     return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
       <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
-      ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}</div></div>`;
+      ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}
+      <button class="button tiny" data-action="uniform-day-status" data-id="${h(w.id)}">Situación</button></div></div>`;
   }).join('');
-  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}</div>
-   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver descansos, vacaciones y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
+  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}${kpi(absentToday,'Faltaron hoy','red')}</div>
+   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver también descansos, faltas y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
    <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
-   <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Puedes revisar a trabajadores con situación «Trabaja» o «Apoyo».</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
+   <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Usa «Situación» para indicar Faltó, Descansa o No programado. Solo se revisa a quienes trabajan o apoyan.</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
 }
 function markUniformOk(id){const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id))||inspection(theDate,id))return;
   ensureDay(theDate);state.inspections.push({id:uid(),staffId:id,staffName:w.name,categoryAt:w.category||'',date:theDate,result:'conforme',issues:[],resolvedIssues:[],note:'',createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null});
@@ -1354,6 +1415,9 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'uniform-day-status':openUniformDayStatus(id);break;
+    case 'uniform-set-day':setUniformDayStatus(id,el.dataset.status);break;
+    case 'uniform-reset-day':resetUniformDayStatus(id);break;
     case 'vacation-manage':openVacations(id);break;
     case 'vacation-add':addVacation(id);break;
     case 'vacation-remove':removeVacation(id,el.dataset.vacation);break;
