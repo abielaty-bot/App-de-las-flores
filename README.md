@@ -2,6 +2,16 @@
 
 Aplicación instalable para uso **local** en tablet Android. Incluye Briefings, Control de uniformes/implementos y Personal. La publicación en GitHub Pages solo distribuye los archivos de la aplicación; **no recibe registros de trabajadores ni respaldos**.
 
+## Novedades 2.3.0 (rama `desarrollo`)
+
+- **Tema claro y oscuro** (botón 🌙/☀️ en la cabecera o en «Configuración» → «Tema de la aplicación»): modo día (claro, como siempre) y modo noche (oscuro, con los mismos colores verde y dorado). La elección se guarda en este navegador y se mantiene al cerrar y reabrir la app.
+
+## Novedades 2.2.0 (rama `desarrollo`)
+
+- **Editor de tipos de incumplimiento** (botón ✏️ dentro de «Registrar incumplimientos»): crear, editar, eliminar, desactivar y reactivar tipos, y cambiar su categoría. Los incumplimientos se guardan por id estable y cada observación conserva la etiqueta que tenía al registrarse, así el historial no cambia aunque se renombre un tipo.
+- **Control de entrega de materiales** (nueva pestaña «Entregas» en Control de uniformes): trapos, mandiles, camisas, tocas y otros materiales, con trabajador, fecha, cantidad, motivo y responsable; aviso si el trabajador recibió el mismo material en los últimos 30 días; devoluciones y anulaciones con historial; cantidades por trabajador y reportes en el libro Excel de Control de uniformes (hojas «Entregas» y «Entregas por trabajador»).
+- Los datos y respaldos antiguos se migran automáticamente al abrir la app: los incumplimientos registrados como texto pasan a tipos con id y los respaldos JSON sin los campos nuevos se importan sin perder información.
+
 ## Publicación mediante GitHub Pages
 
 1. Crea un repositorio llamado, por ejemplo, `las-flores-control`. Si es una cuenta GitHub Free, el repositorio debe ser **público** para publicar con GitHub Pages.
