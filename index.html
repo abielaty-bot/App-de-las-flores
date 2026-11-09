@@ -198,7 +198,7 @@ function normalize(data){
 }
 let state, savedJSON='', prefs={autoSave:true},dirty=false,saveError='',storageAvailable=true;
 let view='home',theDate=dateISO(),staffDate=dateISO(),briefDate=dateISO(),briefGroup='11';
-let selectedPerson='', uniformIssueSelection=[],editingInspectionId='';
+let selectedPerson='', uniformIssueSelection=[],editingInspectionId='',showUnscheduledUniform=false;
 let incidentSearch='',incidentFilterCategory='all',incidentFilterStatus='all',incidentFilterArea='all',incidentFilterFrom='',incidentFilterTo='',incidentStatsMonth=dateISO().slice(0,7);
 let reportModule='uniform',reportType='week',reportDate=dateISO(),reportMonth=dateISO().slice(0,7);
 let staffSearch='',historySearch='',briefHistorySearch='',historyStart='',historyEnd='',toastTimer,statsMonth=dateISO().slice(0,7),statsPerson='all',briefShowAll=false,deliverySearch='',deliveryMaterial='all',deliveryPerson='all',deliveryStart='',deliveryEnd='',uniformNoteDraft='',uniformNoteDraftFor='';
@@ -291,6 +291,7 @@ const statusLabel=status=>({working:'Trabaja',support:'Apoyo',rest:'Descanso',va
 function hasDayControls(date,id){return !!(inspection(date,id)||briefing(date,id)||checklist(date,id)||state.functionChecks.some(x=>x.date===date&&x.staffId===id&&!x.voidedAt));}
 function updateSchedule(date,id,value){
   const w=worker(id);if(!w)return;
+  if(value==='vacation'&&!vacationOn(w,date)){toast('Registra las fechas de vacaciones desde el botón Vacaciones del trabajador.');render();return;}
   if(!isScheduled(value)&&hasDayControls(date,id)){toast('Este trabajador ya tiene controles en esa fecha. Revisa los registros antes de marcarlo como no programado.');render();return;}
   if(vacationOn(w,date)&&value!=='vacation'){toast('El trabajador tiene vacaciones registradas ese día. Primero modifica el período de vacaciones.');render();return;}
   const roster=ensureDay(date);roster.staff[id]=value;roster.overrides[id]=value;roster.updatedAt=timestamp();
@@ -602,14 +603,14 @@ function renderUniform(){
   setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
   const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
   const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
-  const cells=people.map(({worker:w,status})=>{
+  const cells=people.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
     const r=inspection(theDate,w.id),eligible=isScheduled(status);
     return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
       <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
       ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}</div></div>`;
   }).join('');
-  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}</div>
-   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
+  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}</div>
+   <div class="panel"><div class="panel-body space-between">${dateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver descansos, vacaciones y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
    <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
    <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Puedes revisar a trabajadores con situación «Trabaja» o «Apoyo».</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
 }
@@ -634,14 +635,41 @@ function saveUniformObserved(){if(!uniformIssueSelection.length){toast('Seleccio
   uniformNoteDraft='';uniformNoteDraftFor='';
   mutate(editingInspectionId?'Editar observación':'Inspección observada',`${w?.name} · ${theDate}`);closeModal();render();toast('Observación registrada.');
 }
-function inspectDetails(r){if(!r)return;const w=worker(r.staffId);selectedPerson=r.staffId;editingInspectionId=r.id;
-  modal('Detalle de inspección',`<div class="callout"><b>${h(w?.name||r.staffName||'Trabajador')}</b> · ${h(formatDate(r.date))}<p>Resultado: ${h(r.result==='conforme'?'Conforme':'Observado')} · ${h(r.voidedAt?'Anulada':correctionStatus(r))}</p></div>
-    ${r.result==='observado'&&!r.voidedAt?`<div class="stack"><div><b>Corrección de incumplimientos</b><p class="muted-note">Marca solo los puntos que hayan sido corregidos. El registro original permanece.</p></div>${(r.issues||[]).map(x=>`<label class="checklist"><input type="checkbox" class="correction" value="${h(x)}" ${(r.resolvedIssues||[]).includes(x)?'checked':''}> ${h(issueLabel(x,r))}</label>`).join('')}</div>`:'<p>La inspección fue registrada conforme.</p>'}
-    ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}<p class="muted-note">Registro: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
+function inspectDetails(r){if(!r)return;
+  const w=worker(r.staffId);selectedPerson=r.staffId;editingInspectionId=r.id;
+  const details=r.correctionDetails||{};
+  const items=(r.issues||[]).map(x=>`<label class="checklist"><input type="checkbox" class="correction" value="${h(x)}" ${(r.resolvedIssues||[]).includes(x)?'checked':''}> <span>${h(issueLabel(x,r))}${details[x]?.at?'<small style="display:block">Verificado '+h(displayTime(details[x].at))+' por '+h(details[x].by||'No especificado')+'</small>':(r.resolvedIssues||[]).includes(x)?'<small style="display:block">Corregido en versión anterior (sin hora individual registrada)</small>':''}</span></label>`).join('');
+  const log=(r.correctionEvents||[]).slice(-12).reverse().map(x=>`<div class="small">${h(displayTime(x.at))} · ${h(x.kind==='revertir'?'Corrección retirada':'Corregido')} · ${h(issueLabel(x.issueId,r))} · ${h(x.by||'Sin identificar')}</div>`).join('');
+  modal('Detalle de inspección',`<div class="callout"><b>${h(w?.name||r.staffName||'Trabajador')}</b> · ${h(formatDate(r.date))}
+    <p>Resultado inicial: <b>${h(r.result==='conforme'?'Conforme':'Observado')}</b> · Situación posterior: <b>${h(r.voidedAt?'Anulada':correctionStatus(r))}</b></p></div>
+    ${r.result==='observado'&&!r.voidedAt?`<div class="stack"><div><b>Corrección de incumplimientos</b><p class="muted-note">Marca solo los puntos que verificaste. La observación inicial nunca se convierte en Conforme.</p></div>${items}
+      <div class="field"><label>Verificado por (obligatorio si hay cambios)</label><input id="uniformVerifier" maxlength="90" placeholder="Nombre de quien comprueba la corrección"></div>
+      <div class="small">La hora se registra automáticamente al guardar la corrección.</div>
+      </div>`:'<p>La inspección inicial fue registrada conforme o está anulada.</p>'}
+    ${log?`<div class="callout"><b>Historial de verificaciones</b><div class="stack">${log}</div></div>`:''}
+    ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}
+    <p class="muted-note">Registrado: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
     `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`<button class="button" data-action="edit-uniform" data-id="${h(r.id)}">Editar faltantes</button><button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
 }
-function saveUniformCorrections(id){const r=state.inspections.find(x=>x.id===id);if(!r)return;
-  r.changes=r.changes||[];r.changes.push({at:timestamp(),kind:'Correcciones',before:{resolvedIssues:[...(r.resolvedIssues||[])]}});r.resolvedIssues=[...$('#modal').querySelectorAll('.correction:checked')].map(x=>x.value);r.correctedAt=r.resolvedIssues.length===(r.issues||[]).length?timestamp():null;r.updatedAt=timestamp();mutate('Corregir incumplimientos',`${worker(r.staffId)?.name||''} · ${r.date}`);closeModal();render();toast('Corrección actualizada.');
+function saveUniformCorrections(id){
+  const r=state.inspections.find(x=>x.id===id);if(!r||r.voidedAt||r.result!=='observado')return;
+  const selected=[...$('#modal').querySelectorAll('.correction:checked')].map(x=>x.value);
+  const old=r.resolvedIssues||[],added=selected.filter(x=>!old.includes(x)),removed=old.filter(x=>!selected.includes(x));
+  if(!added.length&&!removed.length){closeModal();toast('No hubo cambios en las correcciones.');return;}
+  const verifier=($('#uniformVerifier')?.value||'').trim();
+  if(!verifier){toast('Indica quién verificó la corrección.');return;}
+  const at=timestamp();
+  r.changes=r.changes||[];
+  r.changes.push({at,kind:'Correcciones',by:verifier,before:{resolvedIssues:[...old]}});
+  r.correctionDetails=r.correctionDetails||{};
+  r.correctionEvents=r.correctionEvents||[];
+  for(const x of added){r.correctionDetails[x]={at,by:verifier};r.correctionEvents.push({at,by:verifier,kind:'corregir',issueId:x});}
+  for(const x of removed){delete r.correctionDetails[x];r.correctionEvents.push({at,by:verifier,kind:'revertir',issueId:x});}
+  r.resolvedIssues=selected;
+  r.correctedAt=selected.length===(r.issues||[]).length?at:null;
+  r.updatedAt=at;
+  mutate('Verificar correcciones de uniforme',`${worker(r.staffId)?.name||''} · ${r.date} · ${verifier}`);
+  closeModal();render();toast('Corrección registrada. El incumplimiento inicial permanece.');
 }
 function deleteUniform(id){const r=state.inspections.find(x=>x.id===id);if(!r||!confirm('¿Anular esta inspección? Se conservará constancia en el historial de acciones.'))return;
   r.voidedAt=timestamp();r.changes=r.changes||[];r.changes.push({at:r.voidedAt,kind:'Anulación',before:{result:r.result,issues:[...(r.issues||[])],resolvedIssues:[...(r.resolvedIssues||[])]}});mutate('Anular inspección',`${worker(r.staffId)?.name||r.staffId} · ${r.date} · ${r.result}`);closeModal();render();toast('Inspección anulada.');
@@ -1411,6 +1439,7 @@ document.addEventListener('change',event=>{
   if(x.id==='functionOrder'){functionOrder=x.value;render();return;}
   if(x.matches('[data-schedule]')){updateSchedule(staffDate,x.dataset.schedule,x.value);return;}
   if(x.id==='staffDate'){staffDate=x.value||dateISO();render();return;}
+  if(x.id==='showUnscheduledUniform'){showUnscheduledUniform=x.checked;render();return;}
   if(x.id==='uniformDate'){theDate=x.value||dateISO();render();return;}
   if(x.id==='briefDate'){briefDate=x.value||dateISO();render();return;}
   if(x.id==='briefGroup'){briefGroup=x.value;render();return;}
