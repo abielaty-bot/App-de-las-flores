@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#123d36">
-  <meta name="description" content="Sistema local para briefings, uniformes y personal de Las Flores. Trabaja sin conexión y exporta archivos Excel independientes.">
+  <meta name="description" content="Sistema de control interno de Las Flores: briefings, uniformes, funciones, personal e incidentes. Funciona sin conexión y permite reportes Excel.">
   <title>Las Flores | Control interno</title>
   <style>:root{--deep:#123d36;--green:#176451;--lightgreen:#e9f3ec;--gold:#c8ab6e;--ink:#1b322c;--muted:#63746c;--line:#dce5dd;--surface:#fff;--bg:#f5f7f4;--red:#a9423c;--redbg:#fff0ed;--amber:#916817;--amberbg:#fff7e5;--shadow:0 9px 25px rgba(20,60,44,.045)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.48}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.43;cursor:not-allowed}a{color:var(--green)}:focus-visible{outline:3px solid #bca15c;outline-offset:2px}
@@ -139,7 +139,14 @@ const displayTime=s=>s?new Date(s).toLocaleString('es-PE'):'—';
 const initials=name=>String(name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('');
 const percentage=(a,b)=>b?Math.round(a/b*100)+'%':'—';
 const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,active:true,createdAt:timestamp()}));
-function empty(){return {app:'lasflores-control',version:2,staff:[],inspections:[],rosters:{},checklists:[],requirements:reqDefaults(),issueTypes:defaultIssueTypes(),deliveries:[],functionChecks:[],briefings:[],sessions:{},audit:[],backupAt:null,createdAt:timestamp()};}
+// Incidentes: catálogos y valores estables para mantener historial y respaldos.
+const INCIDENT_AREAS=["Cocina","Azafate","Barra","Repostería","Salón/Mozos","Recepción","Caja/POS","Logística/Almacén","Otra"];
+const INCIDENT_PRIORITIES={baja:'Baja',media:'Media',alta:'Alta',critica:'Crítica'};
+const INCIDENT_STATUSES={registrado:'Registrado','en-atencion':'En atención',verificacion:'Pendiente de verificación',cerrado:'Cerrado',anulado:'Anulado'};
+const INCIDENT_ACTION_KINDS={correccion:'Corrección',comunicacion:'Comunicación',investigacion:'Investigación',prevencion:'Prevención',verificacion:'Verificación',reapertura:'Reapertura'};
+const INCIDENT_TYPE_SEEDS=[["producto","inc-p-coccion","Cocción incorrecta"],["producto","inc-p-cuerpo","Cuerpo extraño (pelo, insecto u otro)"],["producto","inc-p-sabor","Sabor fuera de estándar"],["producto","inc-p-temperatura","Temperatura incorrecta"],["producto","inc-p-presentacion","Presentación deficiente"],["producto","inc-p-producto","Producto equivocado o defectuoso"],["operativo","inc-o-demora","Demora excesiva"],["operativo","inc-o-comanda","Comanda incorrecta o extraviada"],["operativo","inc-o-equipo","Falla de equipo o POS"],["operativo","inc-o-stock","Producto no disponible sin aviso"],["operativo","inc-o-comunicacion","Falla de coordinación"],["operativo","inc-o-atencion","Incidente de atención al cliente"]];
+const incidentTypeDefaults=()=>INCIDENT_TYPE_SEEDS.map(([category,id,label])=>({id,category,label,active:true,createdAt:timestamp(),updatedAt:null}));
+function empty(){return {app:'lasflores-control',version:2,staff:[],inspections:[],rosters:{},checklists:[],requirements:reqDefaults(),issueTypes:defaultIssueTypes(),deliveries:[],functionChecks:[],incidents:[],incidentTypes:incidentTypeDefaults(),briefings:[],sessions:{},audit:[],backupAt:null,createdAt:timestamp()};}
 function normalize(data){
   if(!data||typeof data!=='object'||!Array.isArray(data.staff)||!Array.isArray(data.inspections)||!data.rosters||typeof data.rosters!=='object'||Array.isArray(data.rosters))throw Error('Archivo de datos inválido');
   if(data.app!=='lasflores-uniformes'&&data.app!=='lasflores-control')throw Error('El respaldo no pertenece a Las Flores');
@@ -147,6 +154,8 @@ function normalize(data){
   const next={...base,...data,app:'lasflores-control',version:2};
   next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false}));
   next.functionChecks=Array.isArray(data.functionChecks)?data.functionChecks:[];
+  next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
+  next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
   next.checklists=Array.isArray(data.checklists)?data.checklists:[];
   next.requirements=Array.isArray(data.requirements)?data.requirements:reqDefaults();
   next.briefings=Array.isArray(data.briefings)?data.briefings:[];
@@ -174,6 +183,7 @@ function normalize(data){
 let state, savedJSON='', prefs={autoSave:true},dirty=false,saveError='',storageAvailable=true;
 let view='home',theDate=dateISO(),staffDate=dateISO(),briefDate=dateISO(),briefGroup='11';
 let selectedPerson='', uniformIssueSelection=[],editingInspectionId='';
+let incidentSearch='',incidentFilterCategory='all',incidentFilterStatus='all',incidentFilterArea='all',incidentFilterFrom='',incidentFilterTo='',incidentStatsMonth=dateISO().slice(0,7);
 let reportModule='uniform',reportType='week',reportDate=dateISO(),reportMonth=dateISO().slice(0,7);
 let staffSearch='',historySearch='',briefHistorySearch='',historyStart='',historyEnd='',toastTimer,statsMonth=dateISO().slice(0,7),statsPerson='all',briefShowAll=false,deliverySearch='',deliveryMaterial='all',deliveryPerson='all',deliveryStart='',deliveryEnd='',uniformNoteDraft='',uniformNoteDraftFor='';
 function load(){
@@ -256,16 +266,18 @@ function getSection(){
   if(['brief','brief-pending','brief-history','brief-stats','brief-export'].includes(view))return 'brief';
   if(['uniform','implements','requirements','deliveries','uniform-history','uniform-export'].includes(view))return 'uniform';
   if(view.startsWith('functions'))return 'functions';
+  if(view.startsWith('incidents'))return 'incidents';
   return 'personal';
 }
 function sectionNav(){const section=getSection();if(!section)return [];
   if(section==='brief')return [['brief','Asistencia'],['brief-pending','Por informar'],['brief-history','Historial'],['brief-stats','Estadísticas'],['brief-export','Excel']];
   if(section==='uniform')return [['uniform','Revisión diaria'],['implements','Implementos'],['requirements','Requisitos'],['deliveries','Entregas'],['uniform-history','Historial'],['uniform-export','Excel']];
   if(section==='functions')return [['functions','Control diario'],['functions-month','Resumen mensual']];
+  if(section==='incidents')return [['incidents','Nuevo / Resumen'],['incidents-history','Seguimiento'],['incidents-stats','Análisis'],['incidents-reports','Excel']];
   return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
 }
 // Historial de navegación para el botón Atrás y el gesto de Android.
-const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings']);
+const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','incidents','incidents-history','incidents-stats','incidents-reports']);
 let navigationReady=false,modalSequence=0;
 const modalSnapshots=new Map();
 function navigationEntry(v,dialogId=null,depth=0){return {lasFloresNavigation:true,view:v,dialogId,depth};}
@@ -339,7 +351,11 @@ function render(){
   }
   const nav=sectionNav();$('#subnav').hidden=false;
   $('#subnav').innerHTML=nav.map(([v,label])=>`<button type="button" data-nav="${v}" class="${v===view?'active':''}" ${v===view?'aria-current="page"':''}>${h(label)}</button>`).join('');
-  if(view==='functions')renderFunctions();
+  if(view==='incidents')renderIncidents();
+  else if(view==='incidents-history')renderIncidentsHistory();
+  else if(view==='incidents-stats')renderIncidentsStats();
+  else if(view==='incidents-reports')renderIncidentsReports();
+  else if(view==='functions')renderFunctions();
   else if(view==='functions-month')renderFunctionMonth();
   else if(view==='personal')renderPersonal();
   else if(view==='settings')renderSettings();
@@ -363,6 +379,7 @@ function renderHome(){
       <button class="home-card" data-nav="uniform"><span class="home-icon"><svg viewBox="0 0 24 24"><path d="m4 7 5-4h6l5 4 2 5-5 2-1-3v10H8V11l-1 3-5-2 2-5Z"/></svg></span><strong>Control de uniformes</strong><span>Revisiones, implementos y correcciones</span></button>
       <button class="home-card" data-nav="functions"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 10 2 2 5-5M8 16h8"/></svg></span><strong>Control de funciones</strong><span>Asignaciones, incidencias y cumplimiento mensual</span></button>
       <button class="home-card" data-nav="personal"><span class="home-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20v-2a6 6 0 0 1 12 0v2H2ZM17 11a3 3 0 1 0-1-5.8M16 14a5 5 0 0 1 6 5v1h-5"/></svg></span><strong>Personal</strong><span>Trabajadores, estados, descansos y apoyos</span></button>
+      <button class="home-card" data-nav="incidents"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v5M12 17h.01M8 8h0"/></svg></span><strong>Registro de incidentes</strong><span>Alimentos, bebidas, fallas operativas y seguimiento</span></button>
     </div><div class="home-notice">Sin conexión · ${state.staff.filter(p=>p.active!==false).length} trabajadores activos · ${prefs.autoSave?'Autoguardado activado':'Guardado manual activado'}</div>`;
 }
 function kpi(n,label,kind=''){return `<div class="kpi ${kind}"><div class="number">${h(n)}</div><div class="label">${h(label)}</div></div>`;}
@@ -996,7 +1013,7 @@ function renderSettings(){
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Modo de guardado</h2>${badge(prefs.autoSave?'Automático':'Manual',prefs.autoSave?'ok':'warn')}</div>
     <div class="panel-body stack"><div class="fields"><div class="field"><label>Cómo guardar</label><select id="saveMode"><option value="auto" ${prefs.autoSave?'selected':''}>Guardar automáticamente cada cambio</option><option value="manual" ${!prefs.autoSave?'selected':''}>Guardar solamente cuando yo lo indique</option></select></div><div class="field"><label>Tema de la aplicación</label><select id="themeMode"><option value="light" ${prefs.theme!=='dark'?'selected':''}>Claro (día)</option><option value="dark" ${prefs.theme==='dark'?'selected':''}>Oscuro (noche)</option></select></div><div class="field"><label>Estado actual</label><input readonly value="${saveError?'ERROR: '+h(saveError):dirty?'Cambios sin guardar':'Todos los cambios confirmados guardados'}"></div></div>
     <div class="toolbar"><button class="button primary" data-action="manual-save" ${!dirty?'disabled':''}>Guardar cambios ahora</button><span class="small">En modo manual recibirás una advertencia si intentas cerrar con cambios pendientes.</span></div></div></div>
-    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, controles de funciones, uniformes, implementos, entregas de materiales, tipos de incumplimiento, briefings y configuraciones de requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, controles de funciones, uniformes, implementos, entregas de materiales, incidentes y sus acciones, tipos configurables, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
     <div class="panel"><div class="panel-head"><div><h2>Copias internas de recuperación</h2><p>Guardadas en el navegador, separadas de la base principal.</p></div></div><div class="panel-body stack"><p class="small">Se crea una copia periódica y puedes crear una manualmente. No reemplazan al respaldo JSON externo.</p><button class="button block" data-action="snapshot-now">+ Crear punto de recuperación</button><div id="recoveryList">Cargando copias…</div></div></div></div>
     <div class="callout warn"><b>Importante:</b> los datos locales y las copias internas pueden perderse si se borran los datos del navegador, se cambia de navegador o se avería la tablet. Descarga regularmente el respaldo JSON y guárdalo fuera del dispositivo.</div>
     <div class="callout">La versión anterior de Uniformes se importa automáticamente cuando es accesible en el mismo navegador y origen. Si abriste el HTML desde otra ubicación y no aparecen los datos antiguos, exporta el JSON desde la aplicación anterior e impórtalo aquí.</div>`;
@@ -1026,6 +1043,21 @@ function closeModal(){
 }
 function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
   switch(action){
+    case 'incident-new':openIncident();break;
+    case 'incident-save':saveIncident();break;
+    case 'incident-details':incidentDetails(id);break;
+    case 'incident-followup':openIncidentFollowup(id);break;
+    case 'incident-save-followup':saveIncidentFollowup(id);break;
+    case 'incident-void':openIncidentVoid(id);break;
+    case 'incident-confirm-void':saveIncidentVoid(id);break;
+    case 'incident-types':openIncidentTypes();break;
+    case 'incident-type-new':openIncidentTypeForm();break;
+    case 'incident-type-edit':openIncidentTypeForm(id);break;
+    case 'incident-type-save':saveIncidentType();break;
+    case 'incident-type-toggle':toggleIncidentType(id);break;
+    case 'incident-type-remove':removeIncidentType(id);break;
+    case 'incident-filters-clear':incidentSearch='';incidentFilterCategory='all';incidentFilterStatus='all';incidentFilterArea='all';incidentFilterFrom='';incidentFilterTo='';render();break;
+    case 'incident-export':exportIncidentReport();break;
     case 'function-assign':openFunctionAssign(el.dataset.task);break;
     case 'function-save-assignment':saveFunctionAssignment();break;
     case 'function-edit':openFunctionReview(id);break;
@@ -1103,6 +1135,14 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('change',event=>{
   const x=event.target;
+  if(x.id==='incidentCategory'){switchIncidentCategory();return;}
+  if(x.id==='incidentType'){toggleIncidentOtherType();return;}
+  if(x.id==='incidentFilterCategory'){incidentFilterCategory=x.value;render();return;}
+  if(x.id==='incidentFilterStatus'){incidentFilterStatus=x.value;render();return;}
+  if(x.id==='incidentFilterArea'){incidentFilterArea=x.value;render();return;}
+  if(x.id==='incidentFilterFrom'){incidentFilterFrom=x.value;render();return;}
+  if(x.id==='incidentFilterTo'){incidentFilterTo=x.value;render();return;}
+  if(x.id==='incidentStatsMonth'){incidentStatsMonth=x.value||dateISO().slice(0,7);render();return;}
   if(x.id==='functionDate'){functionDate=x.value||dateISO();render();return;}
   if(x.id==='functionMonth'){functionMonth=x.value||dateISO().slice(0,7);render();return;}
   if(x.id==='functionPerson'){functionPerson=x.value;render();return;}
@@ -1133,6 +1173,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
   const x=event.target;
+  if(x.id==='incidentSearch'){incidentSearch=x.value;render();const input=$('#incidentSearch');input?.focus();input?.setSelectionRange(incidentSearch.length,incidentSearch.length);return;}
   if(x.id==='staffSearch'){
     staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
   }
