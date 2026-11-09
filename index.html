@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#123d36">
-  <meta name="description" content="Sistema local para briefings, uniformes y personal de Las Flores. Trabaja sin conexión y exporta archivos Excel independientes.">
+  <meta name="description" content="Sistema de control interno de Las Flores: briefings, uniformes, funciones, personal e incidentes. Funciona sin conexión y permite reportes Excel.">
   <title>Las Flores | Control interno</title>
   <style>:root{--deep:#123d36;--green:#176451;--lightgreen:#e9f3ec;--gold:#c8ab6e;--ink:#1b322c;--muted:#63746c;--line:#dce5dd;--surface:#fff;--bg:#f5f7f4;--red:#a9423c;--redbg:#fff0ed;--amber:#916817;--amberbg:#fff7e5;--shadow:0 9px 25px rgba(20,60,44,.045)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.48}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.43;cursor:not-allowed}a{color:var(--green)}:focus-visible{outline:3px solid #bca15c;outline-offset:2px}
@@ -92,7 +92,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · Uso interno · Los datos permanecen en este navegador, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0001 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -139,7 +139,14 @@ const displayTime=s=>s?new Date(s).toLocaleString('es-PE'):'—';
 const initials=name=>String(name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('');
 const percentage=(a,b)=>b?Math.round(a/b*100)+'%':'—';
 const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,active:true,createdAt:timestamp()}));
-function empty(){return {app:'lasflores-control',version:2,staff:[],inspections:[],rosters:{},checklists:[],requirements:reqDefaults(),issueTypes:defaultIssueTypes(),deliveries:[],functionChecks:[],briefings:[],sessions:{},audit:[],backupAt:null,createdAt:timestamp()};}
+// Incidentes: catálogos y valores estables para mantener historial y respaldos.
+const INCIDENT_AREAS=["Cocina","Azafate","Barra","Repostería","Salón/Mozos","Recepción","Caja/POS","Logística/Almacén","Otra"];
+const INCIDENT_PRIORITIES={baja:'Baja',media:'Media',alta:'Alta',critica:'Crítica'};
+const INCIDENT_STATUSES={registrado:'Registrado','en-atencion':'En atención',verificacion:'Pendiente de verificación',cerrado:'Cerrado',anulado:'Anulado'};
+const INCIDENT_ACTION_KINDS={correccion:'Corrección',comunicacion:'Comunicación',investigacion:'Investigación',prevencion:'Prevención',verificacion:'Verificación',reapertura:'Reapertura'};
+const INCIDENT_TYPE_SEEDS=[["producto","inc-p-coccion","Cocción incorrecta"],["producto","inc-p-cuerpo","Cuerpo extraño (pelo, insecto u otro)"],["producto","inc-p-sabor","Sabor fuera de estándar"],["producto","inc-p-temperatura","Temperatura incorrecta"],["producto","inc-p-presentacion","Presentación deficiente"],["producto","inc-p-producto","Producto equivocado o defectuoso"],["operativo","inc-o-demora","Demora excesiva"],["operativo","inc-o-comanda","Comanda incorrecta o extraviada"],["operativo","inc-o-equipo","Falla de equipo o POS"],["operativo","inc-o-stock","Producto no disponible sin aviso"],["operativo","inc-o-comunicacion","Falla de coordinación"],["operativo","inc-o-atencion","Incidente de atención al cliente"]];
+const incidentTypeDefaults=()=>INCIDENT_TYPE_SEEDS.map(([category,id,label])=>({id,category,label,active:true,createdAt:timestamp(),updatedAt:null}));
+function empty(){return {app:'lasflores-control',version:2,staff:[],inspections:[],rosters:{},checklists:[],requirements:reqDefaults(),issueTypes:defaultIssueTypes(),deliveries:[],functionChecks:[],incidents:[],incidentTypes:incidentTypeDefaults(),briefings:[],sessions:{},audit:[],backupAt:null,createdAt:timestamp()};}
 function normalize(data){
   if(!data||typeof data!=='object'||!Array.isArray(data.staff)||!Array.isArray(data.inspections)||!data.rosters||typeof data.rosters!=='object'||Array.isArray(data.rosters))throw Error('Archivo de datos inválido');
   if(data.app!=='lasflores-uniformes'&&data.app!=='lasflores-control')throw Error('El respaldo no pertenece a Las Flores');
@@ -147,6 +154,8 @@ function normalize(data){
   const next={...base,...data,app:'lasflores-control',version:2};
   next.staff=data.staff.map(x=>({...x,position:x.position||'Mozo',briefingGroup:x.briefingGroup||'',active:x.active!==false}));
   next.functionChecks=Array.isArray(data.functionChecks)?data.functionChecks:[];
+  next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
+  next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
   next.checklists=Array.isArray(data.checklists)?data.checklists:[];
   next.requirements=Array.isArray(data.requirements)?data.requirements:reqDefaults();
   next.briefings=Array.isArray(data.briefings)?data.briefings:[];
@@ -174,6 +183,7 @@ function normalize(data){
 let state, savedJSON='', prefs={autoSave:true},dirty=false,saveError='',storageAvailable=true;
 let view='home',theDate=dateISO(),staffDate=dateISO(),briefDate=dateISO(),briefGroup='11';
 let selectedPerson='', uniformIssueSelection=[],editingInspectionId='';
+let incidentSearch='',incidentFilterCategory='all',incidentFilterStatus='all',incidentFilterArea='all',incidentFilterFrom='',incidentFilterTo='',incidentStatsMonth=dateISO().slice(0,7);
 let reportModule='uniform',reportType='week',reportDate=dateISO(),reportMonth=dateISO().slice(0,7);
 let staffSearch='',historySearch='',briefHistorySearch='',historyStart='',historyEnd='',toastTimer,statsMonth=dateISO().slice(0,7),statsPerson='all',briefShowAll=false,deliverySearch='',deliveryMaterial='all',deliveryPerson='all',deliveryStart='',deliveryEnd='',uniformNoteDraft='',uniformNoteDraftFor='';
 function load(){
@@ -256,16 +266,18 @@ function getSection(){
   if(['brief','brief-pending','brief-history','brief-stats','brief-export'].includes(view))return 'brief';
   if(['uniform','implements','requirements','deliveries','uniform-history','uniform-export'].includes(view))return 'uniform';
   if(view.startsWith('functions'))return 'functions';
+  if(view.startsWith('incidents'))return 'incidents';
   return 'personal';
 }
 function sectionNav(){const section=getSection();if(!section)return [];
   if(section==='brief')return [['brief','Asistencia'],['brief-pending','Por informar'],['brief-history','Historial'],['brief-stats','Estadísticas'],['brief-export','Excel']];
   if(section==='uniform')return [['uniform','Revisión diaria'],['implements','Implementos'],['requirements','Requisitos'],['deliveries','Entregas'],['uniform-history','Historial'],['uniform-export','Excel']];
   if(section==='functions')return [['functions','Control diario'],['functions-month','Resumen mensual']];
+  if(section==='incidents')return [['incidents','Nuevo / Resumen'],['incidents-history','Seguimiento'],['incidents-stats','Análisis'],['incidents-reports','Excel']];
   return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
 }
 // Historial de navegación para el botón Atrás y el gesto de Android.
-const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings']);
+const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','incidents','incidents-history','incidents-stats','incidents-reports']);
 let navigationReady=false,modalSequence=0;
 const modalSnapshots=new Map();
 function navigationEntry(v,dialogId=null,depth=0){return {lasFloresNavigation:true,view:v,dialogId,depth};}
@@ -339,7 +351,11 @@ function render(){
   }
   const nav=sectionNav();$('#subnav').hidden=false;
   $('#subnav').innerHTML=nav.map(([v,label])=>`<button type="button" data-nav="${v}" class="${v===view?'active':''}" ${v===view?'aria-current="page"':''}>${h(label)}</button>`).join('');
-  if(view==='functions')renderFunctions();
+  if(view==='incidents')renderIncidents();
+  else if(view==='incidents-history')renderIncidentsHistory();
+  else if(view==='incidents-stats')renderIncidentsStats();
+  else if(view==='incidents-reports')renderIncidentsReports();
+  else if(view==='functions')renderFunctions();
   else if(view==='functions-month')renderFunctionMonth();
   else if(view==='personal')renderPersonal();
   else if(view==='settings')renderSettings();
@@ -363,6 +379,7 @@ function renderHome(){
       <button class="home-card" data-nav="uniform"><span class="home-icon"><svg viewBox="0 0 24 24"><path d="m4 7 5-4h6l5 4 2 5-5 2-1-3v10H8V11l-1 3-5-2 2-5Z"/></svg></span><strong>Control de uniformes</strong><span>Revisiones, implementos y correcciones</span></button>
       <button class="home-card" data-nav="functions"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 10 2 2 5-5M8 16h8"/></svg></span><strong>Control de funciones</strong><span>Asignaciones, incidencias y cumplimiento mensual</span></button>
       <button class="home-card" data-nav="personal"><span class="home-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20v-2a6 6 0 0 1 12 0v2H2ZM17 11a3 3 0 1 0-1-5.8M16 14a5 5 0 0 1 6 5v1h-5"/></svg></span><strong>Personal</strong><span>Trabajadores, estados, descansos y apoyos</span></button>
+      <button class="home-card" data-nav="incidents"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v5M12 17h.01M8 8h0"/></svg></span><strong>Registro de incidentes</strong><span>Alimentos, bebidas, fallas operativas y seguimiento</span></button>
     </div><div class="home-notice">Sin conexión · ${state.staff.filter(p=>p.active!==false).length} trabajadores activos · ${prefs.autoSave?'Autoguardado activado':'Guardado manual activado'}</div>`;
 }
 function kpi(n,label,kind=''){return `<div class="kpi ${kind}"><div class="number">${h(n)}</div><div class="label">${h(label)}</div></div>`;}
@@ -860,6 +877,191 @@ function renderBriefStats(){
   <div class="callout warn">Los porcentajes usan los registros realizados, no todas las jornadas programadas. Para evaluar cobertura total también debes verificar quiénes siguen «Sin registrar». Una ausencia por atención de mesa no se considera falta.</div>`;
 }
 
+
+const incidentCategories={producto:'Alimentos y bebidas',operativo:'Operaciones y servicio'};
+const incidentStatusLabels={registrado:'Registrado','en-atencion':'En atención',verificacion:'Pendiente de verificación',cerrado:'Cerrado',anulado:'Anulado'};
+const incidentAreasOptions=selected=>INCIDENT_AREAS.map(a=>'<option value="'+h(a)+'" '+(a===selected?'selected':'')+'>'+h(a)+'</option>').join('');
+const incidentPersonName=r=>worker(r.personId)?.name||r.personName||'Sin asignar';
+const incidentTypeText=r=>r.typeLabel||state.incidentTypes.find(t=>t.id===r.typeId)?.label||'Otro';
+const incidentLabel=r=>r.code||String(r.id).slice(0,10);
+function incidentTypesOptions(category){return state.incidentTypes.filter(t=>t.category===category&&t.active!==false).map(t=>'<option value="'+h(t.id)+'">'+h(t.label)+'</option>').join('')+'<option value="otro">Otro (especificar)</option>';}
+function incidentFiltered(){return state.incidents.filter(r=>(incidentFilterCategory==='all'||r.category===incidentFilterCategory)&&(incidentFilterStatus==='all'||r.status===incidentFilterStatus)&&(incidentFilterArea==='all'||r.detectedArea===incidentFilterArea)&&(!incidentFilterFrom||r.occurredDate>=incidentFilterFrom)&&(!incidentFilterTo||r.occurredDate<=incidentFilterTo)&&(!incidentSearch||[r.code,r.product,r.description,r.detectedArea,r.typeLabel,r.reporter].join(' ').toLocaleLowerCase('es').includes(incidentSearch.toLocaleLowerCase('es')))).sort((a,b)=>(b.occurredDate||'').localeCompare(a.occurredDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));}
+function incidentCard(r){return '<div class="person-row"><div><b>'+h(incidentLabel(r))+' · '+h(r.product)+'</b><div class="small">'+h(formatDate(r.occurredDate))+' · '+h(incidentCategories[r.category])+' · '+h(r.detectedArea)+'</div><div class="small">'+h(incidentTypeText(r))+' · '+h(INCIDENT_PRIORITIES[r.priority])+'</div></div><div class="actions">'+badge(incidentStatusLabels[r.status]||r.status,r.status==='cerrado'?'ok':r.status==='anulado'?'':r.status==='registrado'?'warn':'blue')+'<button class="button tiny" data-action="incident-details" data-id="'+h(r.id)+'">Ver / Seguimiento</button></div></div>';}
+function renderIncidents(){
+  setHeading('Registro de incidentes','Problemas de alimentos, bebidas y fallas operativas; soluciones, responsables y seguimiento.');
+  const open=state.incidents.filter(r=>!['cerrado','anulado'].includes(r.status)),month=dateISO().slice(0,7),current=state.incidents.filter(r=>r.occurredDate.startsWith(month)&&r.status!=='anulado');
+  $('#app').innerHTML='<div class="kpis">'+kpi(current.length,'Este mes')+kpi(open.length,'Pendientes','amber')+kpi(open.filter(r=>['alta','critica'].includes(r.priority)).length,'Alta y crítica','red')+kpi(current.filter(r=>r.status==='cerrado').length,'Cerrados','green')+'</div><div class="panel"><div class="panel-head"><h2>Registrar un incidente</h2></div><div class="panel-body stack"><button class="button primary block" data-action="incident-new">+ Nuevo incidente</button><div class="toolbar"><button class="button" data-nav="incidents-history">Seguimiento</button><button class="button" data-nav="incidents-stats">Análisis</button><button class="button" data-action="incident-types">Configurar tipos</button></div></div></div><div class="panel"><div class="panel-head"><h2>Casos pendientes recientes</h2></div>'+(open.length?open.slice(-8).reverse().map(incidentCard).join(''):emptyHint('Sin pendientes','Los incidentes por resolver aparecerán aquí.'))+'</div><div class="callout">El área donde se detecta un problema no demuestra que sea el área responsable de originarlo.</div>';
+}
+function renderIncidentsHistory(){
+  setHeading('Seguimiento de incidentes','Filtra registros, revisa acciones y verifica las soluciones.');
+  const list=incidentFiltered();
+  const op=(v,label,current)=>'<option value="'+h(v)+'" '+(v===current?'selected':'')+'>'+h(label)+'</option>';
+  $('#app').innerHTML='<div class="panel"><div class="panel-body stack"><div class="fields"><div class="field"><label>Buscar</label><input id="incidentSearch" value="'+h(incidentSearch)+'" placeholder="Código, producto, descripción"></div><div class="field"><label>Categoría</label><select id="incidentFilterCategory">'+op('all','Todas',incidentFilterCategory)+op('producto','Producto',incidentFilterCategory)+op('operativo','Operativo',incidentFilterCategory)+'</select></div><div class="field"><label>Estado</label><select id="incidentFilterStatus">'+op('all','Todos',incidentFilterStatus)+Object.entries(incidentStatusLabels).map(([v,l])=>op(v,l,incidentFilterStatus)).join('')+'</select></div><div class="field"><label>Área de detección</label><select id="incidentFilterArea">'+op('all','Todas',incidentFilterArea)+INCIDENT_AREAS.map(v=>op(v,v,incidentFilterArea)).join('')+'</select></div><div class="field"><label>Desde</label><input id="incidentFilterFrom" type="date" value="'+h(incidentFilterFrom)+'"></div><div class="field"><label>Hasta</label><input id="incidentFilterTo" type="date" value="'+h(incidentFilterTo)+'"></div></div><div class="toolbar"><button class="button" data-action="incident-filters-clear">Limpiar filtros</button><button class="button primary" data-action="incident-new">+ Nuevo</button></div></div></div><div class="panel"><div class="panel-head"><h2>'+list.length+' registros</h2></div>'+(list.length?list.slice(0,250).map(incidentCard).join(''):emptyHint('Sin resultados','Cambia los filtros o crea un incidente.'))+'</div>';
+}
+function renderIncidentsStats(){
+  setHeading('Análisis de incidentes','Estadísticas de detecciones, tipos de fallas y casos pendientes.');
+  const list=state.incidents.filter(r=>r.occurredDate.startsWith(incidentStatsMonth)&&r.status!=='anulado');
+  const areaMap=new Map(),typeMap=new Map();
+  list.forEach(r=>{areaMap.set(r.detectedArea,(areaMap.get(r.detectedArea)||0)+1);let t=incidentTypeText(r);typeMap.set(t,(typeMap.get(t)||0)+1);});
+  const rows=m=>[...m].sort((a,b)=>b[1]-a[1]).map(([a,n])=>'<div class="space-between"><span>'+h(a)+'</span><b>'+n+'</b></div>').join('')||emptyHint('Sin registros','No se encontraron datos para este mes.');
+  $('#app').innerHTML='<div class="panel"><div class="panel-body"><div class="field"><label>Mes</label><input type="month" id="incidentStatsMonth" value="'+h(incidentStatsMonth)+'"></div></div></div><div class="kpis">'+kpi(list.length,'Total')+kpi(list.filter(r=>r.category==='producto').length,'Producto')+kpi(list.filter(r=>r.category==='operativo').length,'Operativos')+kpi(list.filter(r=>r.status!=='cerrado').length,'Pendientes','amber')+'</div><div class="two-col"><div class="panel"><div class="panel-head"><h2>Áreas de detección</h2></div><div class="panel-body stack">'+rows(areaMap)+'</div></div><div class="panel"><div class="panel-head"><h2>Tipos frecuentes</h2></div><div class="panel-body stack">'+rows(typeMap)+'</div></div></div><div class="callout warn">Más incidentes no equivale automáticamente a peor desempeño. Para comparar áreas es necesario considerar su volumen de trabajo y causas verificadas.</div>';
+}
+function renderIncidentsReports(){
+ setHeading('Excel de incidentes','Historial, acciones y estadísticas exportadas en un libro independiente.');
+ $('#app').innerHTML='<div class="panel"><div class="panel-head"><h2>Selecciona el período</h2></div><div class="panel-body">'+periodHTML()+'</div></div><div class="panel"><div class="panel-body stack"><p>Hojas: Resumen, Incidentes, Áreas, Tipos y Acciones.</p><button class="button primary block" data-action="incident-export">↓ Descargar Incidentes.xlsx</button><p class="small">Para restaurar registros editables usa el respaldo JSON desde Configuración.</p></div></div>';
+}
+
+function openIncident(){
+ const dt=new Date(),time=pad(dt.getHours())+':'+pad(dt.getMinutes());
+ const staff='<option value="">Sin asignar</option>'+state.staff.filter(w=>w.active!==false).map(w=>'<option value="'+h(w.id)+'">'+h(w.name)+'</option>').join('');
+ const body='<form id="incidentForm" class="stack">'+
+ '<div class="callout warn">Ante un riesgo sanitario, retén el producto y comunica el problema antes de completar este formulario.</div>'+
+ '<div class="fields"><div class="field"><label>Fecha del incidente *</label><input name="occurredDate" type="date" value="'+dateISO()+'"></div><div class="field"><label>Hora *</label><input name="occurredTime" type="time" value="'+time+'"></div></div>'+
+ '<div class="field"><label>Categoría *</label><select id="incidentCategory" name="category"><option value="producto">Alimentos y bebidas</option><option value="operativo">Operaciones y servicio</option></select></div>'+
+ '<div class="fields"><div class="field"><label>Detectado en *</label><select name="detectedArea">'+incidentAreasOptions('Cocina')+'</select></div><div class="field"><label>Origen probable</label><select name="originArea"><option value="">Sin determinar</option>'+incidentAreasOptions('')+'</select></div></div>'+
+ '<div class="field"><label>Producto o proceso *</label><input name="product" maxlength="140" placeholder="Cuy, chicha, comanda, impresora"></div>'+
+ '<div class="field"><label>Tipo de incidente *</label><select id="incidentType" name="typeId">'+incidentTypesOptions('producto')+'</select></div>'+
+ '<div id="incidentOtherTypeWrap" class="field" hidden><label>Otro tipo *</label><input name="typeOther" maxlength="120"></div>'+
+ '<div class="field"><label>Descripción *</label><textarea name="description" maxlength="1500" placeholder="Hechos observados; sin asignar culpas."></textarea></div>'+
+ '<div class="fields"><div class="field"><label>Prioridad *</label><select name="priority"><option value="media">Media</option><option value="baja">Baja</option><option value="alta">Alta</option><option value="critica">Crítica</option></select></div><div class="field"><label>Registrado por *</label><input name="reporter" maxlength="90"></div></div>'+
+ '<div class="field"><label>Impacto</label><select name="impact"><option value="">No determinado</option><option>Antes de servir</option><option>En mesa / cliente afectado</option><option>Después del consumo</option><option>Servicio interrumpido o retrasado</option><option>Otro</option></select></div>'+
+ '<div class="field"><label>Medida inmediata *</label><textarea name="immediateAction" maxlength="850" placeholder="Qué se hizo primero para controlar la situación."></textarea></div>'+
+ '<div class="field"><label>Responsable de seguimiento</label><select name="personId">'+staff+'</select></div></form>';
+ modal('Nuevo incidente',body,'<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="incident-save">Registrar incidente</button>');
+}
+function saveIncident(){
+ const f=$('#incidentForm');if(!f)return;
+ const v=k=>String(f.elements[k]?.value||'').trim();
+ if(['occurredDate','occurredTime','product','description','reporter','immediateAction'].some(k=>!v(k))){toast('Completa los campos obligatorios.');return;}
+ const c=v('category'),type=state.incidentTypes.find(t=>t.id===v('typeId')&&t.category===c&&t.active!==false);
+ if(v('typeId')==='otro'&&!v('typeOther')){toast('Especifica el tipo de incidente.');return;}
+ if(v('typeId')!=='otro'&&!type){toast('Selecciona un tipo de incidente válido.');return;}
+ const year=v('occurredDate').slice(0,4),at=timestamp();
+ const seq=state.incidents.filter(r=>r.occurredDate.startsWith(year)).reduce((n,r)=>{const m=String(r.code||'').match(/-(\d+)$/);return Math.max(n,m?Number(m[1]):0);},0)+1;
+ const code='INC-'+year+'-'+String(seq).padStart(4,'0'),personId=v('personId');
+ const r={id:uid(),code,category:c,occurredDate:v('occurredDate'),occurredTime:v('occurredTime'),detectedArea:v('detectedArea'),originArea:v('originArea'),confirmedOrigin:'',product:v('product'),typeId:type?.id||'',typeLabel:type?.label||v('typeOther'),description:v('description'),priority:v('priority'),reporter:v('reporter'),impact:v('impact'),immediateAction:v('immediateAction'),personId,personName:worker(personId)?.name||'',status:'registrado',createdAt:at,updatedAt:at,closedAt:null,closedBy:'',voidedAt:null,voidReason:'',actions:[{id:uid(),kind:'correccion',description:v('immediateAction'),by:v('reporter'),at,statusAfter:'registrado'}]};
+ state.incidents.push(r);mutate('Registrar incidente',code+' · '+r.product);closeModal();render();toast(code+' registrado.');
+}
+
+
+function incidentDetails(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r)return;
+ const actions=(r.actions||[]).map(a=>'<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>'+h(a.kind||'Acción')+'</b> · '+h(displayTime(a.at))+'<p class="small">'+h(a.description||'')+'</p><span class="small">Por '+h(a.by||'No indicado')+'</span></div>').join('')||'<p class="small">Sin acciones.</p>';
+ const body='<div class="stack">'+badge(incidentStatusLabels[r.status]||r.status,r.status==='cerrado'?'ok':'warn')+
+ '<h3>'+h(r.product)+'</h3><p class="small">'+h(formatDate(r.occurredDate))+' · '+h(r.occurredTime)+' · '+h(incidentCategories[r.category])+'</p>'+
+ '<div class="fields"><div><b>Área donde se detectó</b><p class="small">'+h(r.detectedArea||'—')+'</p></div><div><b>Origen probable</b><p class="small">'+h(r.originArea||'No determinado')+'</p></div><div><b>Origen confirmado</b><p class="small">'+h(r.confirmedOrigin||'Por verificar')+'</p></div><div><b>Tipo de problema</b><p class="small">'+h(incidentTypeText(r))+'</p></div></div>'+
+ '<div><b>Descripción</b><p class="small">'+h(r.description||'')+'</p></div><div><b>Impacto</b><p class="small">'+h(r.impact||'No determinado')+'</p></div>'+
+ '<div><b>Registrado por</b><p class="small">'+h(r.reporter||'')+'</p></div><div><b>Responsable de seguimiento</b><p class="small">'+h(incidentPersonName(r))+'</p></div>'+
+ '<div><b>Acciones y seguimiento</b>'+actions+'</div>'+
+ (r.status==='cerrado'?'<div class="callout">Verificado y cerrado por '+h(r.closedBy||'')+' · '+h(displayTime(r.closedAt))+'</div>':'')+
+ (r.status==='anulado'?'<div class="callout warn">Anulación: '+h(r.voidReason||'Sin motivo')+'</div>':'')+'</div>';
+ let footer='<button class="button" data-action="close-modal">Cerrar</button>';
+ if(r.status!=='anulado')footer+='<button class="button primary" data-action="incident-followup" data-id="'+h(id)+'">'+(r.status==='cerrado'?'Reabrir / nueva medida':'Nueva acción / cambiar estado')+'</button>';
+ if(r.status!=='anulado'&&r.status!=='cerrado')footer+='<button class="button warn" data-action="incident-void" data-id="'+h(id)+'">Anular</button>';
+ modal(incidentLabel(r)+' · Detalle',body,footer);
+}
+function openIncidentFollowup(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r||r.status==='anulado')return;
+ const states=Object.entries(incidentStatusLabels).filter(([k])=>k!=='anulado').map(([k,label])=>'<option value="'+h(k)+'" '+(k===r.status?'selected':'')+'>'+h(label)+'</option>').join('');
+ const staff='<option value="">Sin asignar</option>'+state.staff.filter(w=>w.active!==false||w.id===r.personId).map(w=>'<option value="'+h(w.id)+'" '+(w.id===r.personId?'selected':'')+'>'+h(w.name)+'</option>').join('');
+ const body='<form id="incidentFollowupForm" class="stack">'+
+ '<div class="field"><label>Estado *</label><select name="status">'+states+'</select></div>'+
+ '<div class="field"><label>Tipo de acción *</label><select name="kind"><option value="correccion">Corrección</option><option value="comunicacion">Comunicación</option><option value="investigacion">Investigación</option><option value="prevencion">Prevención</option><option value="verificacion">Verificación</option></select></div>'+
+ '<div class="field"><label>Medida, resultado o verificación *</label><textarea name="description" maxlength="1500"></textarea></div>'+
+ '<div class="field"><label>Registrado o verificado por *</label><input name="by" maxlength="90"></div>'+
+ '<div class="field"><label>Origen confirmado, solo si se verificó</label><select name="confirmedOrigin"><option value="">Sin confirmar</option>'+INCIDENT_AREAS.map(a=>'<option value="'+h(a)+'" '+(a===r.confirmedOrigin?'selected':'')+'>'+h(a)+'</option>').join('')+'</select></div>'+
+ '<div class="field"><label>Responsable de seguimiento</label><select name="personId">'+staff+'</select></div>'+
+ '<div class="callout">Para cerrar, selecciona la acción Verificación y deja constancia de quién verificó la solución.</div></form>';
+ const footer='<button class="button" data-action="incident-details" data-id="'+h(id)+'">Cancelar</button><button class="button primary" data-action="incident-save-followup" data-id="'+h(id)+'">Guardar seguimiento</button>';
+ modal('Seguimiento · '+incidentLabel(r),body,footer);
+}
+function saveIncidentFollowup(id){
+ const r=state.incidents.find(x=>x.id===id),f=$('#incidentFollowupForm');if(!r||!f||r.status==='anulado')return;
+ const v=k=>String(f.elements[k]?.value||'').trim(),next=v('status');
+ if(!incidentStatusLabels[next]||next==='anulado'||!v('description')||!v('by')){toast('Completa estado, descripción y responsable.');return;}
+ if(next==='cerrado'&&r.status!=='cerrado'&&v('kind')!=='verificacion'){toast('Para cerrar, elige Verificación.');return;}
+ if(next==='cerrado'&&r.status!=='cerrado'&&!confirm('¿Confirmas que la solución fue verificada?'))return;
+ const at=timestamp(),old=r.status;
+ r.actions.push({id:uid(),kind:old==='cerrado'&&next!=='cerrado'?'reapertura':v('kind'),description:v('description'),by:v('by'),at,statusBefore:old,statusAfter:next});
+ r.status=next;r.updatedAt=at;if(v('confirmedOrigin'))r.confirmedOrigin=v('confirmedOrigin');
+ r.personId=v('personId');r.personName=worker(r.personId)?.name||r.personName||'';
+ if(next==='cerrado'){r.closedAt=at;r.closedBy=v('by');}else{r.closedAt=null;r.closedBy='';}
+ mutate('Seguimiento de incidente',r.code+' · '+next);closeModal();render();toast('Seguimiento guardado.');
+}
+
+
+function openIncidentVoid(id){
+ const r=state.incidents.find(x=>x.id===id);if(!r||['anulado','cerrado'].includes(r.status))return;
+ const body='<div class="callout warn">El registro se marcará anulado, pero no se borrará del historial ni de los reportes.</div><div class="field"><label>Motivo de la anulación *</label><textarea id="incidentVoidReason" maxlength="500"></textarea></div><div class="field"><label>Responsable *</label><input id="incidentVoidBy" maxlength="90"></div>';
+ const foot='<button class="button" data-action="incident-details" data-id="'+h(id)+'">Cancelar</button><button class="button warn" data-action="incident-confirm-void" data-id="'+h(id)+'">Anular incidente</button>';
+ modal('Anulación · '+incidentLabel(r),body,foot);
+}
+function saveIncidentVoid(id){
+ const r=state.incidents.find(x=>x.id===id),reason=$('#incidentVoidReason')?.value.trim(),by=$('#incidentVoidBy')?.value.trim();
+ if(!r||['cerrado','anulado'].includes(r.status)||!reason||!by){toast('Indica motivo y responsable de la anulación.');return;}
+ const at=timestamp();
+ r.actions.push({id:uid(),kind:'anulacion',description:reason,by,at,statusBefore:r.status,statusAfter:'anulado'});
+ r.status='anulado';r.voidReason=reason;r.voidedAt=at;r.updatedAt=at;
+ mutate('Anular incidente',r.code+' · '+reason);closeModal();render();toast('Anulación registrada.');
+}
+function openIncidentTypes(){
+ const cards=['producto','operativo'].map(cat=>'<div class="panel"><div class="panel-head"><h2>'+h(incidentCategories[cat])+'</h2></div>'+
+ state.incidentTypes.filter(t=>t.category===cat).sort((a,b)=>a.label.localeCompare(b.label,'es')).map(t=>'<div class="person-row"><div><b>'+h(t.label)+'</b><div class="small">'+(t.active?'Activo':'Archivado')+'</div></div><div class="actions"><button class="button tiny" data-action="incident-type-edit" data-id="'+h(t.id)+'">Editar</button><button class="button tiny" data-action="incident-type-toggle" data-id="'+h(t.id)+'">'+(t.active?'Desactivar':'Activar')+'</button><button class="button tiny warn" data-action="incident-type-remove" data-id="'+h(t.id)+'">Eliminar</button></div></div>').join('')+'</div>').join('');
+ modal('Tipos de incidentes','<p class="small">Puedes actualizar el catálogo. Los incidentes históricos conservan el nombre registrado.</p>'+cards,'<button class="button" data-action="close-modal">Cerrar</button><button class="button primary" data-action="incident-type-new">+ Nuevo tipo</button>');
+}
+function openIncidentTypeForm(id=''){
+ const t=state.incidentTypes.find(x=>x.id===id);
+ const body='<form id="incidentTypeForm" class="stack"><input type="hidden" name="id" value="'+h(t?.id||'')+'"><div class="field"><label>Nombre *</label><input name="label" maxlength="120" value="'+h(t?.label||'')+'"></div><div class="field"><label>Categoría *</label><select name="category"><option value="producto" '+(t?.category!=='operativo'?'selected':'')+'>Alimentos y bebidas</option><option value="operativo" '+(t?.category==='operativo'?'selected':'')+'>Operaciones y servicio</option></select></div></form>';
+ modal(t?'Editar tipo':'Nuevo tipo',body,'<button class="button" data-action="incident-types">Cancelar</button><button class="button primary" data-action="incident-type-save">Guardar tipo</button>');
+}
+function saveIncidentType(){
+ const f=$('#incidentTypeForm');if(!f)return;
+ const label=f.elements.label.value.trim().replace(/\s+/g,' '),cat=f.elements.category.value,id=f.elements.id.value;
+ if(!label){toast('Escribe el nombre del tipo.');return;}
+ if(state.incidentTypes.some(t=>t.id!==id&&t.category===cat&&t.active!==false&&t.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es'))){toast('Ya existe un tipo activo con ese nombre.');return;}
+ const t=state.incidentTypes.find(x=>x.id===id);
+ if(t){t.label=label;t.category=cat;t.updatedAt=timestamp();mutate('Editar tipo de incidente',label);}
+ else{state.incidentTypes.push({id:'inc-'+uid(),label,category:cat,active:true,createdAt:timestamp(),updatedAt:null});mutate('Crear tipo de incidente',label);}
+ openIncidentTypes();toast('Tipo guardado.');
+}
+function toggleIncidentType(id){
+ const t=state.incidentTypes.find(x=>x.id===id);if(!t)return;
+ t.active=t.active===false;t.updatedAt=timestamp();
+ mutate('Cambiar vigencia tipo de incidente',t.label);openIncidentTypes();
+}
+function removeIncidentType(id){
+ const t=state.incidentTypes.find(x=>x.id===id);if(!t)return;
+ if(state.incidents.some(r=>r.typeId===id)){t.active=false;t.updatedAt=timestamp();mutate('Archivar tipo con historial',t.label);openIncidentTypes();toast('Tipo archivado: el historial se conserva.');return;}
+ if(!confirm('¿Eliminar el tipo «'+t.label+'»?'))return;
+ state.incidentTypes=state.incidentTypes.filter(x=>x.id!==id);mutate('Eliminar tipo de incidente',t.label);openIncidentTypes();
+}
+
+
+function workbookIncidents(start,end,label){
+ const all=state.incidents.filter(r=>r.occurredDate>=start&&r.occurredDate<=end).sort((a,b)=>a.occurredDate.localeCompare(b.occurredDate)),valid=all.filter(r=>r.status!=='anulado');
+ const rows=[['Código','Fecha','Hora','Categoría','Detectado en','Origen probable','Origen confirmado','Producto o proceso','Tipo de problema','Prioridad','Estado','Impacto','Registrado por','Seguimiento a cargo de','Descripción','Medida inmediata','Creado el','Cerrado el','Cerrado por','Motivo de anulación']];
+ all.forEach(r=>rows.push([r.code||r.id,r.occurredDate,r.occurredTime,incidentCategories[r.category],r.detectedArea,r.originArea||'',r.confirmedOrigin||'',r.product,incidentTypeText(r),INCIDENT_PRIORITIES[r.priority],incidentStatusLabels[r.status],r.impact||'',r.reporter||'',incidentPersonName(r),r.description,r.immediateAction,r.createdAt||'',r.closedAt||'',r.closedBy||'',r.voidReason||'']));
+ const countBy=fn=>{let map=new Map();valid.forEach(r=>{let key=fn(r)||'Sin definir';map.set(key,(map.get(key)||0)+1);});return [...map].sort((a,b)=>b[1]-a[1]);};
+ const areas=[['Área donde se detectó','Número de incidentes'],...countBy(r=>r.detectedArea)];
+ const types=[['Tipo de problema','Número de incidentes'],...countBy(r=>incidentTypeText(r))];
+ const actions=[['Código','Fecha incidente','Fecha de acción','Tipo de acción','Descripción','Realizado por','Estado previo','Estado posterior']];
+ all.forEach(r=>(r.actions||[]).forEach(a=>actions.push([r.code||r.id,r.occurredDate,a.at||'',a.kind||'',a.description||'',a.by||'',incidentStatusLabels[a.statusBefore]||'',incidentStatusLabels[a.statusAfter]||''])));
+ const sum=[['LAS FLORES · REGISTRO DE INCIDENTES'],['Período',label],['Desde',start],['Hasta',end],['Generado',displayTime(timestamp())],[],['INDICADOR','VALOR'],
+ ['Casos vigentes',valid.length],['Alimentos y bebidas',valid.filter(r=>r.category==='producto').length],['Operativos y servicio',valid.filter(r=>r.category==='operativo').length],
+ ['Casos pendientes',valid.filter(r=>r.status!=='cerrado').length],['Cerrados',valid.filter(r=>r.status==='cerrado').length],['Anulados',all.length-valid.length],[],
+ ['NOTAS'],['El área de detección no demuestra origen ni responsabilidad confirmada.'],['Los registros anulados se conservan para auditoría.']];
+ return makeXlsx([{name:'Resumen',rows:sum},{name:'Incidentes',rows,headerRow:1,dateCols:[1]},{name:'Áreas',rows:areas,headerRow:1},{name:'Tipos',rows:types,headerRow:1},{name:'Acciones',rows:actions,headerRow:1,dateCols:[1]}]);
+}
+function exportIncidentReport(){
+ if(dirty&&!confirm('Hay cambios sin guardar. El Excel incluirá los datos actuales, pero podrían perderse al cerrar. ¿Continuar?'))return;
+ const p=reportRange();
+ try{downloadBlob(workbookIncidents(p.start,p.end,p.label),'Las_Flores_Incidentes_'+p.label+'_'+p.start+'_'+p.end+'.xlsx');toast('Excel de incidentes descargado.');}
+ catch(e){console.error(e);toast('No se pudo generar el Excel de incidentes.');}
+}
+
+function switchIncidentCategory(){const f=$('#incidentForm');if(!f)return;$('#incidentType').innerHTML=incidentTypesOptions(f.elements.category.value);toggleIncidentOtherType();}
+function toggleIncidentOtherType(){const e=$('#incidentOtherTypeWrap');if(e)e.hidden=$('#incidentType')?.value!=='otro';}
+
 // REPORTES: libros XLSX separados, empaquetados en ZIP si se solicita todo.
 function reportRange(){
   if(reportType==='day')return {start:reportDate,end:reportDate,label:'Diario'};
@@ -996,7 +1198,7 @@ function renderSettings(){
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Modo de guardado</h2>${badge(prefs.autoSave?'Automático':'Manual',prefs.autoSave?'ok':'warn')}</div>
     <div class="panel-body stack"><div class="fields"><div class="field"><label>Cómo guardar</label><select id="saveMode"><option value="auto" ${prefs.autoSave?'selected':''}>Guardar automáticamente cada cambio</option><option value="manual" ${!prefs.autoSave?'selected':''}>Guardar solamente cuando yo lo indique</option></select></div><div class="field"><label>Tema de la aplicación</label><select id="themeMode"><option value="light" ${prefs.theme!=='dark'?'selected':''}>Claro (día)</option><option value="dark" ${prefs.theme==='dark'?'selected':''}>Oscuro (noche)</option></select></div><div class="field"><label>Estado actual</label><input readonly value="${saveError?'ERROR: '+h(saveError):dirty?'Cambios sin guardar':'Todos los cambios confirmados guardados'}"></div></div>
     <div class="toolbar"><button class="button primary" data-action="manual-save" ${!dirty?'disabled':''}>Guardar cambios ahora</button><span class="small">En modo manual recibirás una advertencia si intentas cerrar con cambios pendientes.</span></div></div></div>
-    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, controles de funciones, uniformes, implementos, entregas de materiales, tipos de incumplimiento, briefings y configuraciones de requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, descansos, controles de funciones, uniformes, implementos, entregas de materiales, incidentes y sus acciones, tipos configurables, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
     <div class="panel"><div class="panel-head"><div><h2>Copias internas de recuperación</h2><p>Guardadas en el navegador, separadas de la base principal.</p></div></div><div class="panel-body stack"><p class="small">Se crea una copia periódica y puedes crear una manualmente. No reemplazan al respaldo JSON externo.</p><button class="button block" data-action="snapshot-now">+ Crear punto de recuperación</button><div id="recoveryList">Cargando copias…</div></div></div></div>
     <div class="callout warn"><b>Importante:</b> los datos locales y las copias internas pueden perderse si se borran los datos del navegador, se cambia de navegador o se avería la tablet. Descarga regularmente el respaldo JSON y guárdalo fuera del dispositivo.</div>
     <div class="callout">La versión anterior de Uniformes se importa automáticamente cuando es accesible en el mismo navegador y origen. Si abriste el HTML desde otra ubicación y no aparecen los datos antiguos, exporta el JSON desde la aplicación anterior e impórtalo aquí.</div>`;
@@ -1026,6 +1228,21 @@ function closeModal(){
 }
 function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
   switch(action){
+    case 'incident-new':openIncident();break;
+    case 'incident-save':saveIncident();break;
+    case 'incident-details':incidentDetails(id);break;
+    case 'incident-followup':openIncidentFollowup(id);break;
+    case 'incident-save-followup':saveIncidentFollowup(id);break;
+    case 'incident-void':openIncidentVoid(id);break;
+    case 'incident-confirm-void':saveIncidentVoid(id);break;
+    case 'incident-types':openIncidentTypes();break;
+    case 'incident-type-new':openIncidentTypeForm();break;
+    case 'incident-type-edit':openIncidentTypeForm(id);break;
+    case 'incident-type-save':saveIncidentType();break;
+    case 'incident-type-toggle':toggleIncidentType(id);break;
+    case 'incident-type-remove':removeIncidentType(id);break;
+    case 'incident-filters-clear':incidentSearch='';incidentFilterCategory='all';incidentFilterStatus='all';incidentFilterArea='all';incidentFilterFrom='';incidentFilterTo='';render();break;
+    case 'incident-export':exportIncidentReport();break;
     case 'function-assign':openFunctionAssign(el.dataset.task);break;
     case 'function-save-assignment':saveFunctionAssignment();break;
     case 'function-edit':openFunctionReview(id);break;
@@ -1103,6 +1320,14 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('change',event=>{
   const x=event.target;
+  if(x.id==='incidentCategory'){switchIncidentCategory();return;}
+  if(x.id==='incidentType'){toggleIncidentOtherType();return;}
+  if(x.id==='incidentFilterCategory'){incidentFilterCategory=x.value;render();return;}
+  if(x.id==='incidentFilterStatus'){incidentFilterStatus=x.value;render();return;}
+  if(x.id==='incidentFilterArea'){incidentFilterArea=x.value;render();return;}
+  if(x.id==='incidentFilterFrom'){incidentFilterFrom=x.value;render();return;}
+  if(x.id==='incidentFilterTo'){incidentFilterTo=x.value;render();return;}
+  if(x.id==='incidentStatsMonth'){incidentStatsMonth=x.value||dateISO().slice(0,7);render();return;}
   if(x.id==='functionDate'){functionDate=x.value||dateISO();render();return;}
   if(x.id==='functionMonth'){functionMonth=x.value||dateISO().slice(0,7);render();return;}
   if(x.id==='functionPerson'){functionPerson=x.value;render();return;}
@@ -1133,6 +1358,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
   const x=event.target;
+  if(x.id==='incidentSearch'){incidentSearch=x.value;render();const input=$('#incidentSearch');input?.focus();input?.setSelectionRange(incidentSearch.length,incidentSearch.length);return;}
   if(x.id==='staffSearch'){
     staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
   }
