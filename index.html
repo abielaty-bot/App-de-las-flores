@@ -939,22 +939,37 @@ function openChecklist(id,scroll=0){const w=worker(id);if(!w)return;
   $('#modal').scrollTop=scroll;
 }
 function answerChecklist(id,reqId,status){
-  if(!isScheduled(scheduleStatus(theDate,id)))return;
-  const scroll=$('#modal').scrollTop,r=ensureChecklist(id);if(!r)return;
-  const item=r.items.find(x=>x.reqId===reqId);if(!item)return;
-  item.status=status==='none'?null:status;if(item.minQty&&status==='ok')item.quantity=Math.max(item.minQty,Number(item.quantity)||0);item.resolvedAt=null;r.updatedAt=timestamp();mutate('Revisar implemento',`${worker(id)?.name||''} · ${item.label} · ${item.status||'Sin revisar'}`);openChecklist(id,scroll);
+ const scroll=$('#modal')?.scrollTop||0;
+ if(quickAnswer(id,reqId,status))openChecklist(id,scroll);
 }
 function setChecklistQuantity(id,reqId,value){
-  const r=ensureChecklist(id);if(!r)return;const item=r.items.find(i=>i.reqId===reqId);if(!item||!item.minQty)return;
-  item.quantity=value===''?null:Math.max(0,Math.min(100,Number(value)||0));
-  item.status=item.quantity===null?null:item.quantity>=item.minQty?'ok':'bad';item.resolvedAt=null;r.updatedAt=timestamp();
-  mutate('Cantidad de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.quantity??'Sin revisar'}`);openChecklist(id,$('#modal').scrollTop);
+ const c=checklist(theDate,id),item=c?.items.find(i=>i.reqId===reqId);
+ if(!item||!item.minQty)return;
+ if(quickOldRecord(inspection(theDate,id))){toast('Inspección anterior: utiliza Historial.');return;}
+ const qty=value===''?null:Math.max(0,Math.min(100,Number(value)||0)),scroll=$('#modal')?.scrollTop||0;
+ if(item.status==='bad'){
+  item.quantity=qty;c.updatedAt=timestamp();mutate('Actualizar cantidad',String(worker(id)?.name||'')+' · '+item.label+' · '+String(qty??'Sin revisar'));
+  toast('La falta inicial permanece. Usa Corregido para verificar que fue solucionada.');openChecklist(id,scroll);return;
+ }
+ const desired=qty===null?'none':qty>=item.minQty?'ok':'bad';
+ if(item.quantity===qty&&((desired==='none'&&!item.status)||item.status===desired))return;
+ item.quantity=qty;c.updatedAt=timestamp();
+ if(item.status!==desired){
+  if(quickAnswer(id,reqId,desired))openChecklist(id,scroll);
+  else openChecklist(id,scroll);
+ }else{
+  syncQuickInspection(id);mutate('Actualizar cantidad',String(worker(id)?.name||'')+' · '+item.label+' · '+String(qty??'Sin revisar'));openChecklist(id,scroll);
+ }
 }
-function resolveChecklist(id,reqId){const scroll=$('#modal').scrollTop,r=checklist(theDate,id),item=r?.items.find(x=>x.reqId===reqId);if(!item||item.status!=='bad')return;
-  item.resolvedAt=item.resolvedAt?null:timestamp();r.updatedAt=timestamp();mutate('Corrección de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.resolvedAt?'Corregido':'Reabierto'}`);openChecklist(id,scroll);
+function resolveChecklist(id,reqId){
+ const c=checklist(theDate,id),i=c?.items.find(x=>x.reqId===reqId);if(!i||i.status!=='bad')return;
+ const scroll=$('#modal')?.scrollTop||0;
+ if(quickAnswer(id,reqId,i.resolvedAt?'reopen':'correct'))openChecklist(id,scroll);
 }
-function markChecklistAll(id){const w=worker(id);if(!w||!confirm(`¿Confirmas que revisaste todos los implementos de ${w.name} y que todos cumplen?`))return;
-  const r=ensureChecklist(id);if(!r)return;for(const item of r.items){item.status='ok';item.resolvedAt=null;}r.updatedAt=timestamp();mutate('Checklist completo conforme',`${w.name} · ${theDate}`);openChecklist(id);toast('Todos los puntos marcados conforme.');
+function markChecklistAll(id){
+ const scroll=$('#modal')?.scrollTop||0;
+ quickAll(id);
+ if($('#modalLayer').classList.contains('open'))openChecklist(id,scroll);
 }
 function renderRequirements(){
   setHeading('Configurar requisitos','Agrega o modifica los criterios de evaluación sin cambiar los registros antiguos.');
