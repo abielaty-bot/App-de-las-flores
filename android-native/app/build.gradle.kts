@@ -26,7 +26,7 @@ android {
             // La firma de publicación se configurará en una etapa independiente.
         }
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; resValues = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
