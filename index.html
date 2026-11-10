@@ -701,7 +701,10 @@ function quickState(w){
  const r=inspection(theDate,w.id),c=checklist(theDate,w.id);
  if(r){
   if(r.result==='conforme')return ['Conforme','ok'];
-  if(r.quickReview&&c?.items?.some(i=>!i.status))return ['Revisión incompleta','warn'];
+  if(r.quickReview&&c?.items?.some(i=>!i.status)){
+    const pending=correctionStatus(r);
+    return pending==='Parcial'?['Corrección parcial','warn']:pending==='Corregido'?['Corrección parcial','warn']:['Observado','bad'];
+  }
   const v=correctionStatus(r);
   return v==='Corregido'?['Corregido','blue']:v==='Parcial'?['Corrección parcial','warn']:['Observado','bad'];
  }
@@ -880,7 +883,7 @@ function inspectDetails(r){if(!r)return;
     ${log?`<div class="callout"><b>Historial de verificaciones</b><div class="stack">${log}</div></div>`:''}
     ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}
     <p class="muted-note">Registrado: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
-    `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`<button class="button" data-action="edit-uniform" data-id="${h(r.id)}">Editar faltantes</button><button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
+    `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`${r.quickReview?'':'<button class="button" data-action="edit-uniform" data-id="'+h(r.id)+'">Editar faltantes</button>'}<button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
 }
 function saveUniformCorrections(id){
   const r=state.inspections.find(x=>x.id===id);if(!r||r.voidedAt||r.result!=='observado')return;
@@ -896,6 +899,10 @@ function saveUniformCorrections(id){
   r.correctionEvents=r.correctionEvents||[];
   for(const x of added){r.correctionDetails[x]={at,by:verifier};r.correctionEvents.push({at,by:verifier,kind:'corregir',issueId:x});}
   for(const x of removed){delete r.correctionDetails[x];r.correctionEvents.push({at,by:verifier,kind:'revertir',issueId:x});}
+  if(r.quickReview){const c=checklist(r.date,r.staffId);for(const i of c?.items||[]){const key=quickIssueId(i.reqId);
+    if(added.includes(key)){i.resolvedAt=at;i.resolvedBy=verifier;}
+    if(removed.includes(key)){i.resolvedAt=null;i.resolvedBy='';i.reopenedBy=verifier;}
+  }if(c)c.updatedAt=at;}
   r.resolvedIssues=selected;
   r.correctedAt=selected.length===(r.issues||[]).length?at:null;
   r.updatedAt=at;
@@ -943,7 +950,7 @@ function answerChecklist(id,reqId,status){
  if(quickAnswer(id,reqId,status))openChecklist(id,scroll);
 }
 function setChecklistQuantity(id,reqId,value){
- const c=checklist(theDate,id),item=c?.items.find(i=>i.reqId===reqId);
+ const c=ensureChecklist(id),item=c?.items.find(i=>i.reqId===reqId);
  if(!item||!item.minQty)return;
  if(quickOldRecord(inspection(theDate,id))){toast('Inspección anterior: utiliza Historial.');return;}
  const qty=value===''?null:Math.max(0,Math.min(100,Number(value)||0)),scroll=$('#modal')?.scrollTop||0;
@@ -1485,9 +1492,9 @@ function workbookUniform(start,end,label){
   const scheduled=[];
   for(const [date,roster] of Object.entries(state.rosters)){if(date<start||date>end)continue;const ids=new Set([...Object.keys(roster.staff||{}),...Object.keys(roster.overrides||{})]);for(const id of ids)scheduled.push({date,id,status:scheduleStatus(date,id)});}
   const unique=[...new Set([...ir.map(x=>x.staffId),...cr.map(x=>x.staffId),...scheduled.map(x=>x.id)])];
-  const personRows=[['Trabajador','Categoría','Inspecciones','Conformes','Observadas','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
+  const personRows=[['Trabajador','Categoría','Inspecciones','Conformes iniciales','Observadas iniciales','Corregidas después','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
   for(const id of unique){const i=ir.filter(x=>x.staffId===id),c=cr.filter(x=>x.staffId===id),d=scheduled.filter(x=>x.id===id&&isScheduled(x.status));
-    personRows.push([worker(id)?.name||i[0]?.staffName||c[0]?.staffName||'Desconocido',worker(id)?.category||'',i.length,i.filter(x=>x.result==='conforme').length,i.filter(x=>x.result==='observado').length,percentage(i.length,d.length),c.length,c.reduce((n,r)=>n+checklistSummary(r).reviewed,0),c.reduce((n,r)=>n+checklistSummary(r).bad,0)]);
+    personRows.push([worker(id)?.name||i[0]?.staffName||c[0]?.staffName||'Desconocido',worker(id)?.category||'',i.length,i.filter(x=>x.result==='conforme').length,i.filter(x=>x.result==='observado').length,i.filter(x=>x.result==='observado'&&correctionStatus(x)==='Corregido').length,percentage(i.length,d.length),c.length,c.reduce((n,r)=>n+checklistSummary(r).reviewed,0),c.reduce((n,r)=>n+checklistSummary(r).bad,0)]);
   }
   const del=state.deliveries.filter(d=>d.date>=start&&d.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
   const deliveryRows=[['Fecha','Trabajador','Material','Cantidad','Motivo','Responsable','Estado','Devuelta el','Nota de devolución','Anulada el','Motivo de anulación','Registrado el']];
