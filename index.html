@@ -20,16 +20,36 @@
 .day-date-controls .day-date-arrow:hover{background:var(--lightgreen)}
 .day-date-controls .day-date-today{height:44px;min-height:44px;background:var(--lightgreen);color:var(--green);padding:8px 12px}
 .day-date-controls button:focus-visible{outline:3px solid #d59d39;outline-offset:2px}
+/* Revisión rápida: dos columnas, tarjetas contenidas y navegación sin saltos. */
+.quick-day-panel{overflow:visible}
 .quick-worker{border-bottom:1px solid var(--line)}
 .quick-worker:last-child{border-bottom:0}
-.quick-panel{padding:16px 20px 19px;border-top:1px solid var(--line);display:grid;gap:12px}
-.quick-requirement{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--surface)}
-.quick-requirement-info{display:grid;gap:5px;min-width:145px;flex:1}
-.quick-requirement-info .status{justify-self:start}
-.quick-requirement-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.quick-requirement-actions .button{min-height:38px}
-.quick-actions-footer{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
-@media(max-width:600px){.quick-requirement{display:grid}.quick-requirement-actions{justify-content:stretch}.quick-requirement-actions .button{flex:1}.quick-panel{padding:12px}}
+.quick-panel{padding:14px 18px 16px;border-top:1px solid var(--line);display:grid;gap:12px;min-width:0}
+.quick-panel-top{display:grid;gap:8px;position:sticky;top:76px;z-index:12;background:var(--surface);padding:9px 0 11px;border-bottom:1px solid var(--line);box-shadow:0 8px 12px -12px #0009}
+.quick-panel-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.quick-panel-title{font-size:15px;font-weight:800;line-height:1.3}
+.quick-panel-subtitle{font-size:12px;color:var(--muted);margin-top:3px}
+.quick-panel-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.quick-panel-tools .button{min-height:37px;padding:7px 10px}
+.quick-meter{height:6px;background:var(--line);overflow:hidden;border-radius:20px}
+.quick-meter-fill{height:100%;background:var(--green);border-radius:20px;transition:width .15s ease}
+.quick-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.quick-filter-row .button{min-height:34px;padding:6px 10px;white-space:normal}
+.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+.quick-requirement{display:flex;flex-direction:column;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface);min-width:0}
+.quick-requirement-info{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:5px;min-width:0}
+.quick-requirement-info b{font-size:13px;line-height:1.3;overflow-wrap:anywhere;min-width:0;flex:1}
+.quick-requirement .status{font-size:10px;white-space:nowrap;flex-shrink:0}
+.quick-requirement-actions{display:flex;gap:6px;width:100%}
+.quick-requirement-actions .button{flex:1 1 0;min-width:0;min-height:37px;padding:5px 6px;font-size:12px}
+.quick-requirement-actions .button.selected{font-weight:850}
+.quick-card-note{font-size:11px;color:var(--muted);line-height:1.25}
+.quick-undo{font-size:11px;color:var(--muted);background:none;border:0;text-decoration:underline;text-underline-offset:2px;align-self:flex-start;cursor:pointer;padding:4px 1px}
+.quick-panel-hint{font-size:12px;color:var(--muted);line-height:1.4;margin:0}
+.quick-verifier{max-width:300px}
+.quick-verifier input{min-height:40px}
+@media(max-width:740px){.quick-grid{grid-template-columns:1fr}.quick-panel{padding:11px 12px 14px}.quick-requirement{padding:10px}.quick-panel-heading{align-items:start}.quick-panel-top{top:69px}}
+
 .date-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.date-row .field{min-width:185px}.callout{background:var(--lightgreen);border:1px solid #d3e6d8;border-radius:12px;color:#265744;font-size:13px;padding:13px 15px;margin-bottom:16px}.callout.warn{background:var(--amberbg);border-color:#eddba8;color:#785a20}.callout.danger{background:var(--redbg);border-color:#edc7c1;color:#873e37}.callout p{margin:4px 0 0}.subtle{color:var(--muted)}.center{text-align:center}.empty{padding:35px 18px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:5px}
 .person-row{display:grid;grid-template-columns:minmax(155px,1fr) auto;align-items:center;gap:14px;padding:16px 20px;border-top:1px solid #edf0ed}.person-row:first-child{border-top:0}.identity{display:flex;gap:11px;align-items:center;min-width:0}.avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ee;color:var(--green);font-weight:800;font-size:13px}.person-name{font-weight:780;overflow-wrap:anywhere}.person-detail{font-size:12px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.status{display:inline-block;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:750;background:#f1f4f0;color:#56645c;white-space:nowrap}.status.ok{background:#e5f3e9;color:#146c46}.status.bad{background:var(--redbg);color:var(--red)}.status.warn{background:var(--amberbg);color:var(--amber)}.status.blue{background:#e9f2fa;color:#315d88}.person-brief{grid-template-columns:minmax(145px,1fr) minmax(230px,auto)}.brief-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.brief-buttons .button{padding:8px 11px;min-height:39px}.brief-second{font-size:12px;color:var(--muted);margin-top:5px}.brief-actions{display:grid;gap:6px;justify-items:end}
 .tablewrap{overflow-x:auto}.table{border-collapse:collapse;width:100%;min-width:690px;font-size:13px}.table th{background:#f7faf7;text-align:left;padding:12px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:#54665d}.table td{border-bottom:1px solid #eef0ed;padding:12px;vertical-align:middle}.table tr:last-child td{border-bottom:0}.table td .button{white-space:normal}.table .nowrap{white-space:nowrap}.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.check-row{padding:13px 0;border-bottom:1px solid #e9eee9;display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:13px;align-items:center}.check-row:last-child{border-bottom:0}.check-row strong{display:block;font-size:14px}.check-row small{display:block;color:var(--muted);font-size:11px}.checks{display:flex;gap:6px;flex-wrap:wrap}.weekdays{display:flex;gap:7px;flex-wrap:wrap}.weekdays label{background:#f9fbf9;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px}.weekdays input{accent-color:var(--green)}.checklist{display:flex;align-items:center;gap:8px;padding:8px 0}.checklist input{width:17px;height:17px;accent-color:var(--green)}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 12px;font-size:12px}.chip.selected{background:var(--green);color:#fff;border-color:var(--green)}
@@ -109,7 +129,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0006 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0007 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -695,6 +715,7 @@ function correctionStatus(r){if(!r||r.result==='conforme')return 'No requerida';
 
 // Revisión rápida: el checklist es la fuente de sus requisitos; la inspección guarda el resultado original.
 let quickExpandedId='',quickVerifierDraft='';
+let quickFilter={staffId:'',date:'',mode:'all',ids:[]};
 const quickIssueId=id=>'req:'+id;
 const quickOldRecord=r=>!!r&&!r.quickReview;
 function quickState(w){
@@ -794,33 +815,57 @@ function quickAll(id){
  render();toast(hadObservations?'Corregido. Incumplimiento inicial conservado.':'Conforme desde la primera revisión.');
 }
 
+function quickSetFilter(id,mode){
+ if(!['all','pending','observed'].includes(mode)||quickExpandedId!==id)return;
+ const w=worker(id);if(!w)return;
+ const c=checklist(theDate,id),items=c?.items||newChecklistItems(w);
+ quickFilter={staffId:id,date:theDate,mode,ids:items.filter(i=>mode==='all'||(mode==='pending'?!i.status:i.status==='bad')).map(i=>i.reqId)};
+ render();
+}
 function quickPanel(w){
  const old=inspection(theDate,w.id),legacy=quickOldRecord(old);
  const c=checklist(theDate,w.id),items=c?.items||newChecklistItems(w),n=items.filter(i=>i.status).length;
- const rows=items.map(i=>{
-  const state=!i.status?'Sin revisar':i.status==='bad'?(i.resolvedAt?'Corregido':'No cumple'):'Cumple';
-  const kind=!i.status?'':i.status==='bad'?(i.resolvedAt?'blue':'bad'):'ok';
-  const name='<div class="quick-requirement-info"><b>'+h(i.label)+'</b><span class="small">'+h(i.group)+(i.minQty?' · Mínimo '+i.minQty:'')+'</span>'+badge(state,kind)+
-   (i.resolvedAt?'<span class="small">Verificado '+h(displayTime(i.resolvedAt))+' por '+h(i.resolvedBy||'Sin identificar')+'</span>':'')+'</div>';
-  let buttons='';
-  if(!legacy){
-    const head='<div class="quick-requirement-actions">';
-    const base=' data-id="'+h(w.id)+'" data-req="'+h(i.reqId)+'"';
-    if(i.status==='bad')buttons=head+'<button class="button tiny '+(i.resolvedAt?'selected':'primary')+'" data-action="quick-answer"'+base+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Corregir')+'</button></div>';
-    else buttons=head+'<button class="button tiny '+(i.status==='ok'?'selected':'')+'" data-action="quick-answer"'+base+' data-value="ok">✓ Cumple</button>'+
-    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="bad">× No cumple</button>'+
-    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="none">Sin revisar</button></div>';
-  }
-  return '<div class="quick-requirement">'+name+buttons+'</div>';
+ const bad=items.filter(i=>i.status==='bad'),pending=items.filter(i=>!i.status);
+ const pct=items.length?Math.round(n/items.length*100):0;
+ if(quickFilter.staffId!==w.id||quickFilter.date!==theDate)quickFilter={staffId:w.id,date:theDate,mode:'all',ids:[]};
+ const chosen=quickFilter.mode==='all'?items:items.filter(i=>quickFilter.ids.includes(i.reqId));
+ const base=' data-id="'+h(w.id)+'"';
+ const rows=chosen.map(i=>{
+   const state=!i.status?'Sin revisar':i.status==='bad'?(i.resolvedAt?'Corregido':'No cumple'):'Cumple';
+   const kind=!i.status?'':i.status==='bad'?(i.resolvedAt?'blue':'bad'):'ok';
+   const label='<div class="quick-requirement-info"><b>'+h(i.label)+'</b>'+badge(state,kind)+'</div>';
+   let actions='';
+   if(!legacy){
+     const data=base+' data-req="'+h(i.reqId)+'"';
+     if(i.status==='bad'){
+       actions='<div class="quick-requirement-actions"><button type="button" class="button tiny '+(i.resolvedAt?'':'primary')+'" data-action="quick-answer"'+data+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Verificar corrección')+'</button></div>';
+     }else{
+       actions='<div class="quick-requirement-actions"><button type="button" class="button tiny '+(i.status==='ok'?'selected':'')+'" data-action="quick-answer"'+data+' data-value="ok">✓ Cumple</button>'+
+        '<button type="button" class="button tiny" data-action="quick-answer"'+data+' data-value="bad">× No cumple</button></div>'+
+        (i.status==='ok'&&!old?'<button type="button" class="quick-undo" data-action="quick-answer"'+data+' data-value="none">Deshacer selección</button>':'');
+     }
+   }
+   const sub=i.minQty?'<div class="quick-card-note">Mínimo '+i.minQty+'</div>':'';
+   const verified=i.resolvedAt?'<div class="quick-card-note">Verificado por '+h(i.resolvedBy||'Sin identificar')+'</div>':'';
+   return '<div class="quick-requirement">'+label+sub+actions+verified+'</div>';
  }).join('');
- const top='<div class="space-between"><div><b>Requisitos de '+h(w.position||'Mozo')+'</b><div class="small">'+n+' de '+items.length+' revisados · '+h(formatDate(theDate))+'</div></div>'+
- '<button class="button tiny" data-nav="requirements">Configurar requisitos</button></div>';
- const note=legacy?'<div class="callout warn">Inspección registrada antes de esta función. Puedes ver los requisitos, pero para corregir el historial anterior debes usar «Ver / corregir».</div>':
- '<div class="callout">Cumple desde la primera revisión = Conforme. Si falta algo y luego se verifica la corrección, quedará Corregido, sin borrar el incumplimiento inicial.</div>';
- const foot=legacy?'<div class="toolbar"><button class="button" data-action="detail-inspection" data-id="'+h(old.id)+'">Ver / corregir inspección existente</button></div>':
- '<div class="quick-actions-footer"><div class="field" style="min-width:180px;flex:1"><label>Verificado por (al corregir)</label><input id="quickVerifier" maxlength="90" value="'+h(quickVerifierDraft)+'" placeholder="Nombre del supervisor"></div>'+
- '<button class="button primary" data-action="quick-all" data-id="'+h(w.id)+'" '+(items.length?'':'disabled')+'>✓ Todos cumplen</button></div>';
- return '<div class="quick-panel">'+top+note+(items.length?rows:emptyHint('Sin requisitos','Configura los requisitos específicos de este puesto.'))+foot+'</div>';
+ const filterBtn=(mode,text,number)=>'<button type="button" class="button tiny '+(quickFilter.mode===mode?'selected':'')+'" data-action="quick-filter"'+base+' data-filter="'+mode+'" aria-pressed="'+(quickFilter.mode===mode?'true':'false')+'">'+text+' ('+number+')</button>';
+ const status=old?.result==='observado'?'Observado inicialmente':old?.result==='conforme'?'Conforme inicialmente':'Sin resultado final';
+ const header='<div class="quick-panel-top">'+
+  '<div class="quick-panel-heading"><div><div class="quick-panel-title">'+h(w.name)+' · '+h(w.position||'Mozo')+'</div>'+
+  '<div class="quick-panel-subtitle">'+n+' de '+items.length+' revisados · '+pct+' % · '+h(status)+'</div></div>'+
+  '<div class="quick-panel-tools"><button class="button tiny" data-nav="requirements">Configurar</button>'+
+  (!legacy?'<button class="button tiny primary" data-action="quick-all"'+base+' '+(!items.length?'disabled':'')+'>'+
+  (bad.length?'✓ Verificar todos':'✓ Todos cumplen')+'</button>':'')+'</div></div>'+
+  '<div class="quick-meter" role="progressbar" aria-label="Requisitos revisados" aria-valuemin="0" aria-valuemax="'+items.length+'" aria-valuenow="'+n+'"><div class="quick-meter-fill" style="width:'+pct+'%"></div></div></div>'+
+  '<div class="quick-filter-row" role="group" aria-label="Filtrar requisitos">'+filterBtn('all','Todos',items.length)+filterBtn('pending','Pendientes',pending.length)+filterBtn('observed','Observados',bad.length)+'</div>'+
+  ((bad.length&&!legacy)?'<div class="field quick-verifier"><label for="quickVerifier">Verificado por (al corregir)</label><input id="quickVerifier" maxlength="90" value="'+h(quickVerifierDraft)+'" placeholder="Nombre del supervisor"></div>':'');
+ const legacyHint=legacy?'<p class="quick-panel-hint">La inspección anterior se conserva. Usa su historial para verificar correcciones.</p>':'';
+ const filtersHint=quickFilter.mode==='all'?'': '<p class="quick-panel-hint">Los requisitos permanecen en su lugar durante esta revisión. Vuelve a tocar el filtro para actualizar la selección.</p>';
+ const empty=items.length?'<p class="quick-panel-hint">No hay requisitos en este filtro. Puedes elegir «Todos».</p>':emptyHint('Sin requisitos','Configura los requisitos específicos de este puesto.');
+ const foot=legacy?'<div class="toolbar"><button class="button" data-action="detail-inspection" data-id="'+h(old.id)+'">Ver inspección anterior</button></div>':'<p class="quick-panel-hint">Las observaciones iniciales nunca se borran: al verificarlas quedan como «Corregido».</p>';
+ return '<div class="quick-panel">'+header+legacyHint+filtersHint+
+  (chosen.length?'<div class="quick-grid">'+rows+'</div>':empty)+foot+'</div>';
 }
 
 function renderUniform(){
@@ -845,7 +890,7 @@ function renderUniform(){
   '<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" '+(showUnscheduledUniform?'checked':'')+'> Ver descansos, faltas y no programados</label>'+
   '<button class="button" data-nav="implements">Checklist detallado</button><button class="button primary" data-nav="uniform-export">Excel</button></div></div></div>'+
   '<div class="callout">Conforme: cumplió desde la primera revisión. Corregido: incumplió inicialmente y lo solucionó. Faltaron hoy: <b>'+absent+'</b>.</div>'+
-  '<div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Despliega el trabajador para ver los requisitos correspondientes a su puesto.</p></div></div>'+
+  '<div class="panel quick-day-panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Despliega el trabajador para ver los requisitos correspondientes a su puesto.</p></div></div>'+
   (cards||emptyHint('No hay trabajadores','Agrega el personal desde Personal.'))+'</div>';
 }
 function markUniformOk(id){const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id))||inspection(theDate,id))return;
@@ -1659,7 +1704,8 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
-    case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;render();break;
+    case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;quickFilter={staffId:'',date:'',mode:'all',ids:[]};render();break;
+    case 'quick-filter':quickSetFilter(id,el.dataset.filter);break;
     case 'quick-answer':quickAnswer(id,el.dataset.req,el.dataset.value);break;
     case 'quick-all':quickAll(id);break;
     case 'uniform-day-status':openUniformDayStatus(id);break;
