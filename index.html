@@ -701,6 +701,7 @@ function quickState(w){
  const r=inspection(theDate,w.id),c=checklist(theDate,w.id);
  if(r){
   if(r.result==='conforme')return ['Conforme','ok'];
+  if(r.quickReview&&c?.items?.some(i=>!i.status))return ['Revisión incompleta','warn'];
   const v=correctionStatus(r);
   return v==='Corregido'?['Corregido','blue']:v==='Parcial'?['Corrección parcial','warn']:['Observado','bad'];
  }
@@ -740,7 +741,7 @@ function syncQuickInspection(id){
  }
  r.resolvedIssues=[...resolved];r.correctedAt=r.result==='observado'&&r.issues.length&&r.issues.every(k=>resolved.has(k))?at:null;r.updatedAt=at;
 }
-function quickVerifier(){return ($('#quickVerifier')?.value||quickVerifierDraft||'').trim();}
+function quickVerifier(){return ($('#quickVerifier')?.value||$('#checklistVerifier')?.value||quickVerifierDraft||'').trim();}
 function quickAnswer(id,reqId,action){
  const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return false;
  if(quickOldRecord(inspection(theDate,id))){toast('Inspección anterior: utiliza Historial para corregirla.');return false;}
@@ -777,16 +778,17 @@ function quickAll(id){
  const c=ensureChecklist(id);if(!c?.items.length){toast('Este puesto no tiene requisitos configurados.');return;}
  const bad=c.items.filter(i=>i.status==='bad'&&!i.resolvedAt);
  const who=bad.length?quickVerifier():'';
+ const hadObservations=inspection(theDate,id)?.result==='observado'||c.items.some(i=>i.status==='bad');
  if(bad.length&&!who){toast('Indica quién verificó las correcciones.');return;}
- if(!confirm(bad.length?'¿Confirmas que las faltas fueron corregidas y verificaste todos los requisitos? Quedará CORREGIDO, no Conforme.':'¿Confirmas que verificaste todos los requisitos y cumplen?'))return;
+ if(!confirm(hadObservations?'¿Confirmas que verificaste todos los requisitos? Se conservará la falta inicial y quedará CORREGIDO.':'¿Confirmas que verificaste todos los requisitos y cumplen desde el inicio?'))return;
  const at=timestamp();
  for(const i of c.items){
   if(i.status==='bad'){if(!i.resolvedAt){i.resolvedAt=at;i.resolvedBy=who;}}
   else {i.status='ok';i.reviewedAt=at;if(i.minQty)i.quantity=Math.max(i.minQty,Number(i.quantity)||0);}
  }
  c.updatedAt=at;syncQuickInspection(id);
- mutate('Revisión rápida completa',w.name+' · '+theDate+(bad.length?' · Corregido':' · Conforme'));
- render();toast(bad.length?'Correcciones guardadas, incumplimiento inicial conservado.':'Conforme registrado.');
+ mutate('Revisión rápida completa',w.name+' · '+theDate+(hadObservations?' · Corregido':' · Conforme'));
+ render();toast(hadObservations?'Corregido. Incumplimiento inicial conservado.':'Conforme desde la primera revisión.');
 }
 
 function quickPanel(w){
@@ -932,7 +934,7 @@ function openChecklist(id,scroll=0){const w=worker(id);if(!w)return;
   modal(`Implementos · ${w.name}`,`<div class="callout"><b>${h(formatDate(theDate))}</b> · ${summary.reviewed}/${summary.total} revisados · ${summary.bad} pendientes. Los criterios se conservarán como estaban al iniciar esta inspección.</div>
     ${items.length?items.map(i=>`<div class="check-row"><div><strong>${h(i.label)}</strong><small>${h(i.group)}${i.minQty?` · Mínimo ${i.minQty}`:''}${i.resolvedAt?' · Corregido':''}</small>${i.minQty?`<div class="field" style="max-width:120px;margin-top:7px"><label>Cantidad real</label><input type="number" min="0" max="100" inputmode="numeric" data-check-qty="${h(id)}" data-req="${h(i.reqId)}" value="${i.quantity??''}" placeholder="Cantidad"></div>`:''}</div>
       <div class="checks"><button class="button tiny ${i.status==='ok'?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="ok">✓ Cumple</button><button class="button tiny ${i.status==='bad'?'selected bad-select':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="bad">× No cumple</button><button class="button tiny ${!i.status?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="none">Sin revisar</button>${i.status==='bad'?`<button class="button tiny" data-action="check-resolve" data-id="${h(id)}" data-req="${h(i.reqId)}">${i.resolvedAt?'↩ Reabrir':'✓ Corregido'}</button>`:''}</div></div>`).join(''):emptyHint('No hay requisitos activos','Agrégalos desde la pantalla Requisitos.')}
-    <p class="muted-note">Marcar «No cumple» conserva el incumplimiento original aunque después se corrija.</p>`,
+    <div class="field"><label>Verificado por (para correcciones)</label><input id="checklistVerifier" maxlength="90" value="${h(quickVerifierDraft)}" placeholder="Nombre del supervisor"></div><p class="muted-note">Marcar «No cumple» conserva el incumplimiento original aunque después se corrija.</p>`,
     `<button class="button" data-action="close-modal">Cerrar</button><button class="button gold" data-action="check-all" data-id="${h(id)}" ${!items.length?'disabled':''}>Todos cumplen</button>`);
   $('#modal').scrollTop=scroll;
 }
@@ -988,6 +990,10 @@ const issueLabel=(id,ins)=>(ins?.issueLabels?.[id])||issueType(id)?.label||id;
 function issueGroupsForModal(old){
   const referenced=new Set(old?.issues||[]);
   const list=state.issueTypes.filter(t=>t.active!==false||referenced.has(t.id));
+  for(const id of referenced)if(!list.some(t=>t.id===id)){
+    const item=state.checklists.flatMap(c=>c.items||[]).find(x=>quickIssueId(x.reqId)===id);
+    list.push({id,label:old?.issueLabels?.[id]||id,group:item?.group||'Otro',active:false});
+  }
   return ISSUE_GROUP_NAMES.map(g=>[g,list.filter(t=>(t.group||'Otro')===g)]).filter(([,items])=>items.length);
 }
 function snapshotIssueLabels(r){r.issueLabels=r.issueLabels||{};for(const id of (r.issues||[]))if(!r.issueLabels[id])r.issueLabels[id]=issueType(id)?.label||id;}
@@ -1748,7 +1754,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
   const x=event.target;
-  if(x.id==='quickVerifier'){quickVerifierDraft=x.value;return;}
+  if(x.id==='quickVerifier'||x.id==='checklistVerifier'){quickVerifierDraft=x.value;return;}
   if(x.id==='incidentSearch'){incidentSearch=x.value;render();const input=$('#incidentSearch');input?.focus();input?.setSelectionRange(incidentSearch.length,incidentSearch.length);return;}
   if(x.id==='staffSearch'){
     staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
