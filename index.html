@@ -129,7 +129,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0007 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0008 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -786,7 +786,9 @@ function quickAnswer(id,reqId,action){
   i.status='ok';i.reviewedAt=at;
   if(i.minQty)i.quantity=Math.max(i.minQty,Number(i.quantity)||0);
  }else if(action==='bad'){
+  const beforeBad={previousStatus:i.status||null,previousQuantity:i.quantity??null,previousReviewedAt:i.reviewedAt||null,at};
   if(i.status==='ok'&&inspection(theDate,id)?.result==='conforme'&&!confirm('El trabajador ya figuraba Conforme. ¿Confirmas el nuevo incumplimiento? Quedará Observado.'))return false;
+  i.lastBadInput=beforeBad;
   i.status='bad';i.reviewedAt=at;i.resolvedAt=null;
   if(i.minQty&&i.quantity===null)i.quantity=0;
  }else if(action==='none'){
@@ -796,6 +798,52 @@ function quickAnswer(id,reqId,action){
  }else return false;
  c.updatedAt=at;syncQuickInspection(id);mutate('Revisar requisito',w.name+' · '+theDate+' · '+i.label+' · '+action);render();return true;
 }
+// Rectificar un toque erróneo NO es lo mismo que corregir un incumplimiento real.
+// Conserva trazabilidad en checklist, auditoría general y registro de inspección.
+function quickUndoMistake(id,reqId){
+ const w=worker(id),c=checklist(theDate,id),i=c?.items.find(x=>x.reqId===reqId);
+ const r=inspection(theDate,id);
+ if(!w||!isScheduled(scheduleStatus(theDate,id))||!i)return false;
+ if(quickOldRecord(r)){toast('Esta inspección anterior debe revisarse desde su historial.');return false;}
+ if(i.status!=='bad'||i.resolvedAt){toast('Solo se puede desmarcar una falta aún pendiente.');return false;}
+ const previous=i.lastBadInput?.previousStatus==='ok'?'ok':null;
+ const previousLabel=previous==='ok'?'Cumple':'Sin revisar';
+ if(!confirm('¿Fue un error al tocar «No cumple» en «'+i.label+'»?\n\nSe restaurará «'+previousLabel+'» y quedará constancia de la rectificación. Si realmente faltaba el implemento y después lo consiguió, usa «Verificar corrección» en su lugar.'))return false;
+ const at=timestamp(),key=quickIssueId(reqId),verifiedBy=quickVerifier()||'No identificado';
+ const record={at,reason:'Error de marcación',from:'No cumple',to:previousLabel,by:verifiedBy};
+ i.markingCorrections=i.markingCorrections||[];
+ i.markingCorrections.push(record);
+ i.status=previous;
+ i.quantity=previous==='ok'?(i.lastBadInput?.previousQuantity??i.quantity):null;
+ i.reviewedAt=previous==='ok'?(i.lastBadInput?.previousReviewedAt||at):null;
+ i.resolvedAt=null;i.resolvedBy='';
+ delete i.lastBadInput;
+ c.updatedAt=at;
+ if(r?.quickReview){
+  r.changes=r.changes||[];
+  r.changes.push({at,kind:'Rectificación de marcación errónea',issueId:key,label:i.label,by:verifiedBy,reason:record.reason,from:'No cumple',to:previousLabel});
+  r.issues=(r.issues||[]).filter(x=>x!==key);
+  r.resolvedIssues=(r.resolvedIssues||[]).filter(x=>x!==key);
+  if(r.issueLabels)delete r.issueLabels[key];
+  if(r.correctionDetails)delete r.correctionDetails[key];
+  if(!r.issues.length){
+   if(c.items.length&&c.items.every(x=>x.status==='ok')){
+    r.result='conforme';r.correctedAt=null;r.updatedAt=at;
+   }else{
+    r.voidedAt=at;r.voidReason='Inspección iniciada por error de marcación (rectificada)';
+    r.updatedAt=at;
+   }
+  }else{
+   r.correctedAt=r.issues.every(x=>r.resolvedIssues.includes(x))?at:null;
+   r.updatedAt=at;
+  }
+ }
+ mutate('Rectificar marcación accidental',w.name+' · '+theDate+' · '+i.label+' · No cumple → '+previousLabel);
+ render();
+ toast('Marcación errónea rectificada. Vuelve a revisar el requisito cuando corresponda.');
+ return true;
+}
+
 function quickAll(id){
  const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return;
  if(quickOldRecord(inspection(theDate,id))){toast('Para esta inspección anterior, utiliza Historial.');return;}
@@ -838,7 +886,8 @@ function quickPanel(w){
    if(!legacy){
      const data=base+' data-req="'+h(i.reqId)+'"';
      if(i.status==='bad'){
-       actions='<div class="quick-requirement-actions"><button type="button" class="button tiny '+(i.resolvedAt?'':'primary')+'" data-action="quick-answer"'+data+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Verificar corrección')+'</button></div>';
+       actions='<div class="quick-requirement-actions"><button type="button" class="button tiny '+(i.resolvedAt?'':'primary')+'" data-action="quick-answer"'+data+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Verificar corrección')+'</button></div>'+
+       (!i.resolvedAt?'<button type="button" class="quick-undo" data-action="quick-undo-mistake"'+data+' aria-label="Desmarcar No cumple por error de marcación">↶ Desmarcar error</button>':'');
      }else{
        actions='<div class="quick-requirement-actions"><button type="button" class="button tiny '+(i.status==='ok'?'selected':'')+'" data-action="quick-answer"'+data+' data-value="ok">✓ Cumple</button>'+
         '<button type="button" class="button tiny" data-action="quick-answer"'+data+' data-value="bad">× No cumple</button></div>'+
@@ -1555,8 +1604,10 @@ function workbookUniform(start,end,label){
   scheduled.sort((a,b)=>a.date.localeCompare(b.date));scheduled.forEach(r=>{const i=inspection(r.date,r.id),c=checklist(r.date,r.id);const s=checklistSummary(c);rosterRows.push([r.date,worker(r.id)?.name||'Desconocido',statusLabel(r.status),i?(i.result==='conforme'?'Conforme':'Observado'):'Sin revisar',c?`${s.reviewed}/${s.total} revisados`:'Sin revisar']);});
   const sum=[['LAS FLORES · CONTROL DE UNIFORMES'],['Período',label],['Desde',start],['Hasta',end],['Generado el',displayTime(timestamp())],[],['INDICADOR','VALOR'],
     ['Inspecciones de uniformes',ir.length],['Conformes desde inspección inicial',ir.filter(r=>r.result==='conforme').length],['Observadas desde inspección inicial',ir.filter(r=>r.result==='observado').length],['Observadas corregidas completamente',ir.filter(r=>r.result==='observado'&&correctionStatus(r)==='Corregido').length],['Checklists de implementos',cr.length],['Requisitos evaluados',checks.length-1],['Incumplimientos pendientes en implementos',pending.length-1],['Entregas de materiales',del.length],['Unidades entregadas (vigentes)',del.filter(d=>d.status==='entregada').reduce((n,d)=>n+(Number(d.quantity)||0),0)],['Devoluciones de materiales',del.filter(d=>d.status==='devuelta').length],['Entregas anuladas',del.filter(d=>d.status==='anulada').length],['Días con programación confirmada',new Set(scheduled.map(x=>x.date)).size],[],['NOTAS'],['Sin revisar no equivale a No cumple.'],['Corregido no significa Conforme desde el inicio: las faltas iniciales permanecen registradas.'],['La categoría histórica se conserva cuando se registró en la app actualizada.'],['La programación incluye solo fechas expresamente guardadas.'],['El aviso de entrega reciente considera los 30 días anteriores.']];
-  const anuladas=[['Fecha','Trabajador','Resultado original','Motivo','Anulada el'],...state.inspections.filter(r=>r.date>=start&&r.date<=end&&r.voidedAt).map(r=>[r.date,identityOf(r),r.result,'Anulación manual',r.voidedAt])];
-  return makeXlsx([{name:'Resumen',rows:sum},{name:'Por trabajador',rows:personRows,headerRow:1},{name:'Uniformes',rows:inspectionRows,headerRow:1,dateCols:[0]},{name:'Implementos',rows:checks,headerRow:1,dateCols:[0]},{name:'Pendientes',rows:pending,headerRow:1,dateCols:[0]},{name:'Entregas',rows:deliveryRows,headerRow:1,dateCols:[0]},{name:'Entregas por trabajador',rows:deliveryPersonRows,headerRow:1},{name:'Programación',rows:rosterRows,headerRow:1,dateCols:[0]},{name:'Anuladas',rows:anuladas,headerRow:1,dateCols:[0]}]);
+  const anuladas=[['Fecha','Trabajador','Resultado original','Motivo','Anulada el'],...state.inspections.filter(r=>r.date>=start&&r.date<=end&&r.voidedAt).map(r=>[r.date,identityOf(r),r.result,r.voidReason||'Anulación manual',r.voidedAt])];
+  const rectificaciones=[['Fecha de revisión','Trabajador','Requisito','Marcación original','Restaurado a','Motivo','Rectificado el','Responsable declarado']];
+  cr.forEach(r=>(r.items||[]).forEach(i=>(i.markingCorrections||[]).forEach(m=>rectificaciones.push([r.date,identityOf(r),i.label,m.from||'No cumple',m.to||'Sin revisar',m.reason||'Error de marcación',m.at||'',m.by||'No identificado']))));
+  return makeXlsx([{name:'Resumen',rows:sum},{name:'Por trabajador',rows:personRows,headerRow:1},{name:'Uniformes',rows:inspectionRows,headerRow:1,dateCols:[0]},{name:'Implementos',rows:checks,headerRow:1,dateCols:[0]},{name:'Pendientes',rows:pending,headerRow:1,dateCols:[0]},{name:'Entregas',rows:deliveryRows,headerRow:1,dateCols:[0]},{name:'Entregas por trabajador',rows:deliveryPersonRows,headerRow:1},{name:'Programación',rows:rosterRows,headerRow:1,dateCols:[0]},{name:'Anuladas',rows:anuladas,headerRow:1,dateCols:[0]},{name:'Rectificaciones',rows:rectificaciones,headerRow:1,dateCols:[0]}]);
 }
 function workbookBrief(start,end,label){
   const records=state.briefings.filter(r=>r.date>=start&&r.date<=end).sort((a,b)=>a.date.localeCompare(b.date)||a.group.localeCompare(b.group));
@@ -1707,6 +1758,7 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;quickFilter={staffId:'',date:'',mode:'all',ids:[]};render();break;
     case 'quick-filter':quickSetFilter(id,el.dataset.filter);break;
     case 'quick-answer':quickAnswer(id,el.dataset.req,el.dataset.value);break;
+    case 'quick-undo-mistake':quickUndoMistake(id,el.dataset.req);break;
     case 'quick-all':quickAll(id);break;
     case 'uniform-day-status':openUniformDayStatus(id);break;
     case 'uniform-set-day':setUniformDayStatus(id,el.dataset.status);break;
