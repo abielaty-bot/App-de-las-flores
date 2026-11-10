@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "pe.lasflores.controlinterno"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "pe.lasflores.controlinterno"
