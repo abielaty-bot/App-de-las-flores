@@ -29,7 +29,7 @@ jobs:
         with:
           gradle-version: '9.3.1'
       - name: Unit tests and debug APK
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
       - uses: actions/upload-artifact@v4
         if: success()
         with:
