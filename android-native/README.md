@@ -1,4 +1,4 @@
-# Las Flores Android — Fase 1
+# Las Flores Android — Fase 2: Uniformes
 
 Proyecto **nativo Android** independiente de la PWA actual. Estado: **prototipo de arquitectura**, no aplicación lista para uso productivo.
 
@@ -10,9 +10,13 @@ Proyecto **nativo Android** independiente de la PWA actual. Estado: **prototipo 
 - Pruebas unitarias de validación de nombres.
 - GitHub Actions para compilación de APK **debug** (sin firma de distribución).
 
+## En desarrollo
+- Uniformes: borradores, cierre inicial, corrección y rectificación auditada, estado diario sin revisión.
+- Migración no destructiva de Room 1 a Room 2.
+
 ## NO implementado aún
 - Importación del JSON de la aplicación web.
-- Briefings, Uniformes, Funciones, Incidentes, Reportes.
+- Briefings, Funciones, Incidentes, Reportes completos.
 - Respaldos JSON y Excel, migraciones de esquemas posteriores.
 - Actualizador GitHub Releases y APK de producción firmada.
 - Cuentas de usuarios, servidor o sincronización.
@@ -36,7 +40,7 @@ La aplicación original en GitHub Pages y sus datos locales siguen intactos.
 
 ## Seguridad y versiones
 - Identificador provisional `pe.lasflores.controlinterno`; se definirá definitivamente antes del primer APK de producción.
-- `versionCode=1`, `versionName=0.1.0-alpha01`.
+- `versionCode=2`, `versionName=0.2.0-alpha02`. La APK debug usa el sufijo `.preview` para coexistir con la versión ya instalada sin borrar sus datos.
 - No hay claves privadas ni datos personales en el repositorio.
 - Nunca aplicar migraciones destructivas en datos reales.
 

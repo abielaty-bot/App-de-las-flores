@@ -10,6 +10,9 @@ interface StaffDao {
     @Query("SELECT * FROM staff ORDER BY isActive DESC, fullName COLLATE NOCASE ASC")
     fun observeStaff(): Flow<List<StaffEntity>>
 
+    @Query("SELECT * FROM staff WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): StaffEntity?
+
     @Upsert
     suspend fun upsert(item: StaffEntity)
 
@@ -19,3 +22,4 @@ interface StaffDao {
     @Query("UPDATE staff SET isActive = :active, updatedAtMillis = :updatedAt WHERE id = :id")
     suspend fun setActive(id: String, active: Boolean, updatedAt: Long)
 }
+

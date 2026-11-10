@@ -48,10 +48,11 @@ private val lightBackground = Color(0xFFF7F9F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LasFloresScreen(vm: StaffViewModel) {
+fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel) {
     var screen by rememberSaveable { mutableStateOf("inicio") }
     val people by vm.staff.collectAsState()
     val saveStatus by vm.saveState.collectAsState()
+    val uniformSaveStatus by uniformVm.saveStatus.collectAsState()
 
     MaterialTheme(colorScheme = androidx.compose.material3.lightColorScheme(
         primary = green, background = lightBackground, surface = Color.White
@@ -70,21 +71,23 @@ fun LasFloresScreen(vm: StaffViewModel) {
                     Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         TextButton(onClick = { screen = "inicio" }) { Text("Inicio") }
                         TextButton(onClick = { screen = "personal" }) { Text("Personal") }
+                        TextButton(onClick = { screen = "uniformes" }) { Text("Uniformes") }
                     }
                 }
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 Text(
-                    saveStatus,
+                    if (screen == "uniformes") uniformSaveStatus else saveStatus,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (saveStatus.startsWith("Error")) MaterialTheme.colorScheme.error else green
+                    color = if ((if (screen == "uniformes") uniformSaveStatus else saveStatus).startsWith("Error")) MaterialTheme.colorScheme.error else green
                 )
-                if (screen == "personal") {
-                    StaffScreen(people, vm)
-                } else {
-                    HomeScreen(people, onOpenStaff = { screen = "personal" })
+                when (screen) {
+                    "personal" -> StaffScreen(people, vm)
+                    "uniformes" -> UniformScreen(people, uniformVm)
+                    else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
+                        onOpenUniforms = { screen = "uniformes" })
                 }
             }
         }
@@ -92,11 +95,11 @@ fun LasFloresScreen(vm: StaffViewModel) {
 }
 
 @Composable
-private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit) {
+private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit) {
     val modules = listOf(
         "Personal" to "Disponible · ${people.count { it.isActive }} activos",
         "Briefings" to "Próxima etapa",
-        "Uniformes" to "Próxima etapa",
+        "Uniformes" to "Disponible · Borradores y correcciones",
         "Funciones" to "Próxima etapa",
         "Incidentes" to "Próxima etapa",
         "Reportes" to "Próxima etapa"
@@ -109,7 +112,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit) {
         item {
             Text("Panel principal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Primera etapa: personal y guardado local. Los demás módulos se incorporarán progresivamente.",
+            Text("Personal y Uniformes disponibles. Briefings y los demás módulos se añadirán progresivamente.",
                 style = MaterialTheme.typography.bodyMedium)
         }
         items(modules) { (title, description) ->
@@ -117,7 +120,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                onClick = { if (title == "Personal") onOpenStaff() }
+                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms() } }
             ) {
                 Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
@@ -125,7 +128,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit) {
                         Text(title, fontWeight = FontWeight.Bold)
                         Text(description, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (title == "Personal") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
+                    Text(if (title == "Personal" || title == "Uniformes") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

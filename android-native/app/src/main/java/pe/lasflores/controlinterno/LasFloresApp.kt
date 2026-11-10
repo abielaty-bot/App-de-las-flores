@@ -4,15 +4,21 @@ import android.app.Application
 import androidx.room3.Room
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import pe.lasflores.controlinterno.data.LasFloresDatabase
+import pe.lasflores.controlinterno.data.MIGRATION_1_2
 import pe.lasflores.controlinterno.data.OfflineStaffRepository
+import pe.lasflores.controlinterno.data.OfflineUniformRepository
 import pe.lasflores.controlinterno.domain.StaffRepository
+import pe.lasflores.controlinterno.domain.UniformRepository
 
 class LasFloresApp : Application() {
-    val staffRepository: StaffRepository by lazy {
-        val database = Room.databaseBuilder<LasFloresDatabase>(
-            applicationContext,
-            "las_flores_control_interno.db"
-        ).setDriver(AndroidSQLiteDriver()).build()
-        OfflineStaffRepository(database.staffDao())
+    val database: LasFloresDatabase by lazy {
+        Room.databaseBuilder<LasFloresDatabase>(applicationContext, "las_flores_control_interno.db")
+            .setDriver(AndroidSQLiteDriver())
+            .addMigrations(MIGRATION_1_2)
+            .build()
+    }
+    val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao()) }
+    val uniformRepository: UniformRepository by lazy {
+        OfflineUniformRepository(database, database.uniformDao(), database.staffDao())
     }
 }
