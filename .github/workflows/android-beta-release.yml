@@ -1,0 +1,77 @@
+name: Las Flores Beta - Release firmada
+
+on:
+  push:
+    tags:
+      - 'android-beta-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Instalar SDK Android 36
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Comprobar tag y secretos de firma
+        env:
+          LF_KEYSTORE_BASE64: ${{ secrets.LF_KEYSTORE_BASE64 }}
+          LF_KEYSTORE_PASSWORD: ${{ secrets.LF_KEYSTORE_PASSWORD }}
+          LF_KEY_ALIAS: ${{ secrets.LF_KEY_ALIAS }}
+          LF_KEY_PASSWORD: ${{ secrets.LF_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^android-beta-v[1-9][0-9]*$ ]] || exit 1
+          VERSION_CODE="${GITHUB_REF_NAME#android-beta-v}"
+          grep -Eq "versionCode = ${VERSION_CODE}([[:space:]]|$)" app/build.gradle.kts || {
+            echo 'La versión del tag no coincide con versionCode.'; exit 1;
+          }
+          for secret in LF_KEYSTORE_BASE64 LF_KEYSTORE_PASSWORD LF_KEY_ALIAS LF_KEY_PASSWORD; do
+            if [[ -z "${!secret:-}" ]]; then
+              echo "Falta un secreto necesario: $secret"; exit 1;
+            fi
+          done
+          printf '%s' "$LF_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/las-flores-beta.jks"
+          chmod 600 "$RUNNER_TEMP/las-flores-beta.jks"
+          echo "LF_KEYSTORE_PATH=$RUNNER_TEMP/las-flores-beta.jks" >> "$GITHUB_ENV"
+      - name: Pruebas y APK firmada
+        env:
+          LF_KEYSTORE_PASSWORD: ${{ secrets.LF_KEYSTORE_PASSWORD }}
+          LF_KEY_ALIAS: ${{ secrets.LF_KEY_ALIAS }}
+          LF_KEY_PASSWORD: ${{ secrets.LF_KEY_PASSWORD }}
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Verificar firma y hash
+        run: |
+          set -euo pipefail
+          APK='app/build/outputs/apk/release/app-release.apk'
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          mkdir -p dist
+          cp "$APK" dist/las-flores-beta.apk
+          cd dist
+          sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
+      - name: Publicar en GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            dist/las-flores-beta.apk \
+            dist/las-flores-beta.apk.sha256 \
+            --title "Las Flores Beta ${GITHUB_REF_NAME}" \
+            --notes "Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android." \
+            --prerelease

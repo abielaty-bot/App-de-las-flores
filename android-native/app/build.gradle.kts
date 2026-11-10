@@ -12,18 +12,34 @@ android {
         applicationId = "pe.lasflores.controlinterno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0-alpha02"
+        versionCode = 3
+        versionName = "0.3.0-alpha03"
     }
 
+    signingConfigs {
+        create("beta") {
+            val path = System.getenv("LF_KEYSTORE_PATH")
+            if (!path.isNullOrBlank()) {
+                storeFile = file(path)
+                storePassword = System.getenv("LF_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LF_KEY_ALIAS")
+                keyPassword = System.getenv("LF_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         debug {
             applicationIdSuffix = ".preview"
             resValue("string", "app_name", "Las Flores Beta")
         }
         release {
+            // Canal de distribución separado de las APK de depuración ya instaladas.
+            applicationIdSuffix = ".beta"
+            resValue("string", "app_name", "Las Flores Actualizable")
             isMinifyEnabled = false
-            // La firma de publicación se configurará en una etapa independiente.
+            if (!System.getenv("LF_KEYSTORE_PATH").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("beta")
+            }
         }
     }
     buildFeatures { compose = true; resValues = true }
@@ -39,6 +55,7 @@ ksp {
 
 dependencies {
     implementation(libs.activity.compose)
+    implementation(libs.core.ktx)
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)

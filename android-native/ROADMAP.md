@@ -13,3 +13,7 @@
 
 ## Política
 La aplicación web actual permanece operativa hasta validar migración, integridad de datos, respaldos y APK.
+
+
+- [x] Preparación del actualizador integrado (consulta, verificación y diálogo del sistema).
+- [ ] Firma privada permanente, primer GitHub Release y prueba real de actualización entre dos versiones.

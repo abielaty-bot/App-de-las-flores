@@ -47,3 +47,11 @@ La aplicación original en GitHub Pages y sus datos locales siguen intactos.
 ## Dependencias
 AGP 9.1.1, Gradle 9.3.1, Compose Compiler 2.2.10, KSP 2.3.12, Room 3.0.3.
 Documentación: https://developer.android.com/jetpack/androidx/releases/room3 y https://developer.android.com/build/releases/agp-9-1-0-release-notes
+
+
+## Actualizaciones integradas (versión 0.3.0-alpha03)
+- Interfaz de actualización y consulta de GitHub Releases.
+- Descarga directa del APK a caché privada, comprobación SHA-256, versión, paquete y certificado.
+- Instalación con confirmación del sistema Android usando FileProvider.
+- Canal Beta firmado independiente; los secretos de firma deben configurarse por el propietario antes de publicar Releases.
+- Detalles en [`ACTUALIZACIONES.md`](ACTUALIZACIONES.md).

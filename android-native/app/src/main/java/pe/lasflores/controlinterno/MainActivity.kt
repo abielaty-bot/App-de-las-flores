@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import pe.lasflores.controlinterno.ui.LasFloresScreen
 import pe.lasflores.controlinterno.ui.StaffViewModel
 import pe.lasflores.controlinterno.ui.UniformViewModel
+import pe.lasflores.controlinterno.update.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -14,6 +15,7 @@ class MainActivity : ComponentActivity() {
         val app = application as LasFloresApp
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]
         val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository))[UniformViewModel::class.java]
-        setContent { LasFloresScreen(staffVm, uniformVm) }
+        val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
+        setContent { LasFloresScreen(staffVm, uniformVm, updateVm) }
     }
 }
