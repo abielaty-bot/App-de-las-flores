@@ -20,6 +20,16 @@
 .day-date-controls .day-date-arrow:hover{background:var(--lightgreen)}
 .day-date-controls .day-date-today{height:44px;min-height:44px;background:var(--lightgreen);color:var(--green);padding:8px 12px}
 .day-date-controls button:focus-visible{outline:3px solid #d59d39;outline-offset:2px}
+.quick-worker{border-bottom:1px solid var(--line)}
+.quick-worker:last-child{border-bottom:0}
+.quick-panel{padding:16px 20px 19px;border-top:1px solid var(--line);display:grid;gap:12px}
+.quick-requirement{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--surface)}
+.quick-requirement-info{display:grid;gap:5px;min-width:145px;flex:1}
+.quick-requirement-info .status{justify-self:start}
+.quick-requirement-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.quick-requirement-actions .button{min-height:38px}
+.quick-actions-footer{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+@media(max-width:600px){.quick-requirement{display:grid}.quick-requirement-actions{justify-content:stretch}.quick-requirement-actions .button{flex:1}.quick-panel{padding:12px}}
 .date-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.date-row .field{min-width:185px}.callout{background:var(--lightgreen);border:1px solid #d3e6d8;border-radius:12px;color:#265744;font-size:13px;padding:13px 15px;margin-bottom:16px}.callout.warn{background:var(--amberbg);border-color:#eddba8;color:#785a20}.callout.danger{background:var(--redbg);border-color:#edc7c1;color:#873e37}.callout p{margin:4px 0 0}.subtle{color:var(--muted)}.center{text-align:center}.empty{padding:35px 18px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:5px}
 .person-row{display:grid;grid-template-columns:minmax(155px,1fr) auto;align-items:center;gap:14px;padding:16px 20px;border-top:1px solid #edf0ed}.person-row:first-child{border-top:0}.identity{display:flex;gap:11px;align-items:center;min-width:0}.avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ee;color:var(--green);font-weight:800;font-size:13px}.person-name{font-weight:780;overflow-wrap:anywhere}.person-detail{font-size:12px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.status{display:inline-block;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:750;background:#f1f4f0;color:#56645c;white-space:nowrap}.status.ok{background:#e5f3e9;color:#146c46}.status.bad{background:var(--redbg);color:var(--red)}.status.warn{background:var(--amberbg);color:var(--amber)}.status.blue{background:#e9f2fa;color:#315d88}.person-brief{grid-template-columns:minmax(145px,1fr) minmax(230px,auto)}.brief-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.brief-buttons .button{padding:8px 11px;min-height:39px}.brief-second{font-size:12px;color:var(--muted);margin-top:5px}.brief-actions{display:grid;gap:6px;justify-items:end}
 .tablewrap{overflow-x:auto}.table{border-collapse:collapse;width:100%;min-width:690px;font-size:13px}.table th{background:#f7faf7;text-align:left;padding:12px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:#54665d}.table td{border-bottom:1px solid #eef0ed;padding:12px;vertical-align:middle}.table tr:last-child td{border-bottom:0}.table td .button{white-space:normal}.table .nowrap{white-space:nowrap}.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.check-row{padding:13px 0;border-bottom:1px solid #e9eee9;display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:13px;align-items:center}.check-row:last-child{border-bottom:0}.check-row strong{display:block;font-size:14px}.check-row small{display:block;color:var(--muted);font-size:11px}.checks{display:flex;gap:6px;flex-wrap:wrap}.weekdays{display:flex;gap:7px;flex-wrap:wrap}.weekdays label{background:#f9fbf9;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px}.weekdays input{accent-color:var(--green)}.checklist{display:flex;align-items:center;gap:8px;padding:8px 0}.checklist input{width:17px;height:17px;accent-color:var(--green)}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 12px;font-size:12px}.chip.selected{background:var(--green);color:#fff;border-color:var(--green)}
@@ -779,22 +789,59 @@ function quickAll(id){
  render();toast(bad.length?'Correcciones guardadas, incumplimiento inicial conservado.':'Conforme registrado.');
 }
 
+function quickPanel(w){
+ const old=inspection(theDate,w.id),legacy=quickOldRecord(old);
+ const c=checklist(theDate,w.id),items=c?.items||newChecklistItems(w),n=items.filter(i=>i.status).length;
+ const rows=items.map(i=>{
+  const state=!i.status?'Sin revisar':i.status==='bad'?(i.resolvedAt?'Corregido':'No cumple'):'Cumple';
+  const kind=!i.status?'':i.status==='bad'?(i.resolvedAt?'blue':'bad'):'ok';
+  const name='<div class="quick-requirement-info"><b>'+h(i.label)+'</b><span class="small">'+h(i.group)+(i.minQty?' · Mínimo '+i.minQty:'')+'</span>'+badge(state,kind)+
+   (i.resolvedAt?'<span class="small">Verificado '+h(displayTime(i.resolvedAt))+' por '+h(i.resolvedBy||'Sin identificar')+'</span>':'')+'</div>';
+  let buttons='';
+  if(!legacy){
+    const head='<div class="quick-requirement-actions">';
+    const base=' data-id="'+h(w.id)+'" data-req="'+h(i.reqId)+'"';
+    if(i.status==='bad')buttons=head+'<button class="button tiny '+(i.resolvedAt?'selected':'primary')+'" data-action="quick-answer"'+base+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Corregir')+'</button></div>';
+    else buttons=head+'<button class="button tiny '+(i.status==='ok'?'selected':'')+'" data-action="quick-answer"'+base+' data-value="ok">✓ Cumple</button>'+
+    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="bad">× No cumple</button>'+
+    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="none">Sin revisar</button></div>';
+  }
+  return '<div class="quick-requirement">'+name+buttons+'</div>';
+ }).join('');
+ const top='<div class="space-between"><div><b>Requisitos de '+h(w.position||'Mozo')+'</b><div class="small">'+n+' de '+items.length+' revisados · '+h(formatDate(theDate))+'</div></div>'+
+ '<button class="button tiny" data-nav="requirements">Configurar requisitos</button></div>';
+ const note=legacy?'<div class="callout warn">Inspección registrada antes de esta función. Puedes ver los requisitos, pero para corregir el historial anterior debes usar «Ver / corregir».</div>':
+ '<div class="callout">Cumple desde la primera revisión = Conforme. Si falta algo y luego se verifica la corrección, quedará Corregido, sin borrar el incumplimiento inicial.</div>';
+ const foot=legacy?'<div class="toolbar"><button class="button" data-action="detail-inspection" data-id="'+h(old.id)+'">Ver / corregir inspección existente</button></div>':
+ '<div class="quick-actions-footer"><div class="field" style="min-width:180px;flex:1"><label>Verificado por (al corregir)</label><input id="quickVerifier" maxlength="90" value="'+h(quickVerifierDraft)+'" placeholder="Nombre del supervisor"></div>'+
+ '<button class="button primary" data-action="quick-all" data-id="'+h(w.id)+'" '+(items.length?'':'disabled')+'>✓ Todos cumplen</button></div>';
+ return '<div class="quick-panel">'+top+note+(items.length?rows:emptyHint('Sin requisitos','Configura los requisitos específicos de este puesto.'))+foot+'</div>';
+}
+
 function renderUniform(){
-  setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
-  const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
-  const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
-  const absentToday=people.filter(x=>x.status==='absent').length;
-  const cells=people.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
-    const r=inspection(theDate,w.id),eligible=isScheduled(status);
-    return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
-      <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
-      ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}
-      <button class="button tiny" data-action="uniform-day-status" data-id="${h(w.id)}">Situación</button></div></div>`;
-  }).join('');
-  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}${kpi(absentToday,'Faltaron hoy','red')}</div>
-   <div class="panel"><div class="panel-body space-between">${dailyDateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver también descansos, faltas y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
-   <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
-   <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Usa «Situación» para indicar Faltó, Descansa o No programado. Solo se revisa a quienes trabajan o apoyan.</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
+ setHeading('Control de uniformes','Despliega a cada trabajador para revisar sus requisitos. Cumplimiento inicial y correcciones siempre por separado.');
+ const all=forDate(theDate),scheduled=all.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
+ const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
+ const corrected=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length;
+ const partial=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Parcial').length;
+ const absent=all.filter(x=>x.status==='absent').length;
+ const cards=all.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
+  const r=inspection(theDate,w.id),eligible=isScheduled(status),st=eligible?quickState(w):[statusLabel(status),''];
+  const button=eligible?'<button class="button tiny '+(quickExpandedId===w.id?'selected':'')+'" data-action="quick-toggle" data-id="'+h(w.id)+'" aria-expanded="'+(quickExpandedId===w.id?'true':'false')+'">'+(quickExpandedId===w.id?'▴ Ocultar':'▾ Requisitos')+'</button>':'';
+  return '<div class="quick-worker"><div class="person-row">'+personIdentity(w,(w.position||'Mozo')+' · '+statusLabel(status)+(w.category?' · Categoría '+w.category:''))+
+   '<div class="actions">'+badge(st[0],st[1])+button+'<button class="button tiny" data-action="uniform-day-status" data-id="'+h(w.id)+'">Situación</button>'+
+   (r?'<button class="button tiny" data-action="detail-inspection" data-id="'+h(r.id)+'">Historial</button>':'')+'</div></div>'+
+   (quickExpandedId===w.id&&eligible?quickPanel(w):'')+'</div>';
+ }).join('');
+ $('#app').innerHTML='<div class="kpis">'+kpi(scheduled.length,'Programados y apoyos')+kpi(reviewed.length,'Inspeccionados','green')+
+  kpi(good,'Conformes iniciales','green')+kpi(corrected,'Corregidos después','green')+
+  kpi(partial,'Corrección parcial','amber')+kpi(scheduled.length-reviewed.length,'Sin inspección inicial','amber')+'</div>'+
+  '<div class="panel"><div class="panel-body space-between">'+dailyDateField('uniformDate',theDate,'Fecha de supervisión')+
+  '<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" '+(showUnscheduledUniform?'checked':'')+'> Ver descansos, faltas y no programados</label>'+
+  '<button class="button" data-nav="implements">Checklist detallado</button><button class="button primary" data-nav="uniform-export">Excel</button></div></div></div>'+
+  '<div class="callout">Conforme: cumplió desde la primera revisión. Corregido: incumplió inicialmente y lo solucionó. Faltaron hoy: <b>'+absent+'</b>.</div>'+
+  '<div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Despliega el trabajador para ver los requisitos correspondientes a su puesto.</p></div></div>'+
+  (cards||emptyHint('No hay trabajadores','Agrega el personal desde Personal.'))+'</div>';
 }
 function markUniformOk(id){const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id))||inspection(theDate,id))return;
   ensureDay(theDate);state.inspections.push({id:uid(),staffId:id,staffName:w.name,categoryAt:w.category||'',date:theDate,result:'conforme',issues:[],resolvedIssues:[],note:'',createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null});
@@ -1584,6 +1631,9 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;render();break;
+    case 'quick-answer':quickAnswer(id,el.dataset.req,el.dataset.value);break;
+    case 'quick-all':quickAll(id);break;
     case 'uniform-day-status':openUniformDayStatus(id);break;
     case 'uniform-set-day':setUniformDayStatus(id,el.dataset.status);break;
     case 'uniform-reset-day':resetUniformDayStatus(id);break;
@@ -1698,6 +1748,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
   const x=event.target;
+  if(x.id==='quickVerifier'){quickVerifierDraft=x.value;return;}
   if(x.id==='incidentSearch'){incidentSearch=x.value;render();const input=$('#incidentSearch');input?.focus();input?.setSelectionRange(incidentSearch.length,incidentSearch.length);return;}
   if(x.id==='staffSearch'){
     staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
