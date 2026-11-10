@@ -99,7 +99,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0005 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0006 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -145,7 +145,18 @@ const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 const displayTime=s=>s?new Date(s).toLocaleString('es-PE'):'—';
 const initials=name=>String(name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('');
 const percentage=(a,b)=>b?Math.round(a/b*100)+'%':'—';
-const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,active:true,createdAt:timestamp()}));
+// Requisitos por PUESTO (independientes de los días que trabaja cada persona).
+const STAFF_ROLES=['Mozo','Caja','Recepción','Lavavasos','Apoyo','Otro'];
+const REQ_ROLE_DEFAULTS={
+  toca:['Mozo','Lavavasos','Apoyo'],trapo:['Mozo','Apoyo'],mandil:['Mozo','Apoyo'],
+  lapiceros:['Mozo','Apoyo'],unas:[...STAFF_ROLES],sacacorchos:['Mozo','Apoyo'],
+  camisa:['Mozo','Caja','Recepción','Apoyo','Otro'],cabello:[...STAFF_ROLES]
+};
+const reqRoles=req=>Array.isArray(req.positions)?req.positions:REQ_ROLE_DEFAULTS[req.id]||[...STAFF_ROLES];
+const requirementsForWorker=w=>state.requirements.filter(req=>req.active!==false&&reqRoles(req).includes(w.position||'Mozo'));
+const newChecklistItems=w=>requirementsForWorker(w).map(req=>({reqId:req.id,label:req.label,group:req.group,
+   minQty:req.minQty||0,status:null,quantity:null,resolvedAt:null,resolvedBy:'',reviewedAt:null}));
+const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,positions:[...(REQ_ROLE_DEFAULTS[id]||STAFF_ROLES)],active:true,createdAt:timestamp()}));
 // Incidentes: catálogos y valores estables para mantener historial y respaldos.
 const INCIDENT_AREAS=["Cocina","Azafate","Barra","Repostería","Salón/Mozos","Recepción","Caja/POS","Logística/Almacén","Otra"];
 const INCIDENT_PRIORITIES={baja:'Baja',media:'Media',alta:'Alta',critica:'Crítica'};
@@ -180,7 +191,7 @@ function normalize(data){
   next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
   next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
   next.checklists=Array.isArray(data.checklists)?data.checklists:[];
-  next.requirements=Array.isArray(data.requirements)?data.requirements:reqDefaults();
+  next.requirements=Array.isArray(data.requirements)?data.requirements.map(req=>({...req,positions:Array.isArray(req.positions)?req.positions.filter(p=>STAFF_ROLES.includes(p)):[...(REQ_ROLE_DEFAULTS[req.id]||STAFF_ROLES)]})):reqDefaults();
   next.briefings=Array.isArray(data.briefings)?data.briefings:[];
   next.sessions=data.sessions&&typeof data.sessions==='object'?data.sessions:{};
   next.audit=Array.isArray(data.audit)?data.audit.slice(-1500):[];
@@ -444,8 +455,14 @@ window.addEventListener('popstate',event=>{
     hideModal();
   }
 });
+function menuLocation(){
+ const sections={brief:'Briefings',uniform:'Control de uniformes',functions:'Control de funciones',personal:'Personal',incidents:'Registro de incidentes'};
+ const section=getSection();
+ const exact=sectionNav().find(([id])=>id===view);
+ return {section:sections[section]||'Personal',page:exact?.[1]||'Configuración'};
+}
 function setHeading(title,subtitle){
-  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">SISTEMA DE CONTROL INTERNO</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
+  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">Inicio › ${h(menuLocation().section)} › ${h(menuLocation().page)}</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
 }
 function render(){
   if(view==='home'){
@@ -758,16 +775,16 @@ function renderImplements(){
   $('#app').innerHTML=`<div class="kpis">${kpi(working.length,'Programados y apoyos')}${kpi(full,'Checklists completos','green')}${kpi(working.length-full,'Pendientes de revisión','amber')}${kpi(pend,'Incumplimientos pendientes','red')}</div>
     <div class="panel"><div class="panel-body space-between">${dailyDateField('uniformDate',theDate,'Fecha del checklist')}<button class="button" data-nav="requirements">Configurar requisitos</button></div></div>
     <div class="callout">Un punto que no se haya revisado aparecerá como <b>Sin revisar</b>. Nunca lo marcaremos automáticamente como incumplimiento.</div>
-    <div class="panel"><div class="panel-head"><div><h2>Checklist de implementos</h2><p>Requisitos activos: ${state.requirements.filter(r=>r.active!==false).length}</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Checklist de implementos</h2><p>Requisitos configurables por puesto · ${state.requirements.filter(r=>r.active!==false).length} activos</p></div></div>
     ${list.map(({worker:w,status})=>{const r=checklist(theDate,w.id),s=checklistSummary(r);return `<div class="person-row">${personIdentity(w,statusLabel(status))}<div class="actions">${!isScheduled(status)?badge(statusLabel(status)):badge(r?`${s.reviewed}/${s.total} revisados`:'Sin revisar',r&&s.reviewed===s.total?'ok':'warn')}${s.bad?badge(s.bad+' pendiente(s)','bad'):''}${isScheduled(status)?`<button class="button tiny primary" data-action="open-checklist" data-id="${h(w.id)}">Revisar</button>`:''}</div></div>`;}).join('')||emptyHint('Sin personal','Agrega trabajadores en el módulo Personal.')}</div>`;
 }
 function ensureChecklist(id){let r=checklist(theDate,id);if(r)return r;
   const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return null;
-  ensureDay(theDate);r={id:uid(),date:theDate,staffId:id,staffName:w.name,categoryAt:w.category||'',items:state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null,quantity:null,resolvedAt:null})),createdAt:timestamp(),updatedAt:timestamp()};
+  ensureDay(theDate);r={id:uid(),date:theDate,staffId:id,staffName:w.name,categoryAt:w.category||'',items:newChecklistItems(w),createdAt:timestamp(),updatedAt:timestamp()};
   state.checklists.push(r);return r;
 }
 function openChecklist(id,scroll=0){const w=worker(id);if(!w)return;
-  const r=checklist(theDate,id),items=r?.items||state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null})),summary=checklistSummary(r||{items});
+  const r=checklist(theDate,id),items=r?.items||newChecklistItems(w),summary=checklistSummary(r||{items});
   modal(`Implementos · ${w.name}`,`<div class="callout"><b>${h(formatDate(theDate))}</b> · ${summary.reviewed}/${summary.total} revisados · ${summary.bad} pendientes. Los criterios se conservarán como estaban al iniciar esta inspección.</div>
     ${items.length?items.map(i=>`<div class="check-row"><div><strong>${h(i.label)}</strong><small>${h(i.group)}${i.minQty?` · Mínimo ${i.minQty}`:''}${i.resolvedAt?' · Corregido':''}</small>${i.minQty?`<div class="field" style="max-width:120px;margin-top:7px"><label>Cantidad real</label><input type="number" min="0" max="100" inputmode="numeric" data-check-qty="${h(id)}" data-req="${h(i.reqId)}" value="${i.quantity??''}" placeholder="Cantidad"></div>`:''}</div>
       <div class="checks"><button class="button tiny ${i.status==='ok'?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="ok">✓ Cumple</button><button class="button tiny ${i.status==='bad'?'selected bad-select':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="bad">× No cumple</button><button class="button tiny ${!i.status?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="none">Sin revisar</button>${i.status==='bad'?`<button class="button tiny" data-action="check-resolve" data-id="${h(id)}" data-req="${h(i.reqId)}">${i.resolvedAt?'↩ Reabrir':'✓ Corregido'}</button>`:''}</div></div>`).join(''):emptyHint('No hay requisitos activos','Agrégalos desde la pantalla Requisitos.')}
@@ -796,20 +813,22 @@ function markChecklistAll(id){const w=worker(id);if(!w||!confirm(`¿Confirmas qu
 function renderRequirements(){
   setHeading('Configurar requisitos','Agrega o modifica los criterios de evaluación sin cambiar los registros antiguos.');
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><div><h2>Criterios de inspección</h2><p>Puedes desactivar un requisito y volver a activarlo cuando lo necesites.</p></div><button class="button primary" data-action="add-requirement">+ Nuevo requisito</button></div>
-    ${[...state.requirements].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.group.localeCompare(b.group)).map(r=>`<div class="person-row"><div><div class="person-name">${h(r.label)}</div><div class="person-detail">${h(r.group)}${r.minQty?' · Cantidad mínima: '+r.minQty:''}</div></div><div class="actions">${badge(r.active!==false?'Activo':'Desactivado',r.active!==false?'ok':'')}
+    ${[...state.requirements].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.group.localeCompare(b.group)).map(r=>`<div class="person-row"><div><div class="person-name">${h(r.label)}</div><div class="person-detail">${h(r.group)}${r.minQty?' · Cantidad mínima: '+r.minQty:''} · ${h(reqRoles(r).join(', '))}</div></div><div class="actions">${badge(r.active!==false?'Activo':'Desactivado',r.active!==false?'ok':'')}
        <button class="button tiny" data-action="edit-requirement" data-id="${h(r.id)}">Editar</button><button class="button tiny" data-action="toggle-requirement" data-id="${h(r.id)}">${r.active!==false?'Desactivar':'Activar'}</button><button class="button tiny" data-action="remove-requirement" data-id="${h(r.id)}">Quitar</button></div></div>`).join('')||emptyHint('Sin requisitos','Agrega los criterios para tu checklist.')}</div>
     <div class="callout">Los requisitos se copian al checklist de cada trabajador cuando inicia su revisión. Si modificas o desactivas uno, las inspecciones anteriores conservarán el nombre y la evaluación originales.</div>`;
 }
 function openRequirement(r=null){modal(r?'Editar requisito':'Nuevo requisito',`<form id="requirementForm" class="stack"><input type="hidden" name="id" value="${h(r?.id||'')}">
     <div class="field"><label>Nombre del requisito *</label><input name="label" maxlength="100" value="${h(r?.label||'')}" required placeholder="Ej. Encendedor"></div>
     <div class="field"><label>Grupo</label><select name="group">${['Uniforme','Presentación personal','Implementos','Otro'].map(x=>`<option ${r?.group===x?'selected':''}>${x}</option>`).join('')}</select></div>
-    <div class="field"><label>Cantidad mínima (0 si no aplica)</label><input type="number" name="minQty" min="0" max="100" value="${h(r?.minQty||0)}"></div></form>`,
+    <div class="field"><label>Cantidad mínima (0 si no aplica)</label><input type="number" name="minQty" min="0" max="100" value="${h(r?.minQty||0)}"></div><div class="field"><label>Puestos a los que corresponde *</label><div class="weekdays">${STAFF_ROLES.map(p=>`<label><input type="checkbox" name="reqPosition" value="${h(p)}" ${reqRoles(r||{id:'nuevo',positions:STAFF_ROLES}).includes(p)?'checked':''}> ${h(p)}</label>`).join('')}</div><small>Las revisiones anteriores mantienen sus criterios originales.</small></div></form>`,
     `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-requirement">Guardar requisito</button>`);
 }
 function saveRequirement(){const f=$('#requirementForm');if(!f)return;const label=f.elements.label.value.trim(),id=f.elements.id.value,minQty=Math.max(0,Math.min(100,Number(f.elements.minQty.value)||0));
   if(!label){toast('Indica el nombre del requisito.');return;}
   if(state.requirements.some(x=>x.id!==id&&x.label.toLowerCase()===label.toLowerCase()&&x.active!==false)){toast('Ya hay un requisito activo con ese nombre.');return;}
-  const data={label,group:f.elements.group.value,minQty};if(id)Object.assign(state.requirements.find(x=>x.id===id),data,{updatedAt:timestamp()});else state.requirements.push({id:uid(),...data,active:true,createdAt:timestamp()});
+  const positions=[...f.querySelectorAll('[name="reqPosition"]:checked')].map(c=>c.value);
+  if(!positions.length){toast('Selecciona al menos un puesto para el requisito.');return;}
+  const data={label,group:f.elements.group.value,minQty,positions};if(id)Object.assign(state.requirements.find(x=>x.id===id),data,{updatedAt:timestamp()});else state.requirements.push({id:uid(),...data,active:true,createdAt:timestamp()});
   mutate(id?'Editar requisito':'Crear requisito',label);closeModal();render();toast('Requisito guardado.');
 }
 function toggleRequirement(id){const r=state.requirements.find(x=>x.id===id);if(!r)return;r.active=r.active===false;r.updatedAt=timestamp();mutate(r.active?'Activar requisito':'Desactivar requisito',r.label);render();}
