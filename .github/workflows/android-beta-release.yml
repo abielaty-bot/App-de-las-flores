@@ -69,9 +69,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
-            dist/las-flores-beta.apk \
-            dist/las-flores-beta.apk.sha256 \
-            --title "Las Flores Beta ${GITHUB_REF_NAME}" \
-            --notes "Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android." \
-            --prerelease
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              dist/las-flores-beta.apk \
+              dist/las-flores-beta.apk.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              dist/las-flores-beta.apk \
+              dist/las-flores-beta.apk.sha256 \
+              --title "Las Flores Beta ${GITHUB_REF_NAME}" \
+              --notes "Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android." \
+              --prerelease
+          fi
