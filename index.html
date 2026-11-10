@@ -20,6 +20,16 @@
 .day-date-controls .day-date-arrow:hover{background:var(--lightgreen)}
 .day-date-controls .day-date-today{height:44px;min-height:44px;background:var(--lightgreen);color:var(--green);padding:8px 12px}
 .day-date-controls button:focus-visible{outline:3px solid #d59d39;outline-offset:2px}
+.quick-worker{border-bottom:1px solid var(--line)}
+.quick-worker:last-child{border-bottom:0}
+.quick-panel{padding:16px 20px 19px;border-top:1px solid var(--line);display:grid;gap:12px}
+.quick-requirement{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--surface)}
+.quick-requirement-info{display:grid;gap:5px;min-width:145px;flex:1}
+.quick-requirement-info .status{justify-self:start}
+.quick-requirement-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.quick-requirement-actions .button{min-height:38px}
+.quick-actions-footer{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+@media(max-width:600px){.quick-requirement{display:grid}.quick-requirement-actions{justify-content:stretch}.quick-requirement-actions .button{flex:1}.quick-panel{padding:12px}}
 .date-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.date-row .field{min-width:185px}.callout{background:var(--lightgreen);border:1px solid #d3e6d8;border-radius:12px;color:#265744;font-size:13px;padding:13px 15px;margin-bottom:16px}.callout.warn{background:var(--amberbg);border-color:#eddba8;color:#785a20}.callout.danger{background:var(--redbg);border-color:#edc7c1;color:#873e37}.callout p{margin:4px 0 0}.subtle{color:var(--muted)}.center{text-align:center}.empty{padding:35px 18px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:5px}
 .person-row{display:grid;grid-template-columns:minmax(155px,1fr) auto;align-items:center;gap:14px;padding:16px 20px;border-top:1px solid #edf0ed}.person-row:first-child{border-top:0}.identity{display:flex;gap:11px;align-items:center;min-width:0}.avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;background:#edf4ee;color:var(--green);font-weight:800;font-size:13px}.person-name{font-weight:780;overflow-wrap:anywhere}.person-detail{font-size:12px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.status{display:inline-block;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:750;background:#f1f4f0;color:#56645c;white-space:nowrap}.status.ok{background:#e5f3e9;color:#146c46}.status.bad{background:var(--redbg);color:var(--red)}.status.warn{background:var(--amberbg);color:var(--amber)}.status.blue{background:#e9f2fa;color:#315d88}.person-brief{grid-template-columns:minmax(145px,1fr) minmax(230px,auto)}.brief-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.brief-buttons .button{padding:8px 11px;min-height:39px}.brief-second{font-size:12px;color:var(--muted);margin-top:5px}.brief-actions{display:grid;gap:6px;justify-items:end}
 .tablewrap{overflow-x:auto}.table{border-collapse:collapse;width:100%;min-width:690px;font-size:13px}.table th{background:#f7faf7;text-align:left;padding:12px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:11px;letter-spacing:.03em;color:#54665d}.table td{border-bottom:1px solid #eef0ed;padding:12px;vertical-align:middle}.table tr:last-child td{border-bottom:0}.table td .button{white-space:normal}.table .nowrap{white-space:nowrap}.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.three-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.check-row{padding:13px 0;border-bottom:1px solid #e9eee9;display:grid;grid-template-columns:minmax(130px,1fr) auto;gap:13px;align-items:center}.check-row:last-child{border-bottom:0}.check-row strong{display:block;font-size:14px}.check-row small{display:block;color:var(--muted);font-size:11px}.checks{display:flex;gap:6px;flex-wrap:wrap}.weekdays{display:flex;gap:7px;flex-wrap:wrap}.weekdays label{background:#f9fbf9;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:12px}.weekdays input{accent-color:var(--green)}.checklist{display:flex;align-items:center;gap:8px;padding:8px 0}.checklist input{width:17px;height:17px;accent-color:var(--green)}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:8px 12px;font-size:12px}.chip.selected{background:var(--green);color:#fff;border-color:var(--green)}
@@ -99,7 +109,7 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0005 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.4.1.0006 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -145,7 +155,18 @@ const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 const displayTime=s=>s?new Date(s).toLocaleString('es-PE'):'—';
 const initials=name=>String(name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('');
 const percentage=(a,b)=>b?Math.round(a/b*100)+'%':'—';
-const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,active:true,createdAt:timestamp()}));
+// Requisitos por PUESTO (independientes de los días que trabaja cada persona).
+const STAFF_ROLES=['Mozo','Caja','Recepción','Lavavasos','Apoyo','Otro'];
+const REQ_ROLE_DEFAULTS={
+  toca:['Mozo','Lavavasos','Apoyo'],trapo:['Mozo','Apoyo'],mandil:['Mozo','Apoyo'],
+  lapiceros:['Mozo','Apoyo'],unas:[...STAFF_ROLES],sacacorchos:['Mozo','Apoyo'],
+  camisa:['Mozo','Caja','Recepción','Apoyo','Otro'],cabello:[...STAFF_ROLES]
+};
+const reqRoles=req=>Array.isArray(req.positions)?req.positions:REQ_ROLE_DEFAULTS[req.id]||[...STAFF_ROLES];
+const requirementsForWorker=w=>state.requirements.filter(req=>req.active!==false&&reqRoles(req).includes(w.position||'Mozo'));
+const newChecklistItems=w=>requirementsForWorker(w).map(req=>({reqId:req.id,label:req.label,group:req.group,
+   minQty:req.minQty||0,status:null,quantity:null,resolvedAt:null,resolvedBy:'',reviewedAt:null}));
+const reqDefaults=()=>DEFAULT_REQ.map(([id,label,group,minQty])=>({id,label,group,minQty,positions:[...(REQ_ROLE_DEFAULTS[id]||STAFF_ROLES)],active:true,createdAt:timestamp()}));
 // Incidentes: catálogos y valores estables para mantener historial y respaldos.
 const INCIDENT_AREAS=["Cocina","Azafate","Barra","Repostería","Salón/Mozos","Recepción","Caja/POS","Logística/Almacén","Otra"];
 const INCIDENT_PRIORITIES={baja:'Baja',media:'Media',alta:'Alta',critica:'Crítica'};
@@ -180,7 +201,7 @@ function normalize(data){
   next.incidents=Array.isArray(data.incidents)?data.incidents.map(r=>({...r,id:String(r.id||uid()),actions:Array.isArray(r.actions)?r.actions:[],status:INCIDENT_STATUSES[r.status]?r.status:'registrado',priority:INCIDENT_PRIORITIES[r.priority]?r.priority:'media',category:r.category==='operativo'?'operativo':'producto',occurredDate:r.occurredDate||dateISO(),occurredTime:r.occurredTime||'',createdAt:r.createdAt||timestamp(),updatedAt:r.updatedAt||r.createdAt||timestamp()})):[];
   next.incidentTypes=Array.isArray(data.incidentTypes)?data.incidentTypes.map(t=>({id:String(t.id||''),label:String(t.label||''),category:t.category==='operativo'?'operativo':'producto',active:t.active!==false,createdAt:t.createdAt||timestamp(),updatedAt:t.updatedAt||null})).filter(t=>t.id&&t.label):incidentTypeDefaults();
   next.checklists=Array.isArray(data.checklists)?data.checklists:[];
-  next.requirements=Array.isArray(data.requirements)?data.requirements:reqDefaults();
+  next.requirements=Array.isArray(data.requirements)?data.requirements.map(req=>({...req,positions:Array.isArray(req.positions)?req.positions.filter(p=>STAFF_ROLES.includes(p)):[...(REQ_ROLE_DEFAULTS[req.id]||STAFF_ROLES)]})):reqDefaults();
   next.briefings=Array.isArray(data.briefings)?data.briefings:[];
   next.sessions=data.sessions&&typeof data.sessions==='object'?data.sessions:{};
   next.audit=Array.isArray(data.audit)?data.audit.slice(-1500):[];
@@ -444,8 +465,14 @@ window.addEventListener('popstate',event=>{
     hideModal();
   }
 });
+function menuLocation(){
+ const sections={brief:'Briefings',uniform:'Control de uniformes',functions:'Control de funciones',personal:'Personal',incidents:'Registro de incidentes'};
+ const section=getSection();
+ const exact=sectionNav().find(([id])=>id===view);
+ return {section:sections[section]||'Personal',page:exact?.[1]||'Configuración'};
+}
 function setHeading(title,subtitle){
-  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">SISTEMA DE CONTROL INTERNO</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
+  $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">Inicio › ${h(menuLocation().section)} › ${h(menuLocation().page)}</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
 }
 function render(){
   if(view==='home'){
@@ -665,22 +692,161 @@ function exportFunctionMonth(){
 
 // UNIFORMES: se conservan los registros de la versión anterior.
 function correctionStatus(r){if(!r||r.result==='conforme')return 'No requerida';const issues=r.issues||[],resolved=r.resolvedIssues||[];const n=issues.filter(i=>!resolved.includes(i)).length;return n===0?'Corregido':n<issues.length?'Parcial':'Pendiente';}
+
+// Revisión rápida: el checklist es la fuente de sus requisitos; la inspección guarda el resultado original.
+let quickExpandedId='',quickVerifierDraft='';
+const quickIssueId=id=>'req:'+id;
+const quickOldRecord=r=>!!r&&!r.quickReview;
+function quickState(w){
+ const r=inspection(theDate,w.id),c=checklist(theDate,w.id);
+ if(r){
+  if(r.result==='conforme')return ['Conforme','ok'];
+  if(r.quickReview&&c?.items?.some(i=>!i.status)){
+    const pending=correctionStatus(r);
+    return pending==='Parcial'?['Corrección parcial','warn']:pending==='Corregido'?['Corrección parcial','warn']:['Observado','bad'];
+  }
+  const v=correctionStatus(r);
+  return v==='Corregido'?['Corregido','blue']:v==='Parcial'?['Corrección parcial','warn']:['Observado','bad'];
+ }
+ if(!c||!c.items.some(i=>i.status))return ['Sin revisar','warn'];
+ const a=checklistSummary(c);
+ if(a.bad)return [a.corrected?'Corrección parcial':'Observado','bad'];
+ if(a.corrected)return ['Corregido','blue'];
+ if(a.total&&a.reviewed===a.total)return ['Conforme','ok'];
+ return ['En revisión','warn'];
+}
+function syncQuickInspection(id){
+ const w=worker(id),c=checklist(theDate,id);if(!w||!c)return;
+ const bad=c.items.filter(i=>i.status==='bad'),complete=c.items.length>0&&c.items.every(i=>i.status);
+ let r=inspection(theDate,id);
+ if(quickOldRecord(r)||(!r&&!bad.length&&!complete))return;
+ const at=timestamp();
+ if(!r){r={id:uid(),staffId:id,staffName:w.name,categoryAt:w.category||'',positionAt:w.position||'Mozo',
+ date:theDate,quickReview:true,result:bad.length?'observado':'conforme',issues:[],resolvedIssues:[],
+ issueLabels:{},note:'Revisión rápida por puesto',createdAt:at,updatedAt:at,correctedAt:null,
+ correctionEvents:[],correctionDetails:{}};state.inspections.push(r);}
+ if(bad.length&&r.result==='conforme'){
+  r.changes=r.changes||[];r.changes.push({at,kind:'Incumplimiento detectado después',before:{result:'conforme',issues:[...(r.issues||[])]}});
+  r.result='observado';
+ }
+ const resolved=new Set(r.resolvedIssues||[]);
+ for(const i of bad){
+  const key=quickIssueId(i.reqId);
+  if(!r.issues.includes(key))r.issues.push(key);
+  r.issueLabels[key]=r.issueLabels[key]||i.label;
+  if(i.resolvedAt){
+   if(!resolved.has(key))r.correctionEvents.push({at:i.resolvedAt,by:i.resolvedBy||'Sin registrar',kind:'corregir',issueId:key});
+   resolved.add(key);r.correctionDetails[key]={at:i.resolvedAt,by:i.resolvedBy||'Sin registrar'};
+  }else if(resolved.has(key)){
+   resolved.delete(key);delete r.correctionDetails[key];
+   r.correctionEvents.push({at,by:i.reopenedBy||'Sin registrar',kind:'revertir',issueId:key});
+  }
+ }
+ r.resolvedIssues=[...resolved];r.correctedAt=r.result==='observado'&&r.issues.length&&r.issues.every(k=>resolved.has(k))?at:null;r.updatedAt=at;
+}
+function quickVerifier(){return ($('#quickVerifier')?.value||$('#checklistVerifier')?.value||quickVerifierDraft||'').trim();}
+function quickAnswer(id,reqId,action){
+ const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return false;
+ if(quickOldRecord(inspection(theDate,id))){toast('Inspección anterior: utiliza Historial para corregirla.');return false;}
+ const c=ensureChecklist(id),i=c?.items.find(x=>x.reqId===reqId);if(!i)return false;
+ const at=timestamp();
+ if(action==='correct'){
+  if(i.status!=='bad'||i.resolvedAt)return false;
+  const who=quickVerifier();if(!who){toast('Indica quién verificó la corrección.');return false;}
+  i.resolvedAt=at;i.resolvedBy=who;
+ }else if(action==='reopen'){
+  if(i.status!=='bad'||!i.resolvedAt)return false;
+  const who=quickVerifier();if(!who){toast('Indica quién verificó la reapertura.');return false;}
+  i.resolvedAt=null;i.resolvedBy='';i.reopenedBy=who;
+ }else if(i.status==='bad'){
+  toast('La falta inicial permanece. Usa Corregir cuando se solucione.');return false;
+ }else if(action==='ok'){
+  if(i.status==='ok')return false;
+  i.status='ok';i.reviewedAt=at;
+  if(i.minQty)i.quantity=Math.max(i.minQty,Number(i.quantity)||0);
+ }else if(action==='bad'){
+  if(i.status==='ok'&&inspection(theDate,id)?.result==='conforme'&&!confirm('El trabajador ya figuraba Conforme. ¿Confirmas el nuevo incumplimiento? Quedará Observado.'))return false;
+  i.status='bad';i.reviewedAt=at;i.resolvedAt=null;
+  if(i.minQty&&i.quantity===null)i.quantity=0;
+ }else if(action==='none'){
+  if(!i.status)return false;
+  if(inspection(theDate,id)){toast('La inspección inicial ya está registrada y no puede borrarse aquí.');return false;}
+  i.status=null;i.quantity=null;i.reviewedAt=null;
+ }else return false;
+ c.updatedAt=at;syncQuickInspection(id);mutate('Revisar requisito',w.name+' · '+theDate+' · '+i.label+' · '+action);render();return true;
+}
+function quickAll(id){
+ const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return;
+ if(quickOldRecord(inspection(theDate,id))){toast('Para esta inspección anterior, utiliza Historial.');return;}
+ const c=ensureChecklist(id);if(!c?.items.length){toast('Este puesto no tiene requisitos configurados.');return;}
+ const bad=c.items.filter(i=>i.status==='bad'&&!i.resolvedAt);
+ const who=bad.length?quickVerifier():'';
+ const hadObservations=inspection(theDate,id)?.result==='observado'||c.items.some(i=>i.status==='bad');
+ if(bad.length&&!who){toast('Indica quién verificó las correcciones.');return;}
+ if(!confirm(hadObservations?'¿Confirmas que verificaste todos los requisitos? Se conservará la falta inicial y quedará CORREGIDO.':'¿Confirmas que verificaste todos los requisitos y cumplen desde el inicio?'))return;
+ const at=timestamp();
+ for(const i of c.items){
+  if(i.status==='bad'){if(!i.resolvedAt){i.resolvedAt=at;i.resolvedBy=who;}}
+  else {i.status='ok';i.reviewedAt=at;if(i.minQty)i.quantity=Math.max(i.minQty,Number(i.quantity)||0);}
+ }
+ c.updatedAt=at;syncQuickInspection(id);
+ mutate('Revisión rápida completa',w.name+' · '+theDate+(hadObservations?' · Corregido':' · Conforme'));
+ render();toast(hadObservations?'Corregido. Incumplimiento inicial conservado.':'Conforme desde la primera revisión.');
+}
+
+function quickPanel(w){
+ const old=inspection(theDate,w.id),legacy=quickOldRecord(old);
+ const c=checklist(theDate,w.id),items=c?.items||newChecklistItems(w),n=items.filter(i=>i.status).length;
+ const rows=items.map(i=>{
+  const state=!i.status?'Sin revisar':i.status==='bad'?(i.resolvedAt?'Corregido':'No cumple'):'Cumple';
+  const kind=!i.status?'':i.status==='bad'?(i.resolvedAt?'blue':'bad'):'ok';
+  const name='<div class="quick-requirement-info"><b>'+h(i.label)+'</b><span class="small">'+h(i.group)+(i.minQty?' · Mínimo '+i.minQty:'')+'</span>'+badge(state,kind)+
+   (i.resolvedAt?'<span class="small">Verificado '+h(displayTime(i.resolvedAt))+' por '+h(i.resolvedBy||'Sin identificar')+'</span>':'')+'</div>';
+  let buttons='';
+  if(!legacy){
+    const head='<div class="quick-requirement-actions">';
+    const base=' data-id="'+h(w.id)+'" data-req="'+h(i.reqId)+'"';
+    if(i.status==='bad')buttons=head+'<button class="button tiny '+(i.resolvedAt?'selected':'primary')+'" data-action="quick-answer"'+base+' data-value="'+(i.resolvedAt?'reopen':'correct')+'">'+(i.resolvedAt?'↩ Reabrir':'✓ Corregir')+'</button></div>';
+    else buttons=head+'<button class="button tiny '+(i.status==='ok'?'selected':'')+'" data-action="quick-answer"'+base+' data-value="ok">✓ Cumple</button>'+
+    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="bad">× No cumple</button>'+
+    '<button class="button tiny" data-action="quick-answer"'+base+' data-value="none">Sin revisar</button></div>';
+  }
+  return '<div class="quick-requirement">'+name+buttons+'</div>';
+ }).join('');
+ const top='<div class="space-between"><div><b>Requisitos de '+h(w.position||'Mozo')+'</b><div class="small">'+n+' de '+items.length+' revisados · '+h(formatDate(theDate))+'</div></div>'+
+ '<button class="button tiny" data-nav="requirements">Configurar requisitos</button></div>';
+ const note=legacy?'<div class="callout warn">Inspección registrada antes de esta función. Puedes ver los requisitos, pero para corregir el historial anterior debes usar «Ver / corregir».</div>':
+ '<div class="callout">Cumple desde la primera revisión = Conforme. Si falta algo y luego se verifica la corrección, quedará Corregido, sin borrar el incumplimiento inicial.</div>';
+ const foot=legacy?'<div class="toolbar"><button class="button" data-action="detail-inspection" data-id="'+h(old.id)+'">Ver / corregir inspección existente</button></div>':
+ '<div class="quick-actions-footer"><div class="field" style="min-width:180px;flex:1"><label>Verificado por (al corregir)</label><input id="quickVerifier" maxlength="90" value="'+h(quickVerifierDraft)+'" placeholder="Nombre del supervisor"></div>'+
+ '<button class="button primary" data-action="quick-all" data-id="'+h(w.id)+'" '+(items.length?'':'disabled')+'>✓ Todos cumplen</button></div>';
+ return '<div class="quick-panel">'+top+note+(items.length?rows:emptyHint('Sin requisitos','Configura los requisitos específicos de este puesto.'))+foot+'</div>';
+}
+
 function renderUniform(){
-  setHeading('Control de uniformes','Registra la presentación del personal, observa faltantes y controla correcciones sin borrar la observación original.');
-  const people=forDate(theDate),scheduled=people.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
-  const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
-  const absentToday=people.filter(x=>x.status==='absent').length;
-  const cells=people.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
-    const r=inspection(theDate,w.id),eligible=isScheduled(status);
-    return `<div class="person-row">${personIdentity(w,`${statusLabel(status)} · ${w.category?'Categoría '+w.category:'Sin categoría'}`)}
-      <div class="actions">${!eligible?badge(statusLabel(status)):r?badge(r.result==='conforme'?'Conforme':`Observado · ${correctionStatus(r)}`,r.result==='conforme'?'ok':'bad'):badge('Sin revisar','warn')}
-      ${eligible?(r?`<button class="button tiny" data-action="detail-inspection" data-id="${h(r.id)}">Ver / corregir</button>`:`<button class="button tiny primary" data-action="uniform-ok" data-id="${h(w.id)}">✓ Conforme</button><button class="button tiny" data-action="uniform-bad" data-id="${h(w.id)}">Observado</button>`):''}
-      <button class="button tiny" data-action="uniform-day-status" data-id="${h(w.id)}">Situación</button></div></div>`;
-  }).join('');
-  $('#app').innerHTML=`<div class="kpis">${kpi(scheduled.length,'Programados y apoyos')}${kpi(reviewed.length,'Inspeccionados','green')}${kpi(good,'Conformes','green')}${kpi(scheduled.length-reviewed.length,'Sin revisar','amber')}${kpi(reviewed.filter(x=>inspection(theDate,x.worker.id)?.result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length,'Observados corregidos','green')}${kpi(absentToday,'Faltaron hoy','red')}</div>
-   <div class="panel"><div class="panel-body space-between">${dailyDateField('uniformDate',theDate,'Fecha de supervisión')}<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" ${showUnscheduledUniform?'checked':''}> Ver también descansos, faltas y no programados</label><button class="button" data-nav="implements">Ir a implementos</button><button class="button primary" data-nav="uniform-export">Exportar Excel</button></div></div></div>
-   <div class="callout">Cumplimiento entre inspeccionados: <b>${percentage(good,reviewed.length)}</b> · Cobertura de revisión: <b>${percentage(reviewed.length,scheduled.length)}</b>. Los no revisados no se contabilizan como conformes.</div>
-   <div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Usa «Situación» para indicar Faltó, Descansa o No programado. Solo se revisa a quienes trabajan o apoyan.</p></div></div>${cells||emptyHint('No hay trabajadores','Agrégalos desde Personal para iniciar.')}</div>`;
+ setHeading('Control de uniformes','Despliega a cada trabajador para revisar sus requisitos. Cumplimiento inicial y correcciones siempre por separado.');
+ const all=forDate(theDate),scheduled=all.filter(x=>isScheduled(x.status)),reviewed=scheduled.filter(x=>inspection(theDate,x.worker.id));
+ const good=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='conforme').length;
+ const corrected=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Corregido').length;
+ const partial=reviewed.filter(x=>inspection(theDate,x.worker.id).result==='observado'&&correctionStatus(inspection(theDate,x.worker.id))==='Parcial').length;
+ const absent=all.filter(x=>x.status==='absent').length;
+ const cards=all.filter(x=>showUnscheduledUniform||isScheduled(x.status)).map(({worker:w,status})=>{
+  const r=inspection(theDate,w.id),eligible=isScheduled(status),st=eligible?quickState(w):[statusLabel(status),''];
+  const button=eligible?'<button class="button tiny '+(quickExpandedId===w.id?'selected':'')+'" data-action="quick-toggle" data-id="'+h(w.id)+'" aria-expanded="'+(quickExpandedId===w.id?'true':'false')+'">'+(quickExpandedId===w.id?'▴ Ocultar':'▾ Requisitos')+'</button>':'';
+  return '<div class="quick-worker"><div class="person-row">'+personIdentity(w,(w.position||'Mozo')+' · '+statusLabel(status)+(w.category?' · Categoría '+w.category:''))+
+   '<div class="actions">'+badge(st[0],st[1])+button+'<button class="button tiny" data-action="uniform-day-status" data-id="'+h(w.id)+'">Situación</button>'+
+   (r?'<button class="button tiny" data-action="detail-inspection" data-id="'+h(r.id)+'">Historial</button>':'')+'</div></div>'+
+   (quickExpandedId===w.id&&eligible?quickPanel(w):'')+'</div>';
+ }).join('');
+ $('#app').innerHTML='<div class="kpis">'+kpi(scheduled.length,'Programados y apoyos')+kpi(reviewed.length,'Inspeccionados','green')+
+  kpi(good,'Conformes iniciales','green')+kpi(corrected,'Corregidos después','green')+
+  kpi(partial,'Corrección parcial','amber')+kpi(scheduled.length-reviewed.length,'Sin inspección inicial','amber')+'</div>'+
+  '<div class="panel"><div class="panel-body space-between">'+dailyDateField('uniformDate',theDate,'Fecha de supervisión')+
+  '<div class="toolbar"><label class="checklist" style="padding:0"><input type="checkbox" id="showUnscheduledUniform" '+(showUnscheduledUniform?'checked':'')+'> Ver descansos, faltas y no programados</label>'+
+  '<button class="button" data-nav="implements">Checklist detallado</button><button class="button primary" data-nav="uniform-export">Excel</button></div></div></div>'+
+  '<div class="callout">Conforme: cumplió desde la primera revisión. Corregido: incumplió inicialmente y lo solucionó. Faltaron hoy: <b>'+absent+'</b>.</div>'+
+  '<div class="panel"><div class="panel-head"><div><h2>Inspecciones del día</h2><p>Despliega el trabajador para ver los requisitos correspondientes a su puesto.</p></div></div>'+
+  (cards||emptyHint('No hay trabajadores','Agrega el personal desde Personal.'))+'</div>';
 }
 function markUniformOk(id){const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id))||inspection(theDate,id))return;
   ensureDay(theDate);state.inspections.push({id:uid(),staffId:id,staffName:w.name,categoryAt:w.category||'',date:theDate,result:'conforme',issues:[],resolvedIssues:[],note:'',createdAt:timestamp(),updatedAt:timestamp(),correctedAt:null});
@@ -717,7 +883,7 @@ function inspectDetails(r){if(!r)return;
     ${log?`<div class="callout"><b>Historial de verificaciones</b><div class="stack">${log}</div></div>`:''}
     ${r.note?`<div class="callout"><b>Nota:</b> ${h(r.note)}</div>`:''}
     <p class="muted-note">Registrado: ${h(displayTime(r.createdAt))}. Última modificación: ${h(displayTime(r.updatedAt))}.</p>`,
-    `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`<button class="button" data-action="edit-uniform" data-id="${h(r.id)}">Editar faltantes</button><button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
+    `<button class="button" data-action="close-modal">Cerrar</button>${r.voidedAt?'':r.result==='observado'?`${r.quickReview?'':'<button class="button" data-action="edit-uniform" data-id="'+h(r.id)+'">Editar faltantes</button>'}<button class="button primary" data-action="save-uniform-corrections" data-id="${h(r.id)}">Guardar correcciones</button>`:`<button class="button" data-action="convert-uniform" data-id="${h(r.id)}">Cambiar a observado</button>`}${r.voidedAt?'':`<button class="button warn" data-action="delete-uniform" data-id="${h(r.id)}">Anular registro</button>`}`);
 }
 function saveUniformCorrections(id){
   const r=state.inspections.find(x=>x.id===id);if(!r||r.voidedAt||r.result!=='observado')return;
@@ -733,6 +899,10 @@ function saveUniformCorrections(id){
   r.correctionEvents=r.correctionEvents||[];
   for(const x of added){r.correctionDetails[x]={at,by:verifier};r.correctionEvents.push({at,by:verifier,kind:'corregir',issueId:x});}
   for(const x of removed){delete r.correctionDetails[x];r.correctionEvents.push({at,by:verifier,kind:'revertir',issueId:x});}
+  if(r.quickReview){const c=checklist(r.date,r.staffId);for(const i of c?.items||[]){const key=quickIssueId(i.reqId);
+    if(added.includes(key)){i.resolvedAt=at;i.resolvedBy=verifier;}
+    if(removed.includes(key)){i.resolvedAt=null;i.resolvedBy='';i.reopenedBy=verifier;}
+  }if(c)c.updatedAt=at;}
   r.resolvedIssues=selected;
   r.correctedAt=selected.length===(r.issues||[]).length?at:null;
   r.updatedAt=at;
@@ -758,58 +928,75 @@ function renderImplements(){
   $('#app').innerHTML=`<div class="kpis">${kpi(working.length,'Programados y apoyos')}${kpi(full,'Checklists completos','green')}${kpi(working.length-full,'Pendientes de revisión','amber')}${kpi(pend,'Incumplimientos pendientes','red')}</div>
     <div class="panel"><div class="panel-body space-between">${dailyDateField('uniformDate',theDate,'Fecha del checklist')}<button class="button" data-nav="requirements">Configurar requisitos</button></div></div>
     <div class="callout">Un punto que no se haya revisado aparecerá como <b>Sin revisar</b>. Nunca lo marcaremos automáticamente como incumplimiento.</div>
-    <div class="panel"><div class="panel-head"><div><h2>Checklist de implementos</h2><p>Requisitos activos: ${state.requirements.filter(r=>r.active!==false).length}</p></div></div>
+    <div class="panel"><div class="panel-head"><div><h2>Checklist de implementos</h2><p>Requisitos configurables por puesto · ${state.requirements.filter(r=>r.active!==false).length} activos</p></div></div>
     ${list.map(({worker:w,status})=>{const r=checklist(theDate,w.id),s=checklistSummary(r);return `<div class="person-row">${personIdentity(w,statusLabel(status))}<div class="actions">${!isScheduled(status)?badge(statusLabel(status)):badge(r?`${s.reviewed}/${s.total} revisados`:'Sin revisar',r&&s.reviewed===s.total?'ok':'warn')}${s.bad?badge(s.bad+' pendiente(s)','bad'):''}${isScheduled(status)?`<button class="button tiny primary" data-action="open-checklist" data-id="${h(w.id)}">Revisar</button>`:''}</div></div>`;}).join('')||emptyHint('Sin personal','Agrega trabajadores en el módulo Personal.')}</div>`;
 }
 function ensureChecklist(id){let r=checklist(theDate,id);if(r)return r;
   const w=worker(id);if(!w||!isScheduled(scheduleStatus(theDate,id)))return null;
-  ensureDay(theDate);r={id:uid(),date:theDate,staffId:id,staffName:w.name,categoryAt:w.category||'',items:state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null,quantity:null,resolvedAt:null})),createdAt:timestamp(),updatedAt:timestamp()};
+  ensureDay(theDate);r={id:uid(),date:theDate,staffId:id,staffName:w.name,categoryAt:w.category||'',items:newChecklistItems(w),createdAt:timestamp(),updatedAt:timestamp()};
   state.checklists.push(r);return r;
 }
 function openChecklist(id,scroll=0){const w=worker(id);if(!w)return;
-  const r=checklist(theDate,id),items=r?.items||state.requirements.filter(x=>x.active!==false).map(x=>({reqId:x.id,label:x.label,group:x.group,minQty:x.minQty||0,status:null})),summary=checklistSummary(r||{items});
+  const r=checklist(theDate,id),items=r?.items||newChecklistItems(w),summary=checklistSummary(r||{items});
   modal(`Implementos · ${w.name}`,`<div class="callout"><b>${h(formatDate(theDate))}</b> · ${summary.reviewed}/${summary.total} revisados · ${summary.bad} pendientes. Los criterios se conservarán como estaban al iniciar esta inspección.</div>
     ${items.length?items.map(i=>`<div class="check-row"><div><strong>${h(i.label)}</strong><small>${h(i.group)}${i.minQty?` · Mínimo ${i.minQty}`:''}${i.resolvedAt?' · Corregido':''}</small>${i.minQty?`<div class="field" style="max-width:120px;margin-top:7px"><label>Cantidad real</label><input type="number" min="0" max="100" inputmode="numeric" data-check-qty="${h(id)}" data-req="${h(i.reqId)}" value="${i.quantity??''}" placeholder="Cantidad"></div>`:''}</div>
       <div class="checks"><button class="button tiny ${i.status==='ok'?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="ok">✓ Cumple</button><button class="button tiny ${i.status==='bad'?'selected bad-select':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="bad">× No cumple</button><button class="button tiny ${!i.status?'selected':''}" data-action="check-answer" data-id="${h(id)}" data-req="${h(i.reqId)}" data-value="none">Sin revisar</button>${i.status==='bad'?`<button class="button tiny" data-action="check-resolve" data-id="${h(id)}" data-req="${h(i.reqId)}">${i.resolvedAt?'↩ Reabrir':'✓ Corregido'}</button>`:''}</div></div>`).join(''):emptyHint('No hay requisitos activos','Agrégalos desde la pantalla Requisitos.')}
-    <p class="muted-note">Marcar «No cumple» conserva el incumplimiento original aunque después se corrija.</p>`,
+    <div class="field"><label>Verificado por (para correcciones)</label><input id="checklistVerifier" maxlength="90" value="${h(quickVerifierDraft)}" placeholder="Nombre del supervisor"></div><p class="muted-note">Marcar «No cumple» conserva el incumplimiento original aunque después se corrija.</p>`,
     `<button class="button" data-action="close-modal">Cerrar</button><button class="button gold" data-action="check-all" data-id="${h(id)}" ${!items.length?'disabled':''}>Todos cumplen</button>`);
   $('#modal').scrollTop=scroll;
 }
 function answerChecklist(id,reqId,status){
-  if(!isScheduled(scheduleStatus(theDate,id)))return;
-  const scroll=$('#modal').scrollTop,r=ensureChecklist(id);if(!r)return;
-  const item=r.items.find(x=>x.reqId===reqId);if(!item)return;
-  item.status=status==='none'?null:status;if(item.minQty&&status==='ok')item.quantity=Math.max(item.minQty,Number(item.quantity)||0);item.resolvedAt=null;r.updatedAt=timestamp();mutate('Revisar implemento',`${worker(id)?.name||''} · ${item.label} · ${item.status||'Sin revisar'}`);openChecklist(id,scroll);
+ const scroll=$('#modal')?.scrollTop||0;
+ if(quickAnswer(id,reqId,status))openChecklist(id,scroll);
 }
 function setChecklistQuantity(id,reqId,value){
-  const r=ensureChecklist(id);if(!r)return;const item=r.items.find(i=>i.reqId===reqId);if(!item||!item.minQty)return;
-  item.quantity=value===''?null:Math.max(0,Math.min(100,Number(value)||0));
-  item.status=item.quantity===null?null:item.quantity>=item.minQty?'ok':'bad';item.resolvedAt=null;r.updatedAt=timestamp();
-  mutate('Cantidad de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.quantity??'Sin revisar'}`);openChecklist(id,$('#modal').scrollTop);
+ const c=ensureChecklist(id),item=c?.items.find(i=>i.reqId===reqId);
+ if(!item||!item.minQty)return;
+ if(quickOldRecord(inspection(theDate,id))){toast('Inspección anterior: utiliza Historial.');return;}
+ const qty=value===''?null:Math.max(0,Math.min(100,Number(value)||0)),scroll=$('#modal')?.scrollTop||0;
+ if(item.status==='bad'){
+  item.quantity=qty;c.updatedAt=timestamp();mutate('Actualizar cantidad',String(worker(id)?.name||'')+' · '+item.label+' · '+String(qty??'Sin revisar'));
+  toast('La falta inicial permanece. Usa Corregido para verificar que fue solucionada.');openChecklist(id,scroll);return;
+ }
+ const desired=qty===null?'none':qty>=item.minQty?'ok':'bad';
+ if(item.quantity===qty&&((desired==='none'&&!item.status)||item.status===desired))return;
+ item.quantity=qty;c.updatedAt=timestamp();
+ if(item.status!==desired){
+  if(quickAnswer(id,reqId,desired))openChecklist(id,scroll);
+  else openChecklist(id,scroll);
+ }else{
+  syncQuickInspection(id);mutate('Actualizar cantidad',String(worker(id)?.name||'')+' · '+item.label+' · '+String(qty??'Sin revisar'));openChecklist(id,scroll);
+ }
 }
-function resolveChecklist(id,reqId){const scroll=$('#modal').scrollTop,r=checklist(theDate,id),item=r?.items.find(x=>x.reqId===reqId);if(!item||item.status!=='bad')return;
-  item.resolvedAt=item.resolvedAt?null:timestamp();r.updatedAt=timestamp();mutate('Corrección de implemento',`${worker(id)?.name||''} · ${item.label} · ${item.resolvedAt?'Corregido':'Reabierto'}`);openChecklist(id,scroll);
+function resolveChecklist(id,reqId){
+ const c=checklist(theDate,id),i=c?.items.find(x=>x.reqId===reqId);if(!i||i.status!=='bad')return;
+ const scroll=$('#modal')?.scrollTop||0;
+ if(quickAnswer(id,reqId,i.resolvedAt?'reopen':'correct'))openChecklist(id,scroll);
 }
-function markChecklistAll(id){const w=worker(id);if(!w||!confirm(`¿Confirmas que revisaste todos los implementos de ${w.name} y que todos cumplen?`))return;
-  const r=ensureChecklist(id);if(!r)return;for(const item of r.items){item.status='ok';item.resolvedAt=null;}r.updatedAt=timestamp();mutate('Checklist completo conforme',`${w.name} · ${theDate}`);openChecklist(id);toast('Todos los puntos marcados conforme.');
+function markChecklistAll(id){
+ const scroll=$('#modal')?.scrollTop||0;
+ quickAll(id);
+ if($('#modalLayer').classList.contains('open'))openChecklist(id,scroll);
 }
 function renderRequirements(){
   setHeading('Configurar requisitos','Agrega o modifica los criterios de evaluación sin cambiar los registros antiguos.');
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><div><h2>Criterios de inspección</h2><p>Puedes desactivar un requisito y volver a activarlo cuando lo necesites.</p></div><button class="button primary" data-action="add-requirement">+ Nuevo requisito</button></div>
-    ${[...state.requirements].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.group.localeCompare(b.group)).map(r=>`<div class="person-row"><div><div class="person-name">${h(r.label)}</div><div class="person-detail">${h(r.group)}${r.minQty?' · Cantidad mínima: '+r.minQty:''}</div></div><div class="actions">${badge(r.active!==false?'Activo':'Desactivado',r.active!==false?'ok':'')}
+    ${[...state.requirements].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||a.group.localeCompare(b.group)).map(r=>`<div class="person-row"><div><div class="person-name">${h(r.label)}</div><div class="person-detail">${h(r.group)}${r.minQty?' · Cantidad mínima: '+r.minQty:''} · ${h(reqRoles(r).join(', '))}</div></div><div class="actions">${badge(r.active!==false?'Activo':'Desactivado',r.active!==false?'ok':'')}
        <button class="button tiny" data-action="edit-requirement" data-id="${h(r.id)}">Editar</button><button class="button tiny" data-action="toggle-requirement" data-id="${h(r.id)}">${r.active!==false?'Desactivar':'Activar'}</button><button class="button tiny" data-action="remove-requirement" data-id="${h(r.id)}">Quitar</button></div></div>`).join('')||emptyHint('Sin requisitos','Agrega los criterios para tu checklist.')}</div>
     <div class="callout">Los requisitos se copian al checklist de cada trabajador cuando inicia su revisión. Si modificas o desactivas uno, las inspecciones anteriores conservarán el nombre y la evaluación originales.</div>`;
 }
 function openRequirement(r=null){modal(r?'Editar requisito':'Nuevo requisito',`<form id="requirementForm" class="stack"><input type="hidden" name="id" value="${h(r?.id||'')}">
     <div class="field"><label>Nombre del requisito *</label><input name="label" maxlength="100" value="${h(r?.label||'')}" required placeholder="Ej. Encendedor"></div>
     <div class="field"><label>Grupo</label><select name="group">${['Uniforme','Presentación personal','Implementos','Otro'].map(x=>`<option ${r?.group===x?'selected':''}>${x}</option>`).join('')}</select></div>
-    <div class="field"><label>Cantidad mínima (0 si no aplica)</label><input type="number" name="minQty" min="0" max="100" value="${h(r?.minQty||0)}"></div></form>`,
+    <div class="field"><label>Cantidad mínima (0 si no aplica)</label><input type="number" name="minQty" min="0" max="100" value="${h(r?.minQty||0)}"></div><div class="field"><label>Puestos a los que corresponde *</label><div class="weekdays">${STAFF_ROLES.map(p=>`<label><input type="checkbox" name="reqPosition" value="${h(p)}" ${reqRoles(r||{id:'nuevo',positions:STAFF_ROLES}).includes(p)?'checked':''}> ${h(p)}</label>`).join('')}</div><small>Las revisiones anteriores mantienen sus criterios originales.</small></div></form>`,
     `<button class="button" data-action="close-modal">Cancelar</button><button class="button primary" data-action="save-requirement">Guardar requisito</button>`);
 }
 function saveRequirement(){const f=$('#requirementForm');if(!f)return;const label=f.elements.label.value.trim(),id=f.elements.id.value,minQty=Math.max(0,Math.min(100,Number(f.elements.minQty.value)||0));
   if(!label){toast('Indica el nombre del requisito.');return;}
   if(state.requirements.some(x=>x.id!==id&&x.label.toLowerCase()===label.toLowerCase()&&x.active!==false)){toast('Ya hay un requisito activo con ese nombre.');return;}
-  const data={label,group:f.elements.group.value,minQty};if(id)Object.assign(state.requirements.find(x=>x.id===id),data,{updatedAt:timestamp()});else state.requirements.push({id:uid(),...data,active:true,createdAt:timestamp()});
+  const positions=[...f.querySelectorAll('[name="reqPosition"]:checked')].map(c=>c.value);
+  if(!positions.length){toast('Selecciona al menos un puesto para el requisito.');return;}
+  const data={label,group:f.elements.group.value,minQty,positions};if(id)Object.assign(state.requirements.find(x=>x.id===id),data,{updatedAt:timestamp()});else state.requirements.push({id:uid(),...data,active:true,createdAt:timestamp()});
   mutate(id?'Editar requisito':'Crear requisito',label);closeModal();render();toast('Requisito guardado.');
 }
 function toggleRequirement(id){const r=state.requirements.find(x=>x.id===id);if(!r)return;r.active=r.active===false;r.updatedAt=timestamp();mutate(r.active?'Activar requisito':'Desactivar requisito',r.label);render();}
@@ -825,6 +1012,10 @@ const issueLabel=(id,ins)=>(ins?.issueLabels?.[id])||issueType(id)?.label||id;
 function issueGroupsForModal(old){
   const referenced=new Set(old?.issues||[]);
   const list=state.issueTypes.filter(t=>t.active!==false||referenced.has(t.id));
+  for(const id of referenced)if(!list.some(t=>t.id===id)){
+    const item=state.checklists.flatMap(c=>c.items||[]).find(x=>quickIssueId(x.reqId)===id);
+    list.push({id,label:old?.issueLabels?.[id]||id,group:item?.group||'Otro',active:false});
+  }
   return ISSUE_GROUP_NAMES.map(g=>[g,list.filter(t=>(t.group||'Otro')===g)]).filter(([,items])=>items.length);
 }
 function snapshotIssueLabels(r){r.issueLabels=r.issueLabels||{};for(const id of (r.issues||[]))if(!r.issueLabels[id])r.issueLabels[id]=issueType(id)?.label||id;}
@@ -1301,9 +1492,9 @@ function workbookUniform(start,end,label){
   const scheduled=[];
   for(const [date,roster] of Object.entries(state.rosters)){if(date<start||date>end)continue;const ids=new Set([...Object.keys(roster.staff||{}),...Object.keys(roster.overrides||{})]);for(const id of ids)scheduled.push({date,id,status:scheduleStatus(date,id)});}
   const unique=[...new Set([...ir.map(x=>x.staffId),...cr.map(x=>x.staffId),...scheduled.map(x=>x.id)])];
-  const personRows=[['Trabajador','Categoría','Inspecciones','Conformes','Observadas','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
+  const personRows=[['Trabajador','Categoría','Inspecciones','Conformes iniciales','Observadas iniciales','Corregidas después','Cobertura de uniforme','Checklists iniciados','Puntos revisados','Incumplimientos pendientes']];
   for(const id of unique){const i=ir.filter(x=>x.staffId===id),c=cr.filter(x=>x.staffId===id),d=scheduled.filter(x=>x.id===id&&isScheduled(x.status));
-    personRows.push([worker(id)?.name||i[0]?.staffName||c[0]?.staffName||'Desconocido',worker(id)?.category||'',i.length,i.filter(x=>x.result==='conforme').length,i.filter(x=>x.result==='observado').length,percentage(i.length,d.length),c.length,c.reduce((n,r)=>n+checklistSummary(r).reviewed,0),c.reduce((n,r)=>n+checklistSummary(r).bad,0)]);
+    personRows.push([worker(id)?.name||i[0]?.staffName||c[0]?.staffName||'Desconocido',worker(id)?.category||'',i.length,i.filter(x=>x.result==='conforme').length,i.filter(x=>x.result==='observado').length,i.filter(x=>x.result==='observado'&&correctionStatus(x)==='Corregido').length,percentage(i.length,d.length),c.length,c.reduce((n,r)=>n+checklistSummary(r).reviewed,0),c.reduce((n,r)=>n+checklistSummary(r).bad,0)]);
   }
   const del=state.deliveries.filter(d=>d.date>=start&&d.date<=end).sort((a,b)=>a.date.localeCompare(b.date));
   const deliveryRows=[['Fecha','Trabajador','Material','Cantidad','Motivo','Responsable','Estado','Devuelta el','Nota de devolución','Anulada el','Motivo de anulación','Registrado el']];
@@ -1468,6 +1659,9 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'settings':navigate('settings');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
+    case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;render();break;
+    case 'quick-answer':quickAnswer(id,el.dataset.req,el.dataset.value);break;
+    case 'quick-all':quickAll(id);break;
     case 'uniform-day-status':openUniformDayStatus(id);break;
     case 'uniform-set-day':setUniformDayStatus(id,el.dataset.status);break;
     case 'uniform-reset-day':resetUniformDayStatus(id);break;
@@ -1582,6 +1776,7 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
   const x=event.target;
+  if(x.id==='quickVerifier'||x.id==='checklistVerifier'){quickVerifierDraft=x.value;return;}
   if(x.id==='incidentSearch'){incidentSearch=x.value;render();const input=$('#incidentSearch');input?.focus();input?.setSelectionRange(incidentSearch.length,incidentSearch.length);return;}
   if(x.id==='staffSearch'){
     staffSearch=x.value;document.querySelectorAll('[data-staff-item]').forEach(row=>row.style.display=row.dataset.search.includes(staffSearch.toLocaleLowerCase('es'))?'':'none');
