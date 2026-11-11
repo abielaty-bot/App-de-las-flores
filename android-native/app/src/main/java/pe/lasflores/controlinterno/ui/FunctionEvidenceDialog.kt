@@ -1,6 +1,9 @@
 package pe.lasflores.controlinterno.ui
 
 import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
+import java.io.File
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -83,6 +86,24 @@ private fun jpegForBackup(context:Context,uri:Uri):String {
     return Base64.encodeToString(encoded,Base64.NO_WRAP)
 }
 
+/** El usuario elige WhatsApp y su grupo; compartir no confirma una entrega. */
+private fun sharePhoto(context:Context,photo:FunctionEvidenceEntity) {
+    val folder=File(context.cacheDir,"function-evidence").apply {mkdirs()}
+    val image=File(folder,photo.id+".jpg")
+    val bytes=Base64.decode(photo.imageBase64,Base64.DEFAULT)
+    require(bytes.size in 1..220_000) { "Imagen inválida." }
+    image.writeBytes(bytes)
+    val uri=FileProvider.getUriForFile(
+        context,context.packageName+".updatefiles",image
+    )
+    val intent=Intent(Intent.ACTION_SEND).apply {
+        type="image/jpeg"
+        putExtra(Intent.EXTRA_STREAM,uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent,"Compartir evidencia"))
+}
+
 @Composable
 fun FunctionEvidenceDialog(
     check:FunctionCheckEntity,
@@ -157,6 +178,11 @@ fun FunctionEvidenceDialog(
                                     MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.primary,
                                 style=MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick={
+                                runCatching { sharePhoto(context,photo) }.onFailure {
+                                    error=it.message?:"No se pudo compartir la fotografía."
+                                }
+                            }) { Text("Compartir fotografía") }
                             if(photo.groupSentAtMillis==null) {
                                 OutlinedButton(onClick={sending=photo.id}) {
                                     Text("Confirmar envío al grupo")
