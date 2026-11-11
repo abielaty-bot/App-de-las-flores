@@ -54,6 +54,7 @@ private val secondary= listOf(
     AppDestination("incidentes","Incidentes",R.drawable.ic_lf_incidentes),
     AppDestination("reportes","Reportes",R.drawable.ic_lf_reportes),
     AppDestination("backups","Respaldos",R.drawable.ic_lf_backups),
+    AppDestination("settings","Configuración",R.drawable.ic_lf_settings),
     AppDestination("updates","Actualizaciones",R.drawable.ic_lf_updates)
 )
 private val destinations=main+secondary
@@ -154,6 +155,7 @@ internal fun LasFloresAppShell(
 
 @Composable
 private fun SideNavigation(selected:String,onNavigate:(String)->Unit) {
+    val dark = LocalLasFloresDark.current
     Column(
         modifier=Modifier.width(213.dp).fillMaxHeight()
             .background(LasFloresPalette.DeepPlum)
@@ -176,11 +178,11 @@ private fun SideNavigation(selected:String,onNavigate:(String)->Unit) {
                 onClick={onNavigate(d.id)},
                 icon={Icon(painterResource(d.icon),contentDescription=null)},
                 colors=NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor=Color(0xFFF0DAC2),
-                    selectedTextColor=LasFloresPalette.DeepPlum,
-                    selectedIconColor=LasFloresPalette.DeepPlum,
+                    selectedContainerColor=if(dark) Color(0xFF513542) else Color(0xFFF0DAC2),
+                    selectedTextColor=if(dark) Color.White else LasFloresPalette.DeepPlum,
+                    selectedIconColor=if(dark) LasFloresPalette.NightChampagne else LasFloresPalette.DeepPlum,
                     unselectedTextColor=Color.White,
-                    unselectedIconColor=Color(0xFFEAD6D9)
+                    unselectedIconColor=if(dark) Color(0xFFDCB98A) else Color(0xFFEAD6D9)
                 )
             )
         }
