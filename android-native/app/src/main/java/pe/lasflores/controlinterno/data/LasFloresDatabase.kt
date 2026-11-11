@@ -11,8 +11,9 @@ import androidx.sqlite.execSQL
     entities = [StaffEntity::class, UniformInspectionEntity::class,
         UniformAnswerEntity::class, UniformEventEntity::class, DailyActivityEntity::class,
         StaffVacationEntity::class, StaffDayOverrideEntity::class,
-        UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class],
-    version = 4,
+        UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class,
+        BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class],
+    version = 5,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -20,6 +21,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun uniformDao(): UniformDao
     abstract fun catalogDao(): UniformCatalogDao
     abstract fun materialDao(): MaterialDao
+    abstract fun briefingDao(): BriefingDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -137,4 +139,48 @@ val MIGRATION_3_4 = Migration(3, 4) { connection ->
     """)    // Solo aplica a revisiones nuevas; los snapshots anteriores conservan sus criterios.
     connection.execSQL("UPDATE uniform_requirements SET minQty=3, label='Lapiceros (mínimo 3)' WHERE id='lapiceros'")
 
+}
+
+
+/** Migración 4.0002 -> 4.0003: crea Briefings sin tocar Personal ni Uniformes. */
+val MIGRATION_4_5 = Migration(4, 5) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS briefing_attendance (
+        id TEXT NOT NULL PRIMARY KEY,
+        dateIso TEXT NOT NULL,
+        staffId TEXT NOT NULL,
+        staffNameSnapshot TEXT NOT NULL,
+        categorySnapshot INTEGER NOT NULL,
+        groupHour INTEGER NOT NULL,
+        presence TEXT NOT NULL,
+        informedAtMillis INTEGER,
+        informedBy TEXT,
+        createdAtMillis INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE UNIQUE INDEX IF NOT EXISTS index_briefing_attendance_dateIso_staffId
+        ON briefing_attendance(dateIso,staffId)""")
+    connection.execSQL("""CREATE INDEX IF NOT EXISTS index_briefing_attendance_dateIso_groupHour
+        ON briefing_attendance(dateIso,groupHour)""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS briefing_sessions (
+        dateIso TEXT NOT NULL,
+        groupHour INTEGER NOT NULL,
+        topics TEXT NOT NULL,
+        updatedAtMillis INTEGER NOT NULL,
+        PRIMARY KEY(dateIso,groupHour)
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS briefing_events (
+        id TEXT NOT NULL PRIMARY KEY,
+        dateIso TEXT NOT NULL,
+        staffId TEXT NOT NULL,
+        action TEXT NOT NULL,
+        beforeValue TEXT NOT NULL,
+        afterValue TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        details TEXT NOT NULL,
+        atMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE INDEX IF NOT EXISTS index_briefing_events_dateIso
+        ON briefing_events(dateIso)""")
+    connection.execSQL("""CREATE INDEX IF NOT EXISTS index_briefing_events_staffId
+        ON briefing_events(staffId)""")
 }

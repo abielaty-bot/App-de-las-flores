@@ -1,26 +1,28 @@
 # Hoja de ruta — Las Flores Android
 
-## Instalada y comprobada: 4.0001
-- Actualización Beta v4 → 4.0001 desde la aplicación en tablet.
-- Conservación del trabajador de prueba y de una inspección 9/9 observada comprobada mediante capturas.
-- Respaldo y restauración Android efectuados; aún se requiere una prueba sistemática de regresión sobre el conjunto completo de registros.
+## Publicadas (beta)
+- 4.0001: Personal, programación y respaldos Android.
+- 4.0002: Uniformes, requisitos configurables, materiales, historial y publicación automatizada.
 
-## Rama de desarrollo: 4.0002 — Uniformes e implementos
-- [x] Room v3 → v4 no destructiva.
-- [x] Requisitos configurables por puesto, grupo, cantidad y activación.
-- [x] Registro inmutable de requisitos por inspección, para no alterar históricos al editar criterios.
-- [x] Comprobación de cantidades mínimas (ej. lapiceros).
-- [x] Entregas, devoluciones y anulaciones de materiales con responsable e historial.
-- [x] Pantallas nativas de inspección, configuración de requisitos y materiales.
-- [x] JSON Android versión 2: guarda catálogo, snapshots e historial de materiales; acepta JSON versión 1.
-- [ ] CI completo de la rama; pruebas reales de migración v3 a v4.
-- [ ] Prueba de copias JSON v1/v2, devoluciones y continuidad de inspecciones en tablet.
+## En desarrollo: 4.0003 — Briefings
+- [x] Rama aislada desde la versión firmada 4.0002.
+- [x] Base de datos Room v5 y migración no destructiva de 4 a 5.
+- [x] Un registro por trabajador y fecha, con grupo 11:00/12:00.
+- [x] Estados: Asistió, Atendiendo mesa, No asistió al briefing, Sin registrar.
+- [x] Seguimiento de comunicación posterior con responsable e historial.
+- [x] Temas e indicaciones por grupo y fecha.
+- [x] Pendientes históricos, historial filtrable y estadísticas mensuales por persona.
+- [x] Auditoría de cambios; sin falta automática para registros no marcados.
+- [x] Respaldo JSON Android formato 3, compatible con importación de formatos 1 y 2.
+- [ ] Validar CI completo, migración real en tablet, respaldo/restauración y grupos.
+- [ ] Publicación 4.0003 firmada solo después de pruebas.
 
-## Etapas siguientes, sin iniciar aún
-- 4.0003 — Briefings: asistencia presencial, información posterior, temas, histórico y estadísticas.
-- 4.0004 — Funciones por oficinas, correcciones, evidencias y análisis individual.
-- 4.0005 — Incidentes: alimentos, bebidas, atención, causas, acciones y cierre.
-- 4.0006 — Excel/estadísticas y migración total de respaldos de la web.
+## Próximas etapas
+- 4.0004: Funciones por oficina, evidencias y cumplimiento diario/mensual.
+- 4.0005: Incidentes, soluciones y seguimiento.
+- 4.0006: Reportes Excel y migración web completa.
 
-## Criterios de publicación
-No fusionar ni publicar sin CI y pruebas en dispositivo. La web no se desinstala ni se importan respaldos incompletos. Se mantiene paquete y firma de actualización del canal Android.
+## Reglas de seguridad
+No desinstalar la app web ni sobrescribir los datos de producción durante la migración.
+No convertir registros omitidos en faltas automáticamente.
+La restauración completa reemplaza todos los módulos: advertir cuando el respaldo proviene de una versión anterior.
