@@ -65,9 +65,8 @@ function convert(input, existingAndroid) {
   for(const [staffId,v] of Object.entries(states)){
    if(!verifyStaff(staffId,"programación"))continue;
    if(!["working","support","rest","vacation","absent","leave","off"].includes(v)){error("Situación desconocida: "+v);continue;}
-   out.overrides.push({dateIso:date,staffId,status:v==="off"?"rest":v,
+   out.overrides.push({dateIso:date,staffId,status:v,
     updatedAtMillis:stamp(roster.updatedAt||roster.createdAt,dateStamp(date,error,"programación"),error,"programación")});
-   if(v==="off")warn("«No programado» se muestra como Descanso en Android; el valor exacto queda en el archivo original.");
   }
  }
  const reqById=new Map(),sourceReq=arr(data.requirements);
@@ -88,7 +87,7 @@ function convert(input, existingAndroid) {
    if(!reqById.has(id)){const e={id,label:name,category:"Otro",minQty:0,rolesCsv:"|"+ROLES.join("|")+"|",isActive:false,sortOrder:out.requirements.length,updatedAtMillis:0};reqById.set(id,e);out.requirements.push(e);}
    return id;
  }
- const inspectionsByKey=new Map(),checksByKey=new Map();
+ const inspectionsByKey=new Map(),checksByKey=new Map(),allInspectionsByKey=new Map();
  for(const check of arr(data.checklists)){
    const key=str(check.date)+"|"+str(check.staffId);
    if(checksByKey.has(key))error("Checklist duplicado: "+key);
@@ -96,14 +95,21 @@ function convert(input, existingAndroid) {
  }
  for(const r of arr(data.inspections)){
    const key=str(r.date)+"|"+str(r.staffId);
-   if(inspectionsByKey.has(key))error("Inspección duplicada: "+key);
-   inspectionsByKey.set(key,r);
+   if(!allInspectionsByKey.has(key))allInspectionsByKey.set(key,[]);
+   allInspectionsByKey.get(key).push(r);
  }
+ let archivedVoids=0;
+ for(const [key,entries] of allInspectionsByKey.entries()){
+   const active=entries.filter(r=>!r.voidedAt),voids=entries.filter(r=>r.voidedAt);
+   archivedVoids+=voids.length;
+   if(active.length>1)error("Más de una inspección vigente para el mismo día y trabajador: "+key);
+   if(active.length)inspectionsByKey.set(key,active[0]);
+ }
+ if(archivedVoids)warn(archivedVoids+" inspecciones anuladas se conservarán en el respaldo Web original archivado; no se importan como inspecciones vigentes.");
  const keys=new Set([...inspectionsByKey.keys(),...checksByKey.keys()]);
  for(const key of keys){
   const r=inspectionsByKey.get(key),c=checksByKey.get(key),parts=key.split("|"),date=parts[0],pid=parts.slice(1).join("|");
   if(!validDay(date)||!verifyStaff(pid,"uniformes "+key))continue;
-  if(r?.voidedAt){error("Inspección anulada no representable sin pérdida: "+key);continue;}
   const who=personById.get(pid),id=str(r?.id||c?.id||"web-inspection:"+key);
   const reqs=new Map(),answers=new Map();
   for(const item of arr(c?.items)){
@@ -123,8 +129,12 @@ function convert(input, existingAndroid) {
   }
   const issueIds=arr(r?.issues).map(str);
   for(const issue of issueIds){
-   const isReq=issue.startsWith("req:")&&reqById.has(issue.slice(4));
-   const reqId=isReq?issue.slice(4):legacyReq(issue,str(obj(r?.issueLabels)[issue]||issueTypeById.get(issue)?.label||issue));
+   const snapshot=str(obj(r?.issueLabels)[issue]);
+   const suggestion=issue.startsWith("req:")?issue.slice(4):
+     snapshot.startsWith("req:")?snapshot.slice(4):
+     issue.startsWith("it-req-")?issue.slice(7):"";
+   const reqId=suggestion&&reqById.has(suggestion)?suggestion:
+     legacyReq(issue,str(snapshot||issueTypeById.get(issue)?.label||issue));
    const meta=reqById.get(reqId);if(!meta)continue;
    if(!reqs.has(reqId))reqs.set(reqId,{inspectionId:id,requirementId:reqId,labelSnapshot:meta.label,categorySnapshot:meta.category,minQtySnapshot:0});
    const prior=answers.get(reqId);
@@ -133,11 +143,22 @@ function convert(input, existingAndroid) {
     status:"BAD",correctedAtMillis:detail.at?stamp(detail.at,null,error,"corrección"):arr(r?.resolvedIssues).map(str).includes(issue)?stamp(r?.correctedAt,null,error,"corrección"):null,
     correctedBy:detail.by?str(detail.by):arr(r?.resolvedIssues).map(str).includes(issue)?"Migrado de Web":null,quantity:prior?.quantity??null});
   }
-  if(!reqs.size && r){
-   const possible=out.requirements.filter(q=>q.isActive&&q.rolesCsv.includes("|"+str(who.position||"Mozo")+"|"));
-   for(const q of possible){reqs.set(q.id,{inspectionId:id,requirementId:q.id,labelSnapshot:q.label,categorySnapshot:q.category,minQtySnapshot:q.minQty});
-    if(r.result==="conforme")answers.set(q.id,{inspectionId:id,requirementId:q.id,labelSnapshot:q.label,groupSnapshot:q.category,status:"OK",correctedAtMillis:null,correctedBy:null,quantity:q.minQty||null});
+  if(!reqs.size && r?.result==="conforme" && !c){
+   // Las inspecciones antiguas contienen únicamente «Conforme». Inventar que
+   // se verificaron diez requisitos inflaría artificialmente las métricas.
+   const summaryId="web-legacy-resumen";
+   if(!reqById.has(summaryId)){
+     const e={id:summaryId,label:"Conforme general Web sin desglose",category:"Otro",
+       minQty:0,rolesCsv:"|"+ROLES.join("|")+"|",isActive:false,
+       sortOrder:out.requirements.length,updatedAtMillis:0};
+     reqById.set(summaryId,e);out.requirements.push(e);
    }
+   const q=reqById.get(summaryId);
+   reqs.set(q.id,{inspectionId:id,requirementId:q.id,
+     labelSnapshot:q.label,categorySnapshot:q.category,minQtySnapshot:0});
+   answers.set(q.id,{inspectionId:id,requirementId:q.id,
+     labelSnapshot:q.label,groupSnapshot:q.category,status:"OK",
+     correctedAtMillis:null,correctedBy:null,quantity:null});
   }
   if(!reqs.size){error("Inspección sin requisitos: "+key);continue;}
   const bad=[...answers.values()].some(a=>a.status==="BAD");
@@ -203,11 +224,14 @@ function convert(input, existingAndroid) {
   out.briefingSessions.push({dateIso:date,groupHour:group,topics:topic,
    updatedAtMillis:stamp(v.updatedAt,dateStamp(date,error,"sesión"),error,"sesión")});
  }
- const taskIds=new Set();
- for(const [area,labels] of Object.entries(GROUPS))labels.forEach((label,i)=>{
-  const slug=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
-  const id=slug(area)+"-"+slug(label);taskIds.add(id);
-  out.functionTasks.push({id,area,label,periodicity:"DIARIA",isActive:true,sortOrder:i,updatedAtMillis:0});
+ const taskIds=new Map();
+ let taskOrder=0;
+ for(const [area,labels] of Object.entries(GROUPS))labels.forEach(label=>{
+  const slug=x=>x.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+  const id=("base-"+area+"-"+label).toLowerCase().replace(/[^a-z0-9]/g,"-");
+  taskIds.set(slug(area)+"-"+slug(label),id);
+  taskIds.set(id,id);
+  out.functionTasks.push({id,area,label,periodicity:"DIARIA",isActive:true,sortOrder:taskOrder++,updatedAtMillis:0});
  });
  for(const f of arr(data.functionChecks)){
   const pid=str(f.staffId),date=str(f.date),task=str(f.taskId);
@@ -217,7 +241,7 @@ function convert(input, existingAndroid) {
   const result={ok:"OK",bad:"BAD",pending:"PENDING"}[f.result];
   if(!result)error("Resultado de función desconocido: "+str(f.id));
   out.functionChecks.push({id:str(f.id),dateIso:date,staffId:pid,staffNameSnapshot:str(f.staffName||personById.get(pid)?.name||""),
-   taskId:task,taskLabelSnapshot:str(f.taskLabel),areaSnapshot:str(f.area),
+   taskId:taskIds.get(task)||task,taskLabelSnapshot:str(f.taskLabel),areaSnapshot:str(f.area),
    periodicitySnapshot:"DIARIA",result,note:str(f.note||""),correctedAtMillis:stamp(f.correctedAt,null,error,"función"),
    correctionNote:str(f.correctionNote||""),voidedAtMillis:stamp(f.voidedAt,null,error,"anulación función"),
    createdAtMillis:stamp(f.createdAt,dateStamp(date,error,"función"),error,"función"),
@@ -297,8 +321,19 @@ function convert(input, existingAndroid) {
       };
       const pk=fields[key]||(x=>x.id),indexed=new Map(arr(base[key]).map(x=>[pk(x),x]));
       for(const r of out[key]){const k=pk(r),old=indexed.get(k);
-       if(old && JSON.stringify(old)!==JSON.stringify(r))error("Conflicto en "+key+": "+k);
-       else if(!old)indexed.set(k,r);
+       if(old){
+         if(key==="requirements" && old.category===r.category &&
+           old.minQty===r.minQty && old.rolesCsv===r.rolesCsv &&
+           old.isActive===r.isActive) {
+           if(old.label!==r.label)warn("Requisito «"+k+"»: se mantiene la etiqueta del catálogo Android; el historial Web conserva la original.");
+           continue;
+         }
+         if(key==="incidentTypes" && old.category===r.category &&
+           old.label===r.label && old.isActive===r.isActive)continue;
+         if(key==="functionTasks" && old.area===r.area &&
+           old.label===r.label && old.periodicity===r.periodicity)continue;
+         if(JSON.stringify(old)!==JSON.stringify(r))error("Conflicto en "+key+": "+k);
+       } else indexed.set(k,r);
       }
       out[key]=[...indexed.values()];
     }
