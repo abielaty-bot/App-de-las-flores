@@ -1,24 +1,27 @@
-# Las Flores Android 4.0004 — Funciones
+# Las Flores Android 4.0005 — Incidentes
 
-Código Android Kotlin/Compose, Room/SQLite offline-first, canal firmado Github Releases.
+Aplicación Android Kotlin + Jetpack Compose + Room/SQLite, local-first.
 
-## Funciones incluidas
-- Catálogo inicial de la web: Oficina I (Caja, Estrado, Entrada, Ventana, C, Vasos);
-  Oficina II (Caja, Entrada, O1, O2, T1, T2); generales (Manteles, Heladería,
-  Desperdicios, Jabas y utensilios, Exhibidor de vinos).
-- El catálogo es editable, permite desactivar sin perder historial y crear funciones
-  mensuales. Los textos específicos de cada puesto pueden ajustarse sin crear APK.
-- Registro de responsables, estados, observaciones, correcciones, anulaciones y auditoría.
-- Evidencias: hasta 2 fotos JPEG comprimidas por asignación, registradas en SQLite.
-- *Confirmar envío al grupo* es un registro manual declarativo; no envía mensajes por
-  WhatsApp ni certifica que el grupo haya recibido la imagen.
-- Cumplimiento mensual: Cumplió / (Cumplió + No cumplió). Sin valor cuando no hay
-  evaluaciones. Las anulaciones y pendientes no computan.
-- Respaldos JSON Android formato 4, incluyendo fotografías; importación de versiones 1-3.
-- Room v6 y migración 5→6 no destructiva.
+## Módulo Incidentes
+- Productos (alimentos y bebidas) y operativos (servicio, POS, coordinación).
+- Tipos editables con catálogo inicial equivalente al módulo web.
+- Fecha/hora, código anual secuencial, área donde se detectó, origen probable,
+  origen confirmado después de verificación, prioridad, impacto, hechos y medida inmediata.
+- Responsable del seguimiento vinculado a Personal.
+- Estados registrado/en atención/pendiente de verificación/cerrado/anulado.
+- Acciones trazables: corrección, comunicación, investigación, prevención y
+  verificación; cierre solo tras verificación, reapertura y anulación justificadas.
+- Histórico, filtros, estadísticas mensuales por área de detección y tipo.
+- Cualquier tipo editado mantiene la etiqueta histórica de los casos anteriores.
 
-## Pendientes antes de publicar
-- CI compilación, tests y APK firmada.
-- Probar actualización en tablet 4.0003→4.0004, conservación del historial y migración.
-- Probar fotos, restauración y envío manual en condiciones reales.
-- Exportación Excel y migración de web completa en una versión posterior.
+## Persistencia
+- Room v7, migración no destructiva 6→7.
+- JSON Android formato 5: incidentes, tipos, acciones y módulos anteriores;
+  restauración de versiones 1–4 con advertencia.
+- La restauración completa reemplaza registros en todos los módulos, guarda
+  copia interna previa y se ejecuta en una transacción.
+- El respaldo de la web no se importa parcialmente.
+
+## Pendiente de pruebas
+- Compilación, tests unitarios, release firmada y restauración en tablet.
+- Exportación Excel en la próxima versión 4.0006.

@@ -1,29 +1,31 @@
-# Las Flores Android — estado de módulos
+# Las Flores Android — evolución
 
 ## Publicadas
-- 4.0001: Personal y respaldo.
-- 4.0002: Uniformes, implementos y seguimiento.
-- 4.0003: Briefings, asistentes, comunicación, historial y estadísticas.
+- 4.0001 Personal, programación y respaldos.
+- 4.0002 Uniformes, control de implementos, catálogo, historial.
+- 4.0003 Briefings con asistencia, grupos, temas y seguimiento.
+- 4.0004 Funciones diarias y mensuales, fotos y auditoría.
 
-## 4.0004 — Funciones (rama de desarrollo)
-- [x] Room 5→6, migración no destructiva.
-- [x] Catálogo editable por Oficina I, Oficina II y Funciones generales.
-- [x] Tareas diarias y mensuales, con snapshots de nombre/área/frecuencia.
-- [x] Asignación a varios trabajadores programados, sin duplicar tareas activas.
-- [x] Revisión: pendiente/cumplió/no cumplió, observación y revisor.
-- [x] Correcciones sin convertir incumplimientos en "cumplió".
-- [x] Anulaciones e historial auditable sin eliminación de evaluaciones.
-- [x] Fotos JPEG locales y confirmación *manual* del envío al grupo de WhatsApp.
-- [x] Resumen mensual por persona y tareas incumplidas más frecuentes.
-- [x] JSON Android v4 con fotos, catálogo y auditorías; importar v1-v3 con aviso.
+## 4.0005 — Incidentes (en desarrollo)
+- [x] Room 6→7: nuevas tablas sin alterar registros existentes.
+- [x] Tipos de incidentes configurables (alimentos/bebidas, operaciones/servicio).
+- [x] Registros INC-AÑO-NNNN con prioridad, fecha, hora, impacto y responsable.
+- [x] Diferenciar área de detección, origen probable y origen confirmado.
+- [x] Medida inmediata; seguimiento por acción, responsable y estado.
+- [x] Cierre con verificación obligatoria, reapertura y anulación auditable.
+- [x] Filtros históricos por área, estado, categoría, fechas y texto.
+- [x] Estadísticas mensuales por área detectada y tipo, con anulados excluidos.
+- [x] Respaldo Android v5 de tipos, incidentes y acciones. Compatible v1-v4.
+- [x] Navegación inferior desplazable para más módulos.
 - [ ] CI completo en verde y prueba en tablet.
-- [ ] Exportación Excel consolidada: etapa de Reportes.
+- [ ] Verificar copia/restauración y continuidad de Funciones, Uniformes, Briefings y Personal.
 
-## Siguientes
-- 4.0005: Incidentes, causas y acciones correctivas.
-- 4.0006: Reportes Excel e importación íntegra de datos web.
+## Próxima etapa: 4.0006 — Reportes y migración
+- Excel individual y consolidado diario/semanal/mensual.
+- Migración de JSON de la web solo cuando todos los módulos estén representados.
 
-## Reglas
-No desinstalar; no borrar datos.
-No confundir una foto local con envío a WhatsApp.
-La tasa mensual solo incluye funciones evaluadas (cumplió o no cumplió).
+## Criterios
+- El área donde se detecta un incidente no es automáticamente el origen.
+- Nunca atribuir responsabilidad disciplinaria automáticamente.
+- Los anulados y las acciones quedan en historial.
+- La APK solo se publica después de pruebas automatizadas y revisión.
