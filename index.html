@@ -136,7 +136,7 @@
     <button type="button" data-nav="personal" data-bottom="personal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2H2Zm16-13a3 3 0 0 1 0 6"/></svg><span>Personal</span></button>
     <button type="button" data-nav="brief" data-bottom="brief"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4h6m-6 6h6m-6 4h6m-6 4h4"/></svg><span>Briefings</span></button>
     <button type="button" data-nav="uniform" data-bottom="uniform"><svg viewBox="0 0 24 24"><path d="m8 3 4 3 4-3 5 4-2 5-3-1v10H8V11l-3 1-2-5z"/></svg><span>Uniformes</span></button>
-    <button type="button" data-nav="reports" data-bottom="reports"><svg viewBox="0 0 24 24"><path d="M4 20V11h4v9m4 0V4h4v16m4 0v-8h3v8M2 21h20"/></svg><span>Reportes</span></button>
+    <button type="button" data-action="more-menu" data-bottom="more"><svg viewBox="0 0 24 24"><path d="M4 20V11h4v9m4 0V4h4v16m4 0v-8h3v8M2 21h20"/></svg><span>Más</span></button>
   </nav>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -505,7 +505,7 @@ function setHeading(title,subtitle){
   $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">Inicio › ${h(menuLocation().section)} › ${h(menuLocation().page)}</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
 }
 function updateBottomNav(){
-  const section=getSection(), active=view==='home'?'home':section==='reports'?'reports':section==='brief'?'brief':section==='uniform'?'uniform':section==='personal'?'personal':'';
+  const section=getSection(), active=view==='home'?'home':section==='brief'?'brief':section==='uniform'?'uniform':section==='personal'?'personal':'more';
   document.querySelectorAll('[data-bottom]').forEach(button=>{
     const selected=button.dataset.bottom===active;
     button.classList.toggle('active',selected);
@@ -1828,6 +1828,13 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'home':navigate('home');break;
     case 'go-back':goBack();break;
     case 'settings':navigate('settings');break;
+    case 'more-menu':modal('Otras secciones',
+      '<div class="stack">'+
+      '<button class="button block" data-nav="functions">Control de funciones</button>'+
+      '<button class="button block" data-nav="incidents">Registro de incidentes</button>'+
+      '<button class="button block" data-nav="reports">Reportes y Excel</button>'+
+      '<button class="button block" data-nav="settings">Respaldos y configuración</button>'+
+      '</div>');break;
     case 'toggle-theme':toggleTheme();break;
     case 'manual-save':if(persist()) {toast('Cambios guardados.');if(view==='settings')render();}break;
     case 'quick-toggle':quickExpandedId=quickExpandedId===id?'':id;quickFilter={staffId:'',date:'',mode:'all',ids:[]};render();break;
