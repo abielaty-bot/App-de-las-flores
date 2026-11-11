@@ -117,7 +117,7 @@ private fun FunctionTaskDialog(
             }
         },
         confirmButton={
-            Button(enabled=title.trim().length in 2..100,
+            Button(enabled=FunctionRules.validTaskLabel(title),
                 onClick={onSave(task?.id,title,area,periodicity)}){Text("Guardar")}
         },
         dismissButton={TextButton(onClick=onDismiss){Text("Cancelar")}}
