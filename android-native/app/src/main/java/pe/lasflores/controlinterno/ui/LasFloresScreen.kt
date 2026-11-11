@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.data.OfflineBackupManager
+import pe.lasflores.controlinterno.report.ReportRepository
 import pe.lasflores.controlinterno.domain.STAFF_ROLES
 import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.update.UpdateScreen
@@ -53,7 +54,7 @@ private val lightBackground = Color(0xFFF7F9F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, functionVm: FunctionViewModel, incidentVm: IncidentViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
+fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, functionVm: FunctionViewModel, incidentVm: IncidentViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager, reportRepository: ReportRepository) {
     var screen by rememberSaveable { mutableStateOf("inicio") }
     val people by vm.staff.collectAsState()
     val saveStatus by vm.saveState.collectAsState()
@@ -64,7 +65,7 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
     val navItems = listOf(
         "inicio" to "Inicio", "personal" to "Personal", "uniformes" to "Uniformes",
         "briefings" to "Briefings", "funciones" to "Funciones", "incidentes" to "Incidentes",
-        "backups" to "Respaldos", "updates" to "Actualizar"
+        "reportes" to "Reportes", "backups" to "Respaldos", "updates" to "Actualizar"
     )
     val navScroll = rememberLazyListState()
     LaunchedEffect(screen) {
@@ -110,13 +111,15 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
                     "briefings" -> BriefingScreen(briefingVm, vm)
                     "funciones" -> FunctionScreen(functionVm, vm)
                     "incidentes" -> IncidentScreen(incidentVm, vm)
+                    "reportes" -> ReportScreen(reportRepository, vm)
                     "updates" -> UpdateScreen(updateVm)
                     "backups" -> BackupScreen(backupManager)
                     else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
                         onOpenUniforms = { screen = "uniformes" },
                         onOpenUpdates = { screen = "updates" }, onOpenBackups = { screen = "backups" },
                         onOpenBriefings = { screen = "briefings" }, onOpenFunctions = { screen = "funciones" },
-                        onOpenIncidents = { screen = "incidentes" })
+                        onOpenIncidents = { screen = "incidentes" },
+                        onOpenReports = { screen = "reportes" })
                 }
             }
         }
@@ -124,14 +127,14 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
 }
 
 @Composable
-private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit, onOpenFunctions: () -> Unit, onOpenIncidents: () -> Unit) {
+private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit, onOpenFunctions: () -> Unit, onOpenIncidents: () -> Unit, onOpenReports: () -> Unit) {
     val modules = listOf(
         "Personal" to "Disponible · ${people.count { it.isActive }} activos",
         "Briefings" to "Disponible · Asistencia, temas e historial",
         "Uniformes" to "Disponible · Borradores y correcciones",
         "Funciones" to "Disponible · Asignaciones, evidencias y estadísticas",
         "Incidentes" to "Disponible · Casos, seguimiento, análisis y tipos",
-        "Reportes" to "Próxima etapa",
+        "Reportes" to "Disponible · Excel diario, semanal y mensual",
         "Respaldos" to "Disponible · Exportación y restauración JSON",
         "Actualizaciones" to "Consultar GitHub Releases desde Las Flores"
     )
@@ -143,7 +146,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
         item {
             Text("Panel principal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Personal, Uniformes, Briefings, Funciones e Incidentes disponibles. Faltan Reportes Excel y la migración web.",
+            Text("Personal, Uniformes, Briefings, Funciones, Incidentes y Reportes Excel disponibles. Falta la migración completa de la web.",
                 style = MaterialTheme.typography.bodyMedium)
         }
         items(modules) { (title, description) ->
@@ -151,7 +154,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Funciones" -> onOpenFunctions(); "Incidentes" -> onOpenIncidents(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
+                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Funciones" -> onOpenFunctions(); "Incidentes" -> onOpenIncidents(); "Reportes" -> onOpenReports(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
             ) {
                 Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
@@ -159,7 +162,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                         Text(title, fontWeight = FontWeight.Bold)
                         Text(description, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Funciones" || title == "Incidentes" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
+                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Funciones" || title == "Incidentes" || title == "Reportes" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
