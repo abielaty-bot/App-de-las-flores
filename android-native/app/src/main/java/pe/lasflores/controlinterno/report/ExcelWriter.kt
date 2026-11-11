@@ -76,8 +76,8 @@ class ExcelWriter {
             emit("</row>")
         }
         emit("</sheetData>")
-        if(count > 1) emit("""<mergeCells count="2"><mergeCell ref="A1:$lastCol${1}"/><mergeCell ref="A2:$lastCol${2}"/></mergeCells>""")
         if(sheet.rows.isNotEmpty()) emit("""<autoFilter ref="A4:$lastCol$end"/>""")
+        if(count > 1) emit("""<mergeCells count="2"><mergeCell ref="A1:$lastCol${1}"/><mergeCell ref="A2:$lastCol${2}"/></mergeCells>""")
         emit("</worksheet>")
         zip.closeEntry()
     }
