@@ -63,6 +63,7 @@ class FunctionRulesTest {
     @Test fun shortValidAreaCodesCanBeRestoredWithoutRenaming() {
         assertTrue(FunctionRules.validTaskLabel("C"))
         assertTrue(FunctionRules.validTaskLabel("O1"))
+        assertTrue(FunctionRules.validTaskLabel("Zona C"))
         assertFalse(FunctionRules.validTaskLabel(""))
         assertFalse(FunctionRules.validTaskLabel("   "))
         assertFalse(FunctionRules.validTaskLabel("X".repeat(101)))
