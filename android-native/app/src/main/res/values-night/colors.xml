@@ -1,0 +1,4 @@
+<resources>
+    <!-- Reutilizado por el drawable de lanzamiento antes de que arranque Compose. -->
+    <color name="las_flores_ivory">#171519</color>
+</resources>
