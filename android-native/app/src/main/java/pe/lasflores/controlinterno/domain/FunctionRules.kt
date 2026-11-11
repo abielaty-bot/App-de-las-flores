@@ -12,6 +12,10 @@ object FunctionRules {
     val PERIODS = setOf("DIARIA", "MENSUAL")
     val AREAS = listOf("Oficina I", "Oficina II", "Funciones generales")
 
+    /** Algunos sectores se identifican con una sola letra, como «C». */
+    fun validTaskLabel(label: String): Boolean =
+        label.isNotBlank() && label.trim().length <= 100
+
     data class Summary(
         val assigned: Int, val evaluated: Int, val ok: Int, val bad: Int,
         val pending: Int, val corrected: Int, val missingEvidence: Int,
