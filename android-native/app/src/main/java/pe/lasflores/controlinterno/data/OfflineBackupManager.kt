@@ -9,6 +9,7 @@ import pe.lasflores.controlinterno.domain.STAFF_ROLES
 import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRules
+import pe.lasflores.controlinterno.domain.BriefingRules
 import java.io.File
 
 data class BackupPreview(
@@ -19,7 +20,11 @@ data class BackupPreview(
     val vacations: Int,
     val dailyChanges: Int,
     val requirements: Int = 0,
-    val deliveries: Int = 0
+    val deliveries: Int = 0,
+    val briefings: Int = 0,
+    val briefingSessions: Int = 0,
+    val briefingEvents: Int = 0,
+    val formatVersion: Int = 3
 )
 
 /**
@@ -32,7 +37,8 @@ class OfflineBackupManager(
     private val staffDao: StaffDao,
     private val uniformDao: UniformDao,
     private val catalogDao: UniformCatalogDao,
-    private val materialsDao: MaterialDao
+    private val materialsDao: MaterialDao,
+    private val briefingDao: BriefingDao
 ) {
     private data class Payload(
         val staff: List<StaffEntity>,
@@ -44,11 +50,16 @@ class OfflineBackupManager(
         val activityDays: List<DailyActivityEntity>,
         val requirements: List<UniformRequirementEntity>,
         val snapshots: List<InspectionRequirementEntity>,
-        val deliveries: List<MaterialDeliveryEntity>
+        val deliveries: List<MaterialDeliveryEntity>,
+        val briefingAttendance: List<BriefingAttendanceEntity>,
+        val briefingSessions: List<BriefingSessionEntity>,
+        val briefingEvents: List<BriefingEventEntity>,
+        val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
             staff.size, inspections.size, answers.size, events.size, vacations.size, overrides.size,
-            requirements.size, deliveries.size
+            requirements.size, deliveries.size,
+            briefingAttendance.size, briefingSessions.size, briefingEvents.size, formatVersion
         )
     }
 
@@ -62,7 +73,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 2,
+            "app" to "lasflores-android", "formatVersion" to 3,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
@@ -121,6 +132,24 @@ class OfflineBackupManager(
             "status" to x.status, "closingNote" to x.closingNote,
             "closedAtMillis" to x.closedAtMillis, "createdAtMillis" to x.createdAtMillis
         ) })
+        root.put("briefingAttendance", arr(briefingDao.allAttendance()) { x -> obj(
+            "id" to x.id, "dateIso" to x.dateIso, "staffId" to x.staffId,
+            "staffNameSnapshot" to x.staffNameSnapshot,
+            "categorySnapshot" to x.categorySnapshot, "groupHour" to x.groupHour,
+            "presence" to x.presence, "informedAtMillis" to x.informedAtMillis,
+            "informedBy" to x.informedBy, "createdAtMillis" to x.createdAtMillis,
+            "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("briefingSessions", arr(briefingDao.allSessions()) { x -> obj(
+            "dateIso" to x.dateIso, "groupHour" to x.groupHour,
+            "topics" to x.topics, "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("briefingEvents", arr(briefingDao.allEvents()) { x -> obj(
+            "id" to x.id, "dateIso" to x.dateIso, "staffId" to x.staffId,
+            "action" to x.action, "beforeValue" to x.beforeValue,
+            "afterValue" to x.afterValue, "actor" to x.actor,
+            "details" to x.details, "atMillis" to x.atMillis
+        ) })
         root.toString(2)
     }
 
@@ -152,6 +181,9 @@ class OfflineBackupManager(
             throw error
         }
         database.withWriteTransaction {
+            briefingDao.clearEvents()
+            briefingDao.clearSessions()
+            briefingDao.clearAttendance()
             catalogDao.clearSnapshots()
             materialsDao.clear()
             catalogDao.clearRequirements()
@@ -172,6 +204,9 @@ class OfflineBackupManager(
             payload.answers.forEach { uniformDao.upsertAnswer(it) }
             payload.events.forEach { uniformDao.insertEvent(it) }
             payload.activityDays.forEach { uniformDao.upsertDayStatus(it) }
+            payload.briefingAttendance.forEach { briefingDao.upsertAttendance(it) }
+            payload.briefingSessions.forEach { briefingDao.upsertSession(it) }
+            payload.briefingEvents.forEach { briefingDao.upsertEvent(it) }
         }
         return payload.preview()
     }
@@ -206,7 +241,7 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version == 1 || version == 2) {
+        require(version in 1..3) {
             "Formato de respaldo Android incompatible."
         }
 
@@ -250,12 +285,12 @@ class OfflineBackupManager(
                 x.getString("dateIso"), x.getString("module"), x.getString("status"),
                 x.getString("reason"), x.getLong("updatedAtMillis")
             ) },
-            requirements = if (version == 2) rows(root, "requirements") { x ->
+            requirements = if (version >= 2) rows(root, "requirements") { x ->
                 UniformRequirementEntity(x.getString("id"), x.getString("label"),
                     x.getString("category"), x.getInt("minQty"), x.getString("rolesCsv"),
                     x.getBoolean("isActive"), x.getInt("sortOrder"), x.getLong("updatedAtMillis"))
             } else defaultsFromOldApp(),
-            snapshots = if (version == 2) rows(root, "snapshots") { x ->
+            snapshots = if (version >= 2) rows(root, "snapshots") { x ->
                 InspectionRequirementEntity(x.getString("inspectionId"),
                     x.getString("requirementId"), x.getString("labelSnapshot"),
                     x.getString("categorySnapshot"), x.getInt("minQtySnapshot"))
@@ -268,7 +303,7 @@ class OfflineBackupManager(
                     }
                 }.flatten()
             },
-            deliveries = if (version == 2) rows(root, "deliveries") { x ->
+            deliveries = if (version >= 2) rows(root, "deliveries") { x ->
                 MaterialDeliveryEntity(
                     x.getString("id"), x.getString("staffId"), x.getString("staffNameSnapshot"),
                     x.getString("dateIso"), x.getString("material"), x.getInt("quantity"),
