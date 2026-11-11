@@ -72,6 +72,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          VERSION_CODE="${GITHUB_REF_NAME#android-beta-v}"
+          if (( VERSION_CODE >= 10000 )); then
+            DISPLAY_VERSION="$((VERSION_CODE / 10000)).$(printf '%04d' "$((VERSION_CODE % 10000))")"
+          else
+            DISPLAY_VERSION="Beta v${VERSION_CODE}"
+          fi
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" \
               dist/las-flores-beta.apk \
@@ -80,7 +86,7 @@ jobs:
             gh release create "$GITHUB_REF_NAME" \
               dist/las-flores-beta.apk \
               dist/las-flores-beta.apk.sha256 \
-              --title "Las Flores Beta ${GITHUB_REF_NAME}" \
+              --title "Las Flores ${DISPLAY_VERSION}" \
               --notes "Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android." \
               --prerelease
           fi

@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -32,12 +33,16 @@ import java.io.File
 fun UpdateScreen(vm: UpdateViewModel) {
     val ui by vm.state.collectAsState()
     val context = LocalContext.current
+    val installedVersion = remember(context) {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Desconocida"
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { Text("Actualizaciones", style = MaterialTheme.typography.headlineSmall) }
+        item { Text("Versión instalada: " + installedVersion) }
         item { Text("Descarga e instala nuevas versiones directamente desde Las Flores, sin archivos ZIP ni carpetas manuales.") }
         item {
             Card(Modifier.fillMaxWidth()) {
@@ -56,7 +61,7 @@ fun UpdateScreen(vm: UpdateViewModel) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(release.title, style = MaterialTheme.typography.titleLarge)
-                        Text("Versión de compilación ${release.versionCode}")
+                        Text("Nueva versión: " + UpdatePolicy.versionNameForCode(release.versionCode) + " · Código " + release.versionCode)
                         if (release.description.isNotBlank()) Text(release.description)
                         Button(onClick = { vm.download() },
                             enabled = !ui.busy && ui.downloadedFile == null) {
@@ -75,7 +80,7 @@ fun UpdateScreen(vm: UpdateViewModel) {
         }
         item {
             Spacer(Modifier.height(4.dp))
-            Text("Los datos registrados permanecen en la base local durante una actualización compatible y firmada. El respaldo de datos se incorporará por separado.",
+            Text("Los datos registrados permanecen en la base local durante una actualización compatible y firmada. El respaldo JSON está disponible en el módulo Respaldos. Recomendamos crear una copia antes de actualizar.",
                 style = MaterialTheme.typography.bodySmall)
         }
     }

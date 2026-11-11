@@ -14,6 +14,10 @@ class UpdatePolicyTest {
 
     @Test fun versionTagsMustMatchOurReleaseChannel() {
         assertEquals(4L, UpdatePolicy.versionFromTag("android-beta-v4"))
+        assertEquals(40001L, UpdatePolicy.versionFromTag("android-beta-v40001"))
+        assertEquals("4.0001", UpdatePolicy.versionNameForCode(40001))
+        assertEquals("4.0010", UpdatePolicy.versionNameForCode(40010))
+        assertEquals("5.0000", UpdatePolicy.versionNameForCode(50000))
         assertNull(UpdatePolicy.versionFromTag("v4"))
         assertNull(UpdatePolicy.versionFromTag("android-beta-v0"))
         assertNull(UpdatePolicy.versionFromTag("android-beta-v4-unsafe"))

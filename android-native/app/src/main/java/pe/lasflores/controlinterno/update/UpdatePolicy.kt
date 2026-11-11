@@ -17,6 +17,12 @@ object UpdatePolicy {
     private val VERSION_TAG = Regex("^android-beta-v([1-9][0-9]*)$")
     private val SHA256 = Regex("^[a-fA-F0-9]{64}$")
 
+    /** La etiqueta sigue siendo numérica para actualizar sin romper la Beta v4 instalada. */
+    fun versionNameForCode(code: Long): String =
+        if (code >= 10_000L) (code / 10_000L).toString() + "." +
+            (code % 10_000L).toString().padStart(4, '0')
+        else "Beta v" + code
+
     fun versionFromTag(tag: String): Long? = VERSION_TAG.matchEntire(tag)
         ?.groupValues?.getOrNull(1)?.toLongOrNull()
 
