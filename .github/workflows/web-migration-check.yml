@@ -1,0 +1,26 @@
+name: Las Flores - Integridad de migracion Web
+
+on:
+  push:
+    branches:
+      - 'feature/migracion-*'
+      - 'feature/android-migracion-*'
+  pull_request:
+    paths:
+      - 'migration/**'
+      - 'tests/migration.test.cjs'
+      - 'index.html'
+      - 'sw.js'
+      - '.github/workflows/web-migration-check.yml'
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar convertidor, conflictos y archivos historicos
+        run: node --test tests/migration.test.cjs

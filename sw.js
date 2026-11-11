@@ -1,7 +1,7 @@
 /* Las Flores PWA. Cambia VERSION al publicar cambios de recursos estáticos. */
-const VERSION = '2.4.1.0008';
+const VERSION = '2.5.1.migration';
 const CACHE = 'las-flores-static-' + VERSION;
-const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './migration/portable.js', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)));
   // No activar una actualización sobre una sesión abierta: esperar confirmación.
