@@ -40,6 +40,24 @@ interface StaffDao {
     @Query("DELETE FROM staff_day_overrides WHERE dateIso = :dateIso AND staffId = :staffId")
     suspend fun deleteOverride(dateIso: String, staffId: String)
 
+    @Query("SELECT * FROM staff")
+    suspend fun allStaff(): List<StaffEntity>
+
+    @Query("SELECT * FROM staff_vacations")
+    suspend fun allVacations(): List<StaffVacationEntity>
+
+    @Query("SELECT * FROM staff_day_overrides")
+    suspend fun allOverrides(): List<StaffDayOverrideEntity>
+
+    @Query("DELETE FROM staff_day_overrides")
+    suspend fun clearOverrides()
+
+    @Query("DELETE FROM staff_vacations")
+    suspend fun clearVacations()
+
+    @Query("DELETE FROM staff")
+    suspend fun clearStaff()
+
     @Query("SELECT * FROM staff WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): StaffEntity?
 
