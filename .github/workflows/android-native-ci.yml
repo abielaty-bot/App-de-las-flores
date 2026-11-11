@@ -1,12 +1,12 @@
 name: Las Flores Android CI
 on:
   push:
-    branches: [android-native-foundation, android-v020-uniformes, android-updater-v030, android-v40001-foundation, android-v40002-uniformes, android-v40003-briefings]
+    branches: [android-native-foundation, android-v020-uniformes, android-updater-v030, android-v40001-foundation, android-v40002-uniformes, android-v40003-briefings, android-v40004-funciones]
     paths:
       - 'android-native/**'
       - '.github/workflows/android-native-ci.yml'
   pull_request:
-    branches: [android-updater-v030, android-v40001-foundation, android-v40002-uniformes]
+    branches: [android-updater-v030, android-v40001-foundation, android-v40002-uniformes, android-v40003-briefings]
     paths:
       - 'android-native/**'
       - '.github/workflows/android-native-ci.yml'

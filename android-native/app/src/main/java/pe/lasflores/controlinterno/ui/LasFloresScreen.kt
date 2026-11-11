@@ -51,12 +51,13 @@ private val lightBackground = Color(0xFFF7F9F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
+fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, functionVm: FunctionViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
     var screen by rememberSaveable { mutableStateOf("inicio") }
     val people by vm.staff.collectAsState()
     val saveStatus by vm.saveState.collectAsState()
     val uniformSaveStatus by uniformVm.saveStatus.collectAsState()
     val briefingStatus by briefingVm.message.collectAsState()
+    val functionStatus by functionVm.message.collectAsState()
 
     MaterialTheme(colorScheme = androidx.compose.material3.lightColorScheme(
         primary = green, background = lightBackground, surface = Color.White
@@ -77,6 +78,7 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
                         TextButton(onClick = { screen = "personal" }) { Text("Personal") }
                         TextButton(onClick = { screen = "uniformes" }) { Text("Uniformes") }
                         TextButton(onClick = { screen = "briefings" }) { Text("Briefings") }
+                        TextButton(onClick = { screen = "funciones" }) { Text("Funciones") }
                         TextButton(onClick = { screen = "backups" }) { Text("Respaldos") }
                         TextButton(onClick = { screen = "updates" }) { Text("Actualizar") }
                     }
@@ -85,21 +87,22 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 Text(
-                    when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; else -> saveStatus },
+                    when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; "funciones" -> functionStatus; else -> saveStatus },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if ((when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; else -> saveStatus }).startsWith("Error")) MaterialTheme.colorScheme.error else green
+                    color = if ((when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; "funciones" -> functionStatus; else -> saveStatus }).startsWith("Error")) MaterialTheme.colorScheme.error else green
                 )
                 when (screen) {
                     "personal" -> StaffManagementScreen(people, vm)
                     "uniformes" -> UniformScreen(people, uniformVm, vm)
                     "briefings" -> BriefingScreen(briefingVm, vm)
+                    "funciones" -> FunctionScreen(functionVm, vm)
                     "updates" -> UpdateScreen(updateVm)
                     "backups" -> BackupScreen(backupManager)
                     else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
                         onOpenUniforms = { screen = "uniformes" },
                         onOpenUpdates = { screen = "updates" }, onOpenBackups = { screen = "backups" },
-                        onOpenBriefings = { screen = "briefings" })
+                        onOpenBriefings = { screen = "briefings" }, onOpenFunctions = { screen = "funciones" })
                 }
             }
         }
@@ -107,12 +110,12 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
 }
 
 @Composable
-private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit) {
+private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit, onOpenFunctions: () -> Unit) {
     val modules = listOf(
         "Personal" to "Disponible · ${people.count { it.isActive }} activos",
         "Briefings" to "Disponible · Asistencia, temas e historial",
         "Uniformes" to "Disponible · Borradores y correcciones",
-        "Funciones" to "Próxima etapa",
+        "Funciones" to "Disponible · Asignaciones, evidencias y estadísticas",
         "Incidentes" to "Próxima etapa",
         "Reportes" to "Próxima etapa",
         "Respaldos" to "Disponible · Exportación y restauración JSON",
@@ -126,7 +129,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
         item {
             Text("Panel principal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Personal, Uniformes y Briefings disponibles. Los demás módulos se añadirán progresivamente.",
+            Text("Personal, Uniformes, Briefings y Funciones disponibles. Incidentes y los demás módulos se añadirán progresivamente.",
                 style = MaterialTheme.typography.bodyMedium)
         }
         items(modules) { (title, description) ->
@@ -134,7 +137,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
+                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Funciones" -> onOpenFunctions(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
             ) {
                 Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
@@ -142,7 +145,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                         Text(title, fontWeight = FontWeight.Bold)
                         Text(description, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
+                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Funciones" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

@@ -12,8 +12,9 @@ import androidx.sqlite.execSQL
         UniformAnswerEntity::class, UniformEventEntity::class, DailyActivityEntity::class,
         StaffVacationEntity::class, StaffDayOverrideEntity::class,
         UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class,
-        BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class],
-    version = 5,
+        BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class,
+        FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class],
+    version = 6,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -22,6 +23,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun catalogDao(): UniformCatalogDao
     abstract fun materialDao(): MaterialDao
     abstract fun briefingDao(): BriefingDao
+    abstract fun functionDao(): FunctionDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -183,4 +185,58 @@ val MIGRATION_4_5 = Migration(4, 5) { connection ->
         ON briefing_events(dateIso)""")
     connection.execSQL("""CREATE INDEX IF NOT EXISTS index_briefing_events_staffId
         ON briefing_events(staffId)""")
+}
+
+
+/** 4.0003 → 4.0004: nuevas tablas; no modifica los datos de otros módulos. */
+val MIGRATION_5_6 = Migration(5, 6) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS function_tasks (
+        id TEXT NOT NULL PRIMARY KEY,
+        area TEXT NOT NULL,
+        label TEXT NOT NULL,
+        periodicity TEXT NOT NULL,
+        isActive INTEGER NOT NULL,
+        sortOrder INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS function_checks (
+        id TEXT NOT NULL PRIMARY KEY,
+        dateIso TEXT NOT NULL,
+        staffId TEXT NOT NULL,
+        staffNameSnapshot TEXT NOT NULL,
+        taskId TEXT NOT NULL,
+        taskLabelSnapshot TEXT NOT NULL,
+        areaSnapshot TEXT NOT NULL,
+        periodicitySnapshot TEXT NOT NULL,
+        result TEXT NOT NULL,
+        note TEXT NOT NULL,
+        correctedAtMillis INTEGER,
+        correctionNote TEXT NOT NULL,
+        voidedAtMillis INTEGER,
+        createdAtMillis INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_function_checks_dateIso ON function_checks(dateIso)")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_function_checks_staffId ON function_checks(staffId)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS function_evidence (
+        id TEXT NOT NULL PRIMARY KEY,
+        checkId TEXT NOT NULL,
+        description TEXT NOT NULL,
+        imageBase64 TEXT NOT NULL,
+        createdAtMillis INTEGER NOT NULL,
+        groupSentAtMillis INTEGER,
+        groupSentBy TEXT
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_function_evidence_checkId ON function_evidence(checkId)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS function_events (
+        id TEXT NOT NULL PRIMARY KEY,
+        checkId TEXT NOT NULL,
+        action TEXT NOT NULL,
+        beforeValue TEXT NOT NULL,
+        afterValue TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        note TEXT NOT NULL,
+        atMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_function_events_checkId ON function_events(checkId)")
 }
