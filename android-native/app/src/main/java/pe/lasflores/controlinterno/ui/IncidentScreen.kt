@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.ZoneId
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -320,6 +322,10 @@ private fun IncidentDetailsDialog(case:IncidentEntity,actions:List<IncidentActio
                             verticalArrangement=Arrangement.spacedBy(4.dp)) {
                             Text(IncidentRules.actionName(a.kind),
                                 fontWeight=FontWeight.Bold)
+                            Text(Instant.ofEpochMilli(a.atMillis)
+                                .atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                                style=MaterialTheme.typography.bodySmall)
                             Text(a.description,style=MaterialTheme.typography.bodySmall)
                             Text("Por "+a.actor+" · "+
                                 IncidentRules.statusName(a.statusBefore)+" → "+
