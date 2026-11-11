@@ -81,7 +81,7 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
             selected = section,
             onSelect = { section = it }
         )
-        Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp),
+        Text(if (ErrorReportText.isError(message)) ErrorReportText.compact(message) else message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp),
             color = if (message.startsWith("Error")) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.labelSmall)
