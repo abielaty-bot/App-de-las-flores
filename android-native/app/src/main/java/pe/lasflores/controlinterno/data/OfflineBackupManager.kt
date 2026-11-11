@@ -120,6 +120,21 @@ class OfflineBackupManager(
         }
     }
 
+    /** Comparación estable de un respaldo local: ignora el orden de claves de JSON
+     * y de consultas SQL, pero no ignora diferencias en registros.
+     */
+    private fun canonicalJson(value: Any?): String = when(value) {
+        null, JSONObject.NULL -> "null"
+        is JSONObject -> value.keys().asSequence().toList().sorted()
+            .joinToString(prefix="{", postfix="}") { key ->
+                JSONObject.quote(key) + ":" + canonicalJson(value.get(key))
+            }
+        is JSONArray -> (0 until value.length()).map { canonicalJson(value.get(it)) }
+            .sorted().joinToString(prefix="[", postfix="]")
+        is String -> JSONObject.quote(value)
+        else -> value.toString()
+    }
+
     /** Verificar origen al seleccionar un archivo convertido en la pantalla de respaldo. */
     fun webMigrationMode(json: String): String? {
         val root = JSONObject(json)
@@ -286,6 +301,21 @@ class OfflineBackupManager(
     suspend fun restore(json: String): BackupPreview {
         val payload = decode(json)
         val previous = exportJson()
+        val migration = JSONObject(json).optJSONObject("migration")
+        if (migration?.optString("mode") == "merge") {
+            require(migration.optString("origin") == "web") {
+                "Origen de la fusión inválido."
+            }
+            val originalBase = migration.optJSONObject("baseAndroidSnapshot")
+                ?: error("La fusión no contiene la copia Android de referencia.")
+            val currentBase = JSONObject(previous)
+            originalBase.remove("exportedAtMillis")
+            currentBase.remove("exportedAtMillis")
+            require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
+                "Los registros Android cambiaron desde que generaste la transferencia. " +
+                    "Exporta una copia Android nueva y vuelve a combinar los archivos."
+            }
+        }
         val rescue = AtomicFile(File(context.filesDir, "respaldo_anterior_a_restauracion.json"))
         var stream: java.io.FileOutputStream? = null
         try {
