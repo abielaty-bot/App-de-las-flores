@@ -116,7 +116,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Exportar copia de seguridad", fontWeight = FontWeight.Bold)
-                    Text("Incluye personal, programación, vacaciones, inspecciones, respuestas, rectificaciones y eventos de uniformes.",
+                    Text("Incluye personal, programación, vacaciones, inspecciones, requisitos, entregas, devoluciones y eventos de uniformes.",
                         style = MaterialTheme.typography.bodySmall)
                     Button(
                         onClick = {
@@ -193,6 +193,8 @@ fun BackupScreen(manager: OfflineBackupManager) {
                     Text("Inspecciones: " + p.inspections)
                     Text("Respuestas: " + p.answers)
                     Text("Eventos de auditoría: " + p.events)
+                    Text("Requisitos configurables: " + p.requirements)
+                    Text("Entregas de materiales: " + p.deliveries)
                     Text("Se reemplazará la información actual. Se guardará una copia interna previa por seguridad.")
                 }
             },
