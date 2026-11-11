@@ -58,7 +58,8 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
         staff.associate { it.id to StaffScheduleRules.status(it, date, vacations, overrides) }
     }
     val currentRecord = remember(records) { records.associateBy { it.staffId } }
-    val scheduled = staff.filter { StaffScheduleRules.isScheduled(status[it.id].orEmpty()) }
+    val scheduledIds = scheduledStaffIds(staff, status)
+    val scheduled = staff.filter { it.id in scheduledIds }
     val visible = scheduled.filter { person ->
         val record = currentRecord[person.id]
         record?.groupHour == group || (record == null &&
@@ -142,9 +143,7 @@ private fun BriefingRegisterPanel(
                     Text("Programados y apoyos: " + scheduled)
                     Text("Asistieron: " + attended + " · Por informar: " + pending)
                     Text("No asistieron al briefing: " + absent)
-                    Text("Sin registrar: " + (scheduled - dailyRecords.count {
-                        it.staffId in allRecords.keys
-                    }).coerceAtLeast(0))
+                    Text("Sin registrar: " + (scheduled - dailyRecords.count { it.staffId in allRecords.keys }).coerceAtLeast(0))
                     Text("Sin registrar no significa falta.", style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -286,3 +285,12 @@ private fun BriefingRegisterPanel(
         }
     )
 }
+
+
+/** Mantiene un único origen para el cómputo de programación diaria. */
+private fun scheduledStaffIds(
+    people: List<StaffEntity>,
+    statuses: Map<String,String>
+): Set<String> = people.filter {
+    StaffScheduleRules.isScheduled(statuses[it.id].orEmpty())
+}.map { it.id }.toSet()

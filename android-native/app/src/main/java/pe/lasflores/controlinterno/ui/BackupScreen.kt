@@ -116,7 +116,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Exportar copia de seguridad", fontWeight = FontWeight.Bold)
-                    Text("Incluye personal, programación, vacaciones, inspecciones, requisitos, entregas, devoluciones y eventos de uniformes.",
+                    Text("Incluye personal, programación, vacaciones, inspecciones, requisitos, entregas, uniformes y briefings, incluidos sus temas y comunicaciones.",
                         style = MaterialTheme.typography.bodySmall)
                     Button(
                         onClick = {
@@ -195,6 +195,12 @@ fun BackupScreen(manager: OfflineBackupManager) {
                     Text("Eventos de auditoría: " + p.events)
                     Text("Requisitos configurables: " + p.requirements)
                     Text("Entregas de materiales: " + p.deliveries)
+                    Text("Asistencias a briefings: " + p.briefings)
+                    Text("Sesiones con temas: " + p.briefingSessions)
+                    Text("Eventos de briefing: " + p.briefingEvents)
+                    if (p.formatVersion < 3)
+                        Text("Este archivo es anterior a Briefings. Restaurarlo reemplazará los briefings actuales.",
+                            color = MaterialTheme.colorScheme.error)
                     Text("Se reemplazará la información actual. Se guardará una copia interna previa por seguridad.")
                 }
             },
