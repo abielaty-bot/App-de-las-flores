@@ -136,7 +136,7 @@
     <button type="button" data-nav="personal" data-bottom="personal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2H2Zm16-13a3 3 0 0 1 0 6"/></svg><span>Personal</span></button>
     <button type="button" data-nav="brief" data-bottom="brief"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4h6m-6 6h6m-6 4h6m-6 4h4"/></svg><span>Briefings</span></button>
     <button type="button" data-nav="uniform" data-bottom="uniform"><svg viewBox="0 0 24 24"><path d="m8 3 4 3 4-3 5 4-2 5-3-1v10H8V11l-3 1-2-5z"/></svg><span>Uniformes</span></button>
-    <button type="button" data-action="more-menu" data-bottom="more"><svg viewBox="0 0 24 24"><path d="M4 20V11h4v9m4 0V4h4v16m4 0v-8h3v8M2 21h20"/></svg><span>Más</span></button>
+    <button type="button" data-action="more-menu" data-bottom="more"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>Más</span></button>
   </nav>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -591,7 +591,7 @@ function renderReports(){
   const d=dashboardData(dateISO());
   $('#app').innerHTML='<div class="panel"><div class="panel-head"><h2>Resumen de '+h(formatDate(dateISO()))+'</h2>'+badge('Datos locales','ok')+'</div>'+
     '<div class="panel-body"><p class="muted-note">Cifras del día actual, salvo incidentes abiertos (total vigente). No son datos de demostración.</p></div></div>'+
-    '<div class="kpis">'+kpi(d.brief.registered+'/'+d.brief.total,'Asistencias registradas')+
+    '<div class="kpis">'+kpi(d.brief.registered+'/'+d.brief.total,'Situaciones registradas')+
     kpi(d.brief.pending,'Por informar','amber')+kpi(d.inspected.length+'/'+d.scheduled.length,'Inspecciones iniciales')+
     kpi(d.uniformGood+'/'+d.inspected.length,'Conformes en inspección inicial','green')+
     kpi(d.functions.length,'Funciones asignadas')+
