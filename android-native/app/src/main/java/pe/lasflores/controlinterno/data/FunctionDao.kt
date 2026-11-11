@@ -37,6 +37,12 @@ interface FunctionDao {
     fun observeEvidence(): Flow<List<FunctionEvidenceEntity>>
     @Query("SELECT * FROM function_evidence")
     suspend fun allEvidence(): List<FunctionEvidenceEntity>
+
+    /** Lee solo metadatos y evita cargar fotografías Base64 durante reportes. */
+    @Query("""SELECT id, checkId, description, createdAtMillis,
+        groupSentAtMillis, groupSentBy FROM function_evidence""")
+    suspend fun allReportEvidence(): List<ReportEvidenceMeta>
+
     @Query("SELECT * FROM function_evidence WHERE checkId=:checkId")
     suspend fun forCheck(checkId: String): List<FunctionEvidenceEntity>
     @Query("SELECT * FROM function_evidence WHERE id=:id LIMIT 1")
@@ -52,3 +58,13 @@ interface FunctionDao {
     @Upsert suspend fun upsertEvent(e: FunctionEventEntity)
     @Query("DELETE FROM function_events") suspend fun clearEvents()
 }
+
+
+data class ReportEvidenceMeta(
+    val id: String,
+    val checkId: String,
+    val description: String,
+    val createdAtMillis: Long,
+    val groupSentAtMillis: Long?,
+    val groupSentBy: String?
+)

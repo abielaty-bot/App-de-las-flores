@@ -11,6 +11,7 @@ import pe.lasflores.controlinterno.data.MIGRATION_4_5
 import pe.lasflores.controlinterno.data.MIGRATION_5_6
 import pe.lasflores.controlinterno.data.MIGRATION_6_7
 import pe.lasflores.controlinterno.data.OfflineIncidentRepository
+import pe.lasflores.controlinterno.report.ReportRepository
 import pe.lasflores.controlinterno.data.OfflineFunctionRepository
 import pe.lasflores.controlinterno.data.OfflineBriefingRepository
 import pe.lasflores.controlinterno.data.OfflineStaffRepository
@@ -30,6 +31,7 @@ class LasFloresApp : Application() {
     val backupManager: OfflineBackupManager by lazy {
         OfflineBackupManager(applicationContext, database, database.staffDao(), database.uniformDao(), database.catalogDao(), database.materialDao(), database.briefingDao(), database.functionDao(), database.incidentDao())
     }
+    val reportRepository by lazy { ReportRepository(database) }
     val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao(), database.uniformDao()) }
     val uniformRepository: UniformRepository by lazy {
         OfflineUniformRepository(database, database.uniformDao(),

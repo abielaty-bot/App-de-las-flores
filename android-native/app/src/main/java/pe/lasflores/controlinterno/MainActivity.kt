@@ -22,6 +22,6 @@ class MainActivity : ComponentActivity() {
         val functionVm = ViewModelProvider(this, FunctionViewModel.Factory(app.functionRepository))[FunctionViewModel::class.java]
         val incidentVm = ViewModelProvider(this, IncidentViewModel.Factory(app.incidentRepository))[IncidentViewModel::class.java]
         val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
-        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager) }
+        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager, app.reportRepository) }
     }
 }
