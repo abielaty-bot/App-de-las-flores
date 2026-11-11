@@ -18,6 +18,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -170,22 +172,42 @@ private fun BriefingRegisterPanel(
                     Text(previous?.presence?.let(BriefingRules::label) ?: "Sin registrar",
                         color = if (previous?.presence == BriefingRules.FALTA)
                             MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         listOf(
                             BriefingRules.ASISTIO to "Asistió",
-                            BriefingRules.MESA to "Atendiendo mesa",
-                            BriefingRules.FALTA to "No asistió",
-                            "LIMPIAR" to "Quitar registro"
+                            BriefingRules.MESA to "En mesa",
+                            BriefingRules.FALTA to "No asistió"
                         ).forEach { (code, title) ->
+                            val semantic = when(code) {
+                                BriefingRules.ASISTIO -> LasFloresPalette.Success
+                                BriefingRules.FALTA -> LasFloresPalette.Danger
+                                else -> LasFloresPalette.Warning
+                            }
+                            val selectedBackground = when(code) {
+                                BriefingRules.ASISTIO -> Color(0xFFE5F2EA)
+                                BriefingRules.FALTA -> Color(0xFFFCE9E6)
+                                else -> Color(0xFFF7ECD7)
+                            }
                             FilterChip(
                                 selected = previous?.presence == code,
                                 onClick = {
-                                    val requested = if (code == "LIMPIAR") null else code
-                                    if (requested != previous?.presence)
-                                        pendingPresence = worker.id to requested
+                                    if(code != previous?.presence)
+                                        pendingPresence = worker.id to code
                                 },
-                                label = { Text(title) }
+                                label = { Text(title) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = selectedBackground,
+                                    selectedLabelColor = semantic
+                                )
                             )
+                        }
+                        if(previous != null) {
+                            TextButton(onClick = {
+                                pendingPresence = worker.id to null
+                            }) { Text("Quitar registro") }
                         }
                     }
                     if (previous?.presence == BriefingRules.MESA) {
