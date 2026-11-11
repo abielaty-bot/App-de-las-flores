@@ -51,11 +51,12 @@ private val lightBackground = Color(0xFFF7F9F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
+fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
     var screen by rememberSaveable { mutableStateOf("inicio") }
     val people by vm.staff.collectAsState()
     val saveStatus by vm.saveState.collectAsState()
     val uniformSaveStatus by uniformVm.saveStatus.collectAsState()
+    val briefingStatus by briefingVm.message.collectAsState()
 
     MaterialTheme(colorScheme = androidx.compose.material3.lightColorScheme(
         primary = green, background = lightBackground, surface = Color.White
@@ -75,6 +76,7 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, updateVm: U
                         TextButton(onClick = { screen = "inicio" }) { Text("Inicio") }
                         TextButton(onClick = { screen = "personal" }) { Text("Personal") }
                         TextButton(onClick = { screen = "uniformes" }) { Text("Uniformes") }
+                        TextButton(onClick = { screen = "briefings" }) { Text("Briefings") }
                         TextButton(onClick = { screen = "backups" }) { Text("Respaldos") }
                         TextButton(onClick = { screen = "updates" }) { Text("Actualizar") }
                     }
@@ -83,19 +85,21 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, updateVm: U
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 Text(
-                    if (screen == "uniformes") uniformSaveStatus else saveStatus,
+                    when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; else -> saveStatus },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if ((if (screen == "uniformes") uniformSaveStatus else saveStatus).startsWith("Error")) MaterialTheme.colorScheme.error else green
+                    color = if ((when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; else -> saveStatus }).startsWith("Error")) MaterialTheme.colorScheme.error else green
                 )
                 when (screen) {
                     "personal" -> StaffManagementScreen(people, vm)
                     "uniformes" -> UniformScreen(people, uniformVm, vm)
+                    "briefings" -> BriefingScreen(briefingVm, vm)
                     "updates" -> UpdateScreen(updateVm)
                     "backups" -> BackupScreen(backupManager)
                     else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
                         onOpenUniforms = { screen = "uniformes" },
-                        onOpenUpdates = { screen = "updates" }, onOpenBackups = { screen = "backups" })
+                        onOpenUpdates = { screen = "updates" }, onOpenBackups = { screen = "backups" },
+                        onOpenBriefings = { screen = "briefings" })
                 }
             }
         }
@@ -103,10 +107,10 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, updateVm: U
 }
 
 @Composable
-private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit) {
+private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit) {
     val modules = listOf(
         "Personal" to "Disponible · ${people.count { it.isActive }} activos",
-        "Briefings" to "Próxima etapa",
+        "Briefings" to "Disponible · Asistencia, temas e historial",
         "Uniformes" to "Disponible · Borradores y correcciones",
         "Funciones" to "Próxima etapa",
         "Incidentes" to "Próxima etapa",
@@ -122,7 +126,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
         item {
             Text("Panel principal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Personal y Uniformes disponibles. Briefings y los demás módulos se añadirán progresivamente.",
+            Text("Personal, Uniformes y Briefings disponibles. Los demás módulos se añadirán progresivamente.",
                 style = MaterialTheme.typography.bodyMedium)
         }
         items(modules) { (title, description) ->
@@ -130,7 +134,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
+                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
             ) {
                 Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
@@ -138,7 +142,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                         Text(title, fontWeight = FontWeight.Bold)
                         Text(description, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (title == "Personal" || title == "Uniformes" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
+                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
