@@ -283,6 +283,9 @@ function convert(input, existingAndroid) {
    if(existingAndroid.app!=="lasflores-android"||existingAndroid.formatVersion!==5)error("La copia base Android debe ser JSON v5.");
    else{
     const base=existingAndroid;
+    // Protección frente a cambios realizados en Android después de exportar la
+    // copia base: la app comprobará la fotografía exacta antes de reemplazar Room.
+    out.migration.baseAndroidSnapshot=base;
     // Comparación exacta. Los registros que tienen el mismo ID y difieren son conflictos, no se sobreescriben.
     for(const key of ["staff","vacations","overrides","inspections","answers","events","activityDays","requirements","snapshots",
       "deliveries","briefingAttendance","briefingSessions","briefingEvents","functionTasks","functionChecks","functionEvidence",
