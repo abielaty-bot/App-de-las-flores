@@ -2,6 +2,14 @@
 
 Aplicación instalable para uso **local** en tablet Android. Incluye Briefings, Control de uniformes/implementos y Personal. La publicación en GitHub Pages solo distribuye los archivos de la aplicación; **no recibe registros de trabajadores ni respaldos**.
 
+## Novedades 2.5.0 (rama de revisión visual)
+- Identidad visual «Borgoña patrimonial + champán» aplicada a la PWA mediante `styles/patrimonial.css`, conservando módulos y claves de almacenamiento.
+- Panel de inicio con métricas reales del dispositivo para la fecha actual; no usa cifras de demostración.
+- Navegación inferior para uso vertical en tablet, además de pestañas de cada módulo.
+- Hub de reportes unificado con accesos a los Excel ya existentes de briefings, uniformes, funciones e incidentes.
+- Modo claro/oscuro adaptado a la misma identidad; no se cambian reglas de negocio ni formatos de respaldo.
+- Los iconos oficiales definitivos de instalación y splash Android nativo requieren aplicar los recursos aprobados en el proyecto Kotlin/Compose; no están incluidos en esta rama de la PWA.
+
 ## Novedades 2.4.0
 
 - Nuevo acceso **Control de funciones** en el menú principal: Oficina I, Oficina II y funciones generales.
