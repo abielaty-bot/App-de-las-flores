@@ -11,10 +11,10 @@ class OfflineIncidentRepository(
     private val staff:StaffDao,
     private val dao:IncidentDao
 ) {
-    val types:Flow<List<IncidentTypeEntity>>=dao.observeTypes()
+    val types:Flow<List<IncidentTypeEntity>> = dao.observeTypes()
         .onStart { seedIfEmpty() }
-    val incidents:Flow<List<IncidentEntity>>=dao.observeIncidents()
-    val actions:Flow<List<IncidentActionEntity>>=dao.observeActions()
+    val incidents:Flow<List<IncidentEntity>> = dao.observeIncidents()
+    val actions:Flow<List<IncidentActionEntity>> = dao.observeActions()
 
     private suspend fun seedIfEmpty() {
         db.withWriteTransaction {
