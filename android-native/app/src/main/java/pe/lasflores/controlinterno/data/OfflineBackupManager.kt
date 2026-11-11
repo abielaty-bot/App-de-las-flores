@@ -311,7 +311,27 @@ class OfflineBackupManager(
                     x.getString("closingNote"), nullableLong(x, "closedAtMillis"),
                     x.getLong("createdAtMillis")
                 )
-            } else emptyList()
+            } else emptyList(),
+            briefingAttendance = if (version >= 3) rows(root, "briefingAttendance") { x ->
+                BriefingAttendanceEntity(
+                    x.getString("id"), x.getString("dateIso"), x.getString("staffId"),
+                    x.getString("staffNameSnapshot"), x.getInt("categorySnapshot"),
+                    x.getInt("groupHour"), x.getString("presence"),
+                    nullableLong(x, "informedAtMillis"), nullableString(x, "informedBy"),
+                    x.getLong("createdAtMillis"), x.getLong("updatedAtMillis")
+                )
+            } else emptyList(),
+            briefingSessions = if (version >= 3) rows(root, "briefingSessions") { x ->
+                BriefingSessionEntity(x.getString("dateIso"), x.getInt("groupHour"),
+                    x.getString("topics"), x.getLong("updatedAtMillis"))
+            } else emptyList(),
+            briefingEvents = if (version >= 3) rows(root, "briefingEvents") { x ->
+                BriefingEventEntity(x.getString("id"), x.getString("dateIso"),
+                    x.getString("staffId"), x.getString("action"),
+                    x.getString("beforeValue"), x.getString("afterValue"),
+                    x.getString("actor"), x.getString("details"), x.getLong("atMillis"))
+            } else emptyList(),
+            formatVersion = version
         )
         validate(data)
         return data
@@ -359,6 +379,10 @@ class OfflineBackupManager(
         unique(data.requirements, "catálogo de requisitos") { it.id }
         unique(data.snapshots, "requisitos por inspección") { it.inspectionId to it.requirementId }
         unique(data.deliveries, "entregas de materiales") { it.id }
+        unique(data.briefingAttendance, "asistencias de briefings") { it.id }
+        unique(data.briefingAttendance, "briefing por trabajador y día") { it.dateIso to it.staffId }
+        unique(data.briefingSessions, "sesiones de briefing") { it.dateIso to it.groupHour }
+        unique(data.briefingEvents, "eventos de briefing") { it.id }
 
         val staffIds = data.staff.map { it.id }.toSet()
         val inspectionIds = data.inspections.map { it.id }.toSet()
@@ -402,6 +426,19 @@ class OfflineBackupManager(
                 it.deliveredBy.isNotBlank() &&
                 runCatching { java.time.LocalDate.parse(it.dateIso) }.isSuccess
         }) { "Entregas de materiales inválidas." }
+        require(data.briefingAttendance.all {
+            it.staffId in staffIds &&
+                StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso &&
+                it.categorySnapshot in 0..4 && BriefingRules.isValid(it)
+        }) { "Asistencias de briefings inválidas." }
+        require(data.briefingSessions.all {
+            it.groupHour in BriefingRules.GROUPS &&
+                it.topics.isNotBlank() && it.topics.length <= 3000 &&
+                StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso
+        }) { "Sesiones de briefing inválidas." }
+        require(data.briefingEvents.all {
+            it.staffId.isBlank() || it.staffId in staffIds
+        }) { "Auditoría de briefings inconsistente." }
         // Un evento de descarte puede referirse a un borrador ya retirado:
         // los eventos históricos se conservan incluso si la inspección no existe.
     }
