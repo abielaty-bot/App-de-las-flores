@@ -1,6 +1,8 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -139,6 +141,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun StaffProfileDialog(
     person: StaffEntity?, existing: List<StaffEntity>,
     onDismiss: () -> Unit,
@@ -169,21 +172,21 @@ private fun StaffProfileDialog(
                         label = { Text(option) })
                 }
                 Text("Categoría", fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     (0..4).forEach { value ->
                         FilterChip(selected = category == value, onClick = { category = value },
                             label = { Text(if (value == 0) "—" else value.toString()) })
                     }
                 }
                 Text("Grupo habitual de briefing")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0, 11, 12).forEach { value ->
                         FilterChip(selected = group == value, onClick = { group = value },
                             label = { Text(if (value == 0) "Sin grupo" else value.toString() + ":00") })
                     }
                 }
                 Text("Programación habitual")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(selected = mode == "regular", onClick = { mode = "regular" },
                         label = { Text("Regular") })
                     FilterChip(selected = mode == "weekend", onClick = { mode = "weekend" },

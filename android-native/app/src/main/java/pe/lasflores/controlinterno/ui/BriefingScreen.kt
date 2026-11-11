@@ -1,6 +1,8 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,7 +13,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -97,6 +98,7 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun BriefingRegisterPanel(
     day: String, group: Int, visible: List<StaffEntity>, status: Map<String,String>,
     allRecords: Map<String,BriefingAttendanceEntity>,
@@ -168,13 +170,13 @@ private fun BriefingRegisterPanel(
                     Text(previous?.presence?.let(BriefingRules::label) ?: "Sin registrar",
                         color = if (previous?.presence == BriefingRules.FALTA)
                             MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(listOf(
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
                             BriefingRules.ASISTIO to "Asistió",
                             BriefingRules.MESA to "Atendiendo mesa",
                             BriefingRules.FALTA to "No asistió",
                             "LIMPIAR" to "Quitar registro"
-                        )) { (code, title) ->
+                        ).forEach { (code, title) ->
                             FilterChip(
                                 selected = previous?.presence == code,
                                 onClick = {
