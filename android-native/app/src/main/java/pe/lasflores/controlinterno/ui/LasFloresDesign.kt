@@ -14,12 +14,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +40,14 @@ internal object LasFloresPalette {
     val Warning = Color(0xFF9A6210)
     val Danger = Color(0xFFB3261E)
     val Muted = Color(0xFF75666C)
+    // Borgoña Nocturno: marca, superficies, textos y tres estados accesibles.
+    val NightBackground = Color(0xFF171519)
+    val NightSurface = Color(0xFF242026)
+    val NightElevated = Color(0xFF302831)
+    val NightBurgundy = Color(0xFF873650)
+    val NightChampagne = Color(0xFFDCB98A)
+    val NightText = Color(0xFFF7F1EE)
+    val NightBlush = Color(0xFFD8A0B1)
 }
 
 /** Tokens cromáticos compartidos; el champán no se usa para texto pequeño sobre blanco. */
@@ -68,6 +78,79 @@ internal val LasFloresColors = lightColorScheme(
     surfaceContainerHigh = Color(0xFFF0E5DF),
     surfaceContainerHighest = Color(0xFFECE0DA)
 )
+
+/** M3 usa un borgoña aclarado como color de contenido táctil: es legible sobre carbón.
+ * El borgoña de marca más intenso permanece en encabezados y superficies destacadas.
+ */
+internal val LasFloresDarkColors = darkColorScheme(
+    primary = LasFloresPalette.NightBlush,
+    onPrimary = Color(0xFF24151D),
+    primaryContainer = LasFloresPalette.NightBurgundy,
+    onPrimaryContainer = Color.White,
+    secondary = LasFloresPalette.NightChampagne,
+    onSecondary = Color(0xFF2B2026),
+    secondaryContainer = LasFloresPalette.NightBurgundy,
+    onSecondaryContainer = Color.White,
+    tertiary = LasFloresPalette.NightChampagne,
+    onTertiary = Color(0xFF2B2026),
+    tertiaryContainer = Color(0xFF493824),
+    onTertiaryContainer = Color(0xFFFFE4B3),
+    background = LasFloresPalette.NightBackground,
+    onBackground = LasFloresPalette.NightText,
+    surface = LasFloresPalette.NightSurface,
+    onSurface = LasFloresPalette.NightText,
+    surfaceVariant = LasFloresPalette.NightElevated,
+    onSurfaceVariant = Color(0xFFCDBFC4),
+    outline = Color(0xFFB29EA8),
+    outlineVariant = Color(0xFF55454E),
+    error = Color(0xFFFF9AA2),
+    onError = Color(0xFF491C25),
+    errorContainer = Color(0xFF4B2833),
+    onErrorContainer = Color(0xFFFFCDD3),
+    surfaceContainerLowest = Color(0xFF171519),
+    surfaceContainerLow = LasFloresPalette.NightSurface,
+    surfaceContainer = Color(0xFF29232B),
+    surfaceContainerHigh = LasFloresPalette.NightElevated,
+    surfaceContainerHighest = Color(0xFF3B313B)
+)
+
+/** La semántica no depende únicamente del color: cada chip mantiene su texto. */
+internal val LocalLasFloresDark = staticCompositionLocalOf { false }
+
+@Composable
+internal fun semanticBackground(kind: String): Color {
+    val dark = LocalLasFloresDark.current
+    return if(dark) when(kind) {
+        "success" -> Color(0xFF254333)
+        "danger" -> Color(0xFF4B2833)
+        "warning" -> Color(0xFF493824)
+        "corrected" -> Color(0xFF463626)
+        else -> LasFloresPalette.NightElevated
+    } else when(kind) {
+        "success" -> Color(0xFFE5F2EA)
+        "danger" -> Color(0xFFFCE9E6)
+        "warning" -> Color(0xFFF7ECD7)
+        "corrected" -> Color(0xFFF3E6D5)
+        else -> LasFloresPalette.Ivory
+    }
+}
+
+@Composable
+internal fun semanticForeground(kind: String): Color {
+    val dark = LocalLasFloresDark.current
+    return if(dark) when(kind) {
+        "success" -> Color(0xFF7DD2A2)
+        "danger" -> Color(0xFFFF9AA2)
+        "warning", "corrected" -> Color(0xFFF2C578)
+        else -> Color(0xFFCDBFC4)
+    } else when(kind) {
+        "success" -> LasFloresPalette.Success
+        "danger" -> LasFloresPalette.Danger
+        "warning" -> LasFloresPalette.Warning
+        "corrected" -> Color(0xFF76582F)
+        else -> LasFloresPalette.Muted
+    }
+}
 
 internal val LasFloresShapes = Shapes(
     extraSmall = RoundedCornerShape(7.dp),

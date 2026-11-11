@@ -181,16 +181,13 @@ private fun BriefingRegisterPanel(
                             BriefingRules.MESA to "En mesa",
                             BriefingRules.FALTA to "No asistió"
                         ).forEach { (code, title) ->
-                            val semantic = when(code) {
-                                BriefingRules.ASISTIO -> LasFloresPalette.Success
-                                BriefingRules.FALTA -> LasFloresPalette.Danger
-                                else -> LasFloresPalette.Warning
+                            val category = when(code) {
+                                BriefingRules.ASISTIO -> "success"
+                                BriefingRules.FALTA -> "danger"
+                                else -> "warning"
                             }
-                            val selectedBackground = when(code) {
-                                BriefingRules.ASISTIO -> Color(0xFFE5F2EA)
-                                BriefingRules.FALTA -> Color(0xFFFCE9E6)
-                                else -> Color(0xFFF7ECD7)
-                            }
+                            val semantic = semanticForeground(category)
+                            val selectedBackground = semanticBackground(category)
                             FilterChip(
                                 selected = previous?.presence == code,
                                 onClick = {

@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.LasFlores.Starting" parent="Theme.LasFlores">
+        <item name="android:statusBarColor">#171519</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowSplashScreenBackground">#171519</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/las_flores_icon_foreground</item>
+    </style>
+</resources>
