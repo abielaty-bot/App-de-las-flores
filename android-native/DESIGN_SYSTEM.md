@@ -1,4 +1,4 @@
-# Las Flores — Sistema visual Android (4.0009)
+# Las Flores — Sistema visual Android (4.0010)
 
 ## Referencia aprobada
 Mockup vertical de cuatro pantallas (Inicio, Briefings, Uniformes, Reportes).
@@ -21,11 +21,32 @@ ni sesiones adicionales**. Mantener el tulipán rojo sin sustituir la identidad.
 No representar incumplimientos con el borgoña de marca. No usar solo
 color: cada estado debe tener etiqueta textual.
 
+## Borgoña Nocturno (4.0010)
+- En **Más → Configuración → Apariencia**: Automático (predeterminado), Claro u
+  Oscuro · Borgoña Nocturno. La elección se conserva en SharedPreferences,
+  sin agregar columnas a Room ni modificar el respaldo JSON.
+- Automático respeta el modo del sistema y reacciona al cambio sin intervención.
+- Paleta nocturna: fondo `#171519`, superficie `#242026`,
+  superficie elevada `#302831`, borgoña destacado `#873650`,
+  champán `#DCB98A`, texto `#F7F1EE`.
+- Para garantizar legibilidad, el color primario de los controles Material 3
+  es borgoña aclarado `#D8A0B1`, mientras que los accesos rápidos destacados
+  mantienen fondo borgoña intenso con texto blanco.
+- Estados: verde `#7DD2A2` sobre `#254333`, ámbar `#F2C578`
+  sobre `#493824` y rojo `#FF9AA2` sobre `#4B2833`.
+- Contrastes estimados de texto: 14,33:1 (principal en tarjeta),
+  8,67:1 (champán en tarjeta), 7,85:1 (blanco sobre botón borgoña).
+- En Android 12+ la pantalla inicial sigue el modo del sistema mediante recursos
+  `values-night`; si el usuario fuerza un tema contrario al del dispositivo,
+  esa pantalla inicial del sistema puede utilizar brevemente sus colores propios.
+- Pruebas: modos claro/oscuro/automático, reapertura, rotación, accesibilidad,
+  tarjetas de estados, pantallas de todas las secciones, actualización con datos.
+
 ## Navegación responsive
 - Tablet en **vertical**: barra inferior (Inicio, Personal, Briefings, Uniformes, Más).
-  "Más" abre Funciones, Incidentes, Reportes, Respaldos y Actualizaciones.
+  "Más" abre Funciones, Incidentes, Reportes, Respaldos, Configuración y Actualizaciones.
 - Tablet **horizontal** de >= 760dp de ancho: menú lateral permanente
-  con las nueve secciones.
+  con las diez secciones.
 - Todas las secciones comparten esquinas, tipografía, márgenes y colores.
 - Los submenús se presentan en una fila horizontal desplazable, no en varias
   filas que resten espacio al registro.
