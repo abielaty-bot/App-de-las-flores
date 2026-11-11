@@ -17,6 +17,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,12 @@ fun BackupScreen(manager: OfflineBackupManager) {
     var migrationMode by remember { mutableStateOf<String?>(null) }
     var existingRecords by remember { mutableStateOf(0) }
     var replacementAcknowledged by remember { mutableStateOf(false) }
+    val reportError = LocalErrorReporter.current
+    // Las excepciones JSON pueden incluir TODO el archivo después de «of {».
+    // No se muestra ni se copia su contenido; solo la descripción útil del fallo.
+    LaunchedEffect(message) {
+        if (ErrorReportText.isError(message)) reportError("Respaldos", message)
+    }
 
     val createFile = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -61,7 +68,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                 }
                 message = "Respaldo completo guardado. Consérvalo también fuera de la tablet."
             } catch (error: Exception) {
-                message = "Error al exportar: " + (error.message ?: "verifica el almacenamiento")
+                message = "Error al exportar: " + ErrorReportText.compact(error.message ?: "verifica el almacenamiento")
             } finally {
                 working = false
             }
@@ -109,7 +116,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                 pendingJson = null
                 pendingPreview = null
                 migrationMode = null
-                message = "No se importó ningún dato: " + (error.message ?: "archivo inválido")
+                message = "No se importó ningún dato: " + ErrorReportText.compact(error.message ?: "archivo inválido")
             } finally {
                 working = false
             }
@@ -197,7 +204,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                                     pendingPreview = summary
                                     message = "Copia interna validada. Confirma su restauración."
                                 } catch (error: Exception) {
-                                    message = "Error al recuperar copia: " + (error.message ?: "no disponible")
+                                    message = "Error al recuperar copia: " + ErrorReportText.compact(error.message ?: "no disponible")
                                 } finally {
                                     working = false
                                 }
@@ -286,7 +293,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                             migrationMode = null
                             replacementAcknowledged = false
                         } catch (error: Exception) {
-                            message = "Error al restaurar: " + (error.message ?: "transacción cancelada")
+                            message = "Error al restaurar: " + ErrorReportText.compact(error.message ?: "transacción cancelada")
                         } finally {
                             working = false
                         }

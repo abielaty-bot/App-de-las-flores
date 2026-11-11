@@ -79,7 +79,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 onNext = { vm.changeDay(1) },
                 onToday = vm::today
             )
-            Text(saved, color = if (saved.startsWith("Error")) MaterialTheme.colorScheme.error
+            Text(if (ErrorReportText.isError(saved)) ErrorReportText.compact(saved) else saved, color = if (saved.startsWith("Error")) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelSmall)
         }

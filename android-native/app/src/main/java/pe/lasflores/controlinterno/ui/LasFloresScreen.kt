@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +48,30 @@ fun LasFloresScreen(
     val uniformStatus by uniformVm.saveStatus.collectAsState()
     val functionStatus by functionVm.message.collectAsState()
     val incidentStatus by incidentVm.message.collectAsState()
+    val briefingStatus by briefingVm.message.collectAsState()
+    val updateStatus by updateVm.state.collectAsState()
+    val errorCenter = remember { ErrorReportCenter() }
+    val reportError: (String, String) -> Unit = remember(errorCenter) {
+        { module, raw -> errorCenter.register(module, raw) }
+    }
+    LaunchedEffect(personalStatus) {
+        if (ErrorReportText.isError(personalStatus)) reportError("Personal", personalStatus)
+    }
+    LaunchedEffect(uniformStatus) {
+        if (ErrorReportText.isError(uniformStatus)) reportError("Uniformes", uniformStatus)
+    }
+    LaunchedEffect(briefingStatus) {
+        if (ErrorReportText.isError(briefingStatus)) reportError("Briefings", briefingStatus)
+    }
+    LaunchedEffect(functionStatus) {
+        if (ErrorReportText.isError(functionStatus)) reportError("Funciones", functionStatus)
+    }
+    LaunchedEffect(incidentStatus) {
+        if (ErrorReportText.isError(incidentStatus)) reportError("Incidentes", incidentStatus)
+    }
+    LaunchedEffect(updateStatus.status, updateStatus.error) {
+        if (updateStatus.error) reportError("Actualizaciones", updateStatus.status)
+    }
 
     val context = LocalContext.current
     val store = remember(context) { LasFloresThemeStore(context) }
@@ -70,7 +95,10 @@ fun LasFloresScreen(
         }
     }
 
-    CompositionLocalProvider(LocalLasFloresDark provides darkTheme) {
+    CompositionLocalProvider(
+        LocalLasFloresDark provides darkTheme,
+        LocalErrorReporter provides reportError
+    ) {
     MaterialTheme(
         colorScheme=if(darkTheme) LasFloresDarkColors else LasFloresColors,
         typography=LasFloresTypography,
@@ -85,7 +113,10 @@ fun LasFloresScreen(
                 else->""
             }
             Column(Modifier.fillMaxSize()) {
-                if(message.startsWith("Error") || message=="Guardando…") {
+                errorCenter.latest?.let { incident ->
+                    CopyableErrorCard(incident, onDismiss = errorCenter::dismiss)
+                }
+                if(message=="Guardando…") {
                     Text(
                         message,modifier=Modifier.fillMaxWidth().padding(
                             horizontal=16.dp,vertical=5.dp

@@ -58,7 +58,7 @@ fun FunctionScreen(vm:FunctionViewModel,staffVm:StaffViewModel) {
                 FilterChip(selected=tab==id,onClick={tab=id},label={Text(title)})
             }
         }
-        Text(message, modifier=Modifier.padding(horizontal=16.dp,vertical=2.dp),
+        Text(if (ErrorReportText.isError(message)) ErrorReportText.compact(message) else message, modifier=Modifier.padding(horizontal=16.dp,vertical=2.dp),
             style=MaterialTheme.typography.labelSmall,
             color=if(message.startsWith("Error")) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary)
