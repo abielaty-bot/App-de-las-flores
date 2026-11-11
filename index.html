@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#123d36">
+  <meta name="theme-color" content="#351c27">
   <meta name="description" content="Sistema de control interno de Las Flores: briefings, uniformes, funciones, personal e incidentes. Funciona sin conexión y permite reportes Excel.">
   <title>Las Flores | Control interno</title>
   <style>:root{--deep:#123d36;--green:#176451;--lightgreen:#e9f3ec;--gold:#c8ab6e;--ink:#1b322c;--muted:#63746c;--line:#dce5dd;--surface:#fff;--bg:#f5f7f4;--red:#a9423c;--redbg:#fff0ed;--amber:#916817;--amberbg:#fff7e5;--shadow:0 9px 25px rgba(20,60,44,.045)}
@@ -108,13 +108,14 @@
     [data-theme="dark"] .pwa-update-actions button{background:#2f8f6e}
     [data-theme="dark"] .pwa-update-actions button.secondary{background:transparent;border-color:#987744;color:#f0d9a0}
   </style>
+  <link rel="stylesheet" href="./styles/patrimonial.css">
 </head>
 <body>
   <script>try{var __p=JSON.parse(localStorage.getItem('lasflores.control.prefs.v2')||'{}');if(__p.theme==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <header class="global-header">
     <div class="header-inner">
       <button id="homeLogo" class="brand-link" type="button" aria-label="Volver al inicio" data-action="home">
-        <span class="brand-mark">LF</span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 28V15m0 7c-5-1-8-4-9-7m9 4c5-1 8-4 9-7"/><path d="M16 16c-5-2-8-6-7-12 3 0 6 2 7 6 1-4 4-6 7-6 1 6-2 10-7 12Z"/></svg></span>
         <span><strong>LAS FLORES</strong><small>CONTROL INTERNO</small></span>
       </button>
       <div class="header-actions">
@@ -129,7 +130,14 @@
     <nav id="subnav" class="subnav" aria-label="Secciones del módulo" hidden></nav>
     <div id="app" aria-live="off"></div>
   </main>
-  <footer class="footer">LAS FLORES · v2.4.1.0008 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <footer class="footer">LAS FLORES · v2.5.0 · Uso interno · Los datos permanecen en este dispositivo, salvo los archivos que exportes.</footer>
+  <nav id="bottomNav" class="bottom-nav" aria-label="Navegación principal">
+    <button type="button" data-nav="home" data-bottom="home"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></svg><span>Inicio</span></button>
+    <button type="button" data-nav="personal" data-bottom="personal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2H2Zm16-13a3 3 0 0 1 0 6"/></svg><span>Personal</span></button>
+    <button type="button" data-nav="brief" data-bottom="brief"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4h6m-6 6h6m-6 4h6m-6 4h4"/></svg><span>Briefings</span></button>
+    <button type="button" data-nav="uniform" data-bottom="uniform"><svg viewBox="0 0 24 24"><path d="m8 3 4 3 4-3 5 4-2 5-3-1v10H8V11l-3 1-2-5z"/></svg><span>Uniformes</span></button>
+    <button type="button" data-nav="reports" data-bottom="reports"><svg viewBox="0 0 24 24"><path d="M4 20V11h4v9m4 0V4h4v16m4 0v-8h3v8M2 21h20"/></svg><span>Reportes</span></button>
+  </nav>
   <div id="modalLayer" class="modal-layer" aria-hidden="true"><div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalHeading"></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="pwaUpdate" class="pwa-update-banner" role="status" aria-live="polite" hidden>
@@ -410,6 +418,7 @@ function getSection(){
   if(['uniform','implements','requirements','deliveries','uniform-history','uniform-export'].includes(view))return 'uniform';
   if(view.startsWith('functions'))return 'functions';
   if(view.startsWith('incidents'))return 'incidents';
+  if(view==='reports')return 'reports';
   return 'personal';
 }
 function sectionNav(){const section=getSection();if(!section)return [];
@@ -417,10 +426,11 @@ function sectionNav(){const section=getSection();if(!section)return [];
   if(section==='uniform')return [['uniform','Revisión diaria'],['implements','Implementos'],['requirements','Requisitos'],['deliveries','Entregas'],['uniform-history','Historial'],['uniform-export','Excel']];
   if(section==='functions')return [['functions','Control diario'],['functions-month','Resumen mensual']];
   if(section==='incidents')return [['incidents','Nuevo / Resumen'],['incidents-history','Seguimiento'],['incidents-stats','Análisis'],['incidents-reports','Excel']];
+  if(section==='reports')return [['reports','Resumen general']];
   return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
 }
 // Historial de navegación para el botón Atrás y el gesto de Android.
-const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','incidents','incidents-history','incidents-stats','incidents-reports']);
+const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','reports','incidents','incidents-history','incidents-stats','incidents-reports']);
 let navigationReady=false,modalSequence=0;
 const modalSnapshots=new Map();
 function navigationEntry(v,dialogId=null,depth=0){return {lasFloresNavigation:true,view:v,dialogId,depth};}
@@ -486,7 +496,7 @@ window.addEventListener('popstate',event=>{
   }
 });
 function menuLocation(){
- const sections={brief:'Briefings',uniform:'Control de uniformes',functions:'Control de funciones',personal:'Personal',incidents:'Registro de incidentes'};
+ const sections={brief:'Briefings',uniform:'Control de uniformes',functions:'Control de funciones',personal:'Personal',incidents:'Registro de incidentes',reports:'Reportes'};
  const section=getSection();
  const exact=sectionNav().find(([id])=>id===view);
  return {section:sections[section]||'Personal',page:exact?.[1]||'Configuración'};
@@ -494,7 +504,16 @@ function menuLocation(){
 function setHeading(title,subtitle){
   $('#pageHeading').innerHTML=`<div class="heading-top"><button class="back" data-action="go-back">← Volver</button><span class="eyebrow" style="margin:0">Inicio › ${h(menuLocation().section)} › ${h(menuLocation().page)}</span></div><h1 class="page-title">${h(title)}</h1><p class="page-subtitle">${h(subtitle)}</p>`;
 }
+function updateBottomNav(){
+  const section=getSection(), active=view==='home'?'home':section==='reports'?'reports':section==='brief'?'brief':section==='uniform'?'uniform':section==='personal'?'personal':'';
+  document.querySelectorAll('[data-bottom]').forEach(button=>{
+    const selected=button.dataset.bottom===active;
+    button.classList.toggle('active',selected);
+    if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+  });
+}
 function render(){
+  updateBottomNav();
   if(view==='home'){
     $('#pageHeading').innerHTML='';$('#subnav').hidden=true;renderHome();updateSaveIndicator();return;
   }
@@ -507,6 +526,7 @@ function render(){
   else if(view==='functions')renderFunctions();
   else if(view==='functions-month')renderFunctionMonth();
   else if(view==='personal')renderPersonal();
+  else if(view==='reports')renderReports();
   else if(view==='settings')renderSettings();
   else if(view==='uniform')renderUniform();
   else if(view==='implements')renderImplements();
@@ -521,15 +541,67 @@ function render(){
   else if(view==='brief-export')renderExport('brief');
   updateSaveIndicator();
 }
+function iconFor(name){
+  const p={
+   personal:'<circle cx="9" cy="8" r="3"/><path d="M2 21v-2a7 7 0 0 1 14 0v2H2Zm16-13a3 3 0 0 1 0 6"/>',
+   brief:'<rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4h6m-6 6h6m-6 4h6m-6 4h4"/>',
+   uniform:'<path d="m8 3 4 3 4-3 5 4-2 5-3-1v10H8V11l-3 1-2-5z"/>',
+   functions:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 10 2 2 5-5m-7 9h8"/>',
+   incidents:'<path d="M12 3 2 21h20L12 3Zm0 7v4m0 3h.01"/>',
+   reports:'<path d="M4 20V11h4v9m4 0V4h4v16m4 0v-8h3v8M2 21h20"/>'
+  };
+  return '<svg viewBox="0 0 24 24" aria-hidden="true">'+(p[name]||p.reports)+'</svg>';
+}
+function dashboardData(date){
+  const scheduled=forDate(date).filter(x=>isScheduled(x.status));
+  const inspected=scheduled.filter(x=>!!inspection(date,x.worker.id));
+  const uniformGood=inspected.filter(x=>inspection(date,x.worker.id)?.result==='conforme').length;
+  const brief=briefStats(date);
+  const functions=state.functionChecks.filter(r=>r.date===date&&!r.voidedAt);
+  const openIncidents=state.incidents.filter(r=>!['cerrado','anulado'].includes(r.status)).length;
+  return {scheduled,inspected,uniformGood,brief,functions,openIncidents};
+}
+function dashboardCard(route,icon,title,number,note){
+  return '<button type="button" class="home-card" data-nav="'+h(route)+'"><span class="home-card-top"><span class="home-icon">'+iconFor(icon)+'</span><span class="home-card-number">'+h(number)+'</span></span><strong>'+h(title)+'</strong><span>'+h(note)+'</span></button>';
+}
 function renderHome(){
-  $('#app').innerHTML=`<div class="home-intro"><span class="eyebrow">GUARDIANES DE LA CULTURA AYACUCHANA</span><h1>¿Qué deseas gestionar?</h1><p>Selecciona el área de trabajo. Cada módulo tiene sus propios registros y reportes.</p></div>
-    <div class="home-grid">
-      <button class="home-card" data-nav="brief"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4.5h6M9 9h6M9 13h6M9 17h4"/></svg></span><strong>Briefings</strong><span>Asistencias, pendientes de informar e historial</span></button>
-      <button class="home-card" data-nav="uniform"><span class="home-icon"><svg viewBox="0 0 24 24"><path d="m4 7 5-4h6l5 4 2 5-5 2-1-3v10H8V11l-1 3-5-2 2-5Z"/></svg></span><strong>Control de uniformes</strong><span>Revisiones, implementos y correcciones</span></button>
-      <button class="home-card" data-nav="functions"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 10 2 2 5-5M8 16h8"/></svg></span><strong>Control de funciones</strong><span>Asignaciones, incidencias y cumplimiento mensual</span></button>
-      <button class="home-card" data-nav="personal"><span class="home-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20v-2a6 6 0 0 1 12 0v2H2ZM17 11a3 3 0 1 0-1-5.8M16 14a5 5 0 0 1 6 5v1h-5"/></svg></span><strong>Personal</strong><span>Trabajadores, estados, descansos y apoyos</span></button>
-      <button class="home-card" data-nav="incidents"><span class="home-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v5M12 17h.01M8 8h0"/></svg></span><strong>Registro de incidentes</strong><span>Alimentos, bebidas, fallas operativas y seguimiento</span></button>
-    </div><div class="home-notice">Sin conexión · ${state.staff.filter(p=>p.active!==false).length} trabajadores activos · ${prefs.autoSave?'Autoguardado activado':'Guardado manual activado'}</div>`;
+  const today=dateISO(),d=dashboardData(today),hour=new Date().getHours();
+  const greeting=hour<12?'Buenos días':hour<19?'Buenas tardes':'Buenas noches';
+  const active=state.staff.filter(w=>w.active!==false).length;
+  const uniformPending=Math.max(0,d.scheduled.length-d.inspected.length);
+  const functionPending=d.functions.filter(r=>r.result==='pending').length;
+  $('#app').innerHTML=
+    '<section class="home-hero"><p class="home-kicker">LAS FLORES · CONTROL INTERNO</p><h1>'+greeting+'</h1><p>Supervisión operativa del restaurante</p><span class="home-date">'+h(formatDate(today))+'</span></section>'+
+    '<h2 class="home-section-title">Accesos rápidos</h2><div class="home-grid">'+
+    dashboardCard('personal','personal','Personal',active,'Trabajadores activos')+
+    dashboardCard('uniform','uniform','Uniformes',uniformPending,'Sin inspección inicial hoy')+
+    dashboardCard('brief','brief','Briefings',d.brief.pending,'Pendientes de informar hoy')+
+    dashboardCard('functions','functions','Funciones',functionPending,'Asignadas por revisar hoy')+
+    dashboardCard('incidents','incidents','Incidentes',d.openIncidents,'Abiertos actualmente')+
+    dashboardCard('reports','reports','Reportes','↗','Resumen y exportaciones a Excel')+
+    '</div><div class="home-info" aria-label="Indicadores operativos">'+
+    '<div class="home-info-item"><b>'+d.scheduled.length+'</b><span>Programados hoy</span></div>'+
+    '<div class="home-info-item"><b>'+d.brief.registered+'/'+d.brief.total+'</b><span>Briefings registrados</span></div>'+
+    '<div class="home-info-item"><b>'+d.inspected.length+'/'+d.scheduled.length+'</b><span>Uniformes revisados</span></div></div>'+
+    '<div class="home-backup"><div><strong>Respaldo de información</strong><span class="small">Última descarga: '+h(displayTime(state.backupAt))+'</span></div><button class="button gold" data-nav="settings">Gestionar respaldos</button></div>'+
+    '<p class="home-notice">Uso local · '+(prefs.autoSave?'Autoguardado activado':'Guardado manual activado')+' · Los datos no se envían a GitHub.</p>';
+}
+function renderReports(){
+  setHeading('Reportes','Resumen operativo del día con tus registros. Los indicadores distinguen revisados, pendientes y resultados.');
+  const d=dashboardData(dateISO());
+  $('#app').innerHTML='<div class="panel"><div class="panel-head"><h2>Resumen de '+h(formatDate(dateISO()))+'</h2>'+badge('Datos locales','ok')+'</div>'+
+    '<div class="panel-body"><p class="muted-note">Cifras del día actual, salvo incidentes abiertos (total vigente). No son datos de demostración.</p></div></div>'+
+    '<div class="kpis">'+kpi(d.brief.registered+'/'+d.brief.total,'Asistencias registradas')+
+    kpi(d.brief.pending,'Por informar','amber')+kpi(d.inspected.length+'/'+d.scheduled.length,'Inspecciones iniciales')+
+    kpi(d.uniformGood+'/'+d.inspected.length,'Conformes en inspección inicial','green')+
+    kpi(d.functions.length,'Funciones asignadas')+
+    kpi(d.functions.filter(r=>r.result==='pending').length,'Funciones por revisar','amber')+
+    kpi(d.openIncidents,'Incidentes abiertos','red')+'</div>'+
+    '<h2 class="home-section-title">Reportes y exportaciones</h2><div class="reports-grid">'+
+    '<button class="report-link" data-nav="brief-export"><div><strong>Briefings y asistencia</strong><span>Informe diario, mensual y Excel</span></div><b class="report-link-arrow">›</b></button>'+
+    '<button class="report-link" data-nav="uniform-export"><div><strong>Uniformes e implementos</strong><span>Revisiones, correcciones y entregas</span></div><b class="report-link-arrow">›</b></button>'+
+    '<button class="report-link" data-nav="functions-month"><div><strong>Cumplimiento de funciones</strong><span>Evaluación mensual y Excel</span></div><b class="report-link-arrow">›</b></button>'+
+    '<button class="report-link" data-nav="incidents-reports"><div><strong>Incidentes operativos</strong><span>Seguimiento y exportación Excel</span></div><b class="report-link-arrow">›</b></button></div>';
 }
 function kpi(n,label,kind=''){return `<div class="kpi ${kind}"><div class="number">${h(n)}</div><div class="label">${h(label)}</div></div>`;}
 function emptyHint(title,body){return `<div class="empty"><strong>${h(title)}</strong>${h(body)}</div>`;}
