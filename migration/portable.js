@@ -305,6 +305,26 @@ function convert(input, existingAndroid) {
     if(arr(base.inspections).length)warn("La fusión conserva registros Android existentes; verifica especialmente uniformes y reportes.");
    }
  }
+ // Repetimos las comprobaciones tras fusionar dos fuentes: IDs distintos pueden
+ // representar el mismo hecho, aunque cada fuente sea válida por separado.
+ function ensureNaturalUnique(collection,label,selector) {
+   const found=new Map();
+   for(const item of collection) {
+     const key=selector(item);
+     if(key==null)continue;
+     if(found.has(key) && found.get(key)!==item.id)
+       error("Posible duplicación tras fusionar "+label+": "+key);
+     else found.set(key,item.id);
+   }
+ }
+ ensureNaturalUnique(out.inspections,"uniformes",x=>x.dateIso+"|"+x.staffId);
+ ensureNaturalUnique(out.briefingAttendance,"briefings",x=>x.dateIso+"|"+x.staffId);
+ ensureNaturalUnique(out.briefingSessions,"sesiones",x=>x.dateIso+"|"+x.groupHour);
+ ensureNaturalUnique(out.functionChecks.filter(x=>x.voidedAtMillis==null),"funciones",
+   x=>x.dateIso+"|"+x.staffId+"|"+x.areaSnapshot+"|"+normalizedName(x.taskLabelSnapshot));
+ ensureNaturalUnique(out.functionTasks,"catálogo de funciones",x=>x.area+"|"+normalizedName(x.label));
+ ensureNaturalUnique(out.incidentTypes.filter(x=>x.isActive),"tipos de incidentes",x=>x.category+"|"+normalizedName(x.label));
+ ensureNaturalUnique(out.incidents,"códigos de incidente",x=>x.code);
  const checkSize=JSON.stringify(out).length;
  if(checkSize>29*1024*1024)error("El respaldo convertido supera el límite de tamaño para restaurar Android (30 MB).");
  const counts={staff:out.staff.length,inspections:out.inspections.length,checklists:arr(data.checklists).length,
