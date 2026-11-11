@@ -43,6 +43,7 @@ object StaffScheduleRules {
         "absent" -> "Falta"
         "leave" -> "Permiso"
         "support" -> "Apoyo"
+        "off" -> "No programado"
         "inactive" -> "Inactivo"
         else -> "Desconocido"
     }
