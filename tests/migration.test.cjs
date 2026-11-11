@@ -47,7 +47,7 @@ test("bloquea fuentes desconocidas y archivos corruptos", () => {
 });
 test("bloquea ID/persona duplicada", () => {
  const f=fixture();f.staff.push({...f.staff[0],id:"p-2"});
- const result=convert(f);assert.equal(result.ok,false);assert.match(result.errors.join(" "),"mismo nombre");
+ const result=convert(f);assert.equal(result.ok,false);assert.match(result.errors.join(" "),/mismo nombre/);
 });
 test("bloquea inspecciones observadas e incompletas", () => {
  const f=fixture();
@@ -57,7 +57,7 @@ test("bloquea inspecciones observadas e incompletas", () => {
    {reqId:"camisa",status:null,label:"Uniforme limpio",group:"Uniforme"}
  ]}];
  const x=convert(f);assert.equal(x.ok,false);
- assert.match(x.errors.join(" "),"incompleta");
+ assert.match(x.errors.join(" "),/incompleta/);
 });
 test("bloquea asignaciones a personas ausentes del archivo", () => {
  const f=fixture();f.briefings[0].staffId="ausente";
@@ -67,7 +67,7 @@ test("bloquea conflictos en fusión, no pisa Android", () => {
  const f=fixture(),base=convert(f).converted;
  base.staff[0].category=2;
  const x=convert(f,base);assert.equal(x.ok,false);
- assert.match(x.errors.join(" "),"Conflicto");
+ assert.match(x.errors.join(" "),/Conflicto/);
 });
 test("copia funciones y sus hechos corregidos", () => {
  const f=fixture();
