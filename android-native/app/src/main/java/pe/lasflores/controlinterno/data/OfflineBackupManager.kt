@@ -452,6 +452,53 @@ class OfflineBackupManager(
                     x.getString("note"),x.getLong("atMillis")
                 )
             } else emptyList(),
+            incidentTypes = if(version>=5) rows(root,"incidentTypes") { x ->
+                IncidentTypeEntity(
+                    x.getString("id"),x.getString("category"),x.getString("label"),
+                    x.getBoolean("isActive"),x.getLong("createdAtMillis"),
+                    x.getLong("updatedAtMillis")
+                )
+            } else IncidentRules.seedTypes(),
+            incidents = if(version>=5) rows(root,"incidents") { x ->
+                IncidentEntity(
+                    id=x.getString("id"),code=x.getString("code"),
+                    category=x.getString("category"),
+                    occurredDate=x.getString("occurredDate"),
+                    occurredTime=x.getString("occurredTime"),
+                    detectedArea=x.getString("detectedArea"),
+                    originArea=x.getString("originArea"),
+                    confirmedOrigin=x.getString("confirmedOrigin"),
+                    productOrProcess=x.getString("productOrProcess"),
+                    typeId=x.getString("typeId"),
+                    typeLabelSnapshot=x.getString("typeLabelSnapshot"),
+                    description=x.getString("description"),
+                    priority=x.getString("priority"),
+                    reporter=x.getString("reporter"),
+                    impact=x.getString("impact"),
+                    immediateAction=x.getString("immediateAction"),
+                    assignedStaffId=x.getString("assignedStaffId"),
+                    assignedStaffNameSnapshot=x.getString("assignedStaffNameSnapshot"),
+                    status=x.getString("status"),
+                    createdAtMillis=x.getLong("createdAtMillis"),
+                    updatedAtMillis=x.getLong("updatedAtMillis"),
+                    closedAtMillis=nullableLong(x,"closedAtMillis"),
+                    closedBy=x.getString("closedBy"),
+                    voidedAtMillis=nullableLong(x,"voidedAtMillis"),
+                    voidReason=x.getString("voidReason")
+                )
+            } else emptyList(),
+            incidentActions = if(version>=5) rows(root,"incidentActions") { x ->
+                IncidentActionEntity(
+                    id=x.getString("id"),incidentId=x.getString("incidentId"),
+                    kind=x.getString("kind"),
+                    description=x.getString("description"),
+                    actor=x.getString("actor"),atMillis=x.getLong("atMillis"),
+                    statusBefore=x.getString("statusBefore"),
+                    statusAfter=x.getString("statusAfter"),
+                    confirmedOrigin=x.getString("confirmedOrigin"),
+                    assignedStaffId=x.getString("assignedStaffId")
+                )
+            } else emptyList(),
             formatVersion = version
         )
         validate(data)
@@ -508,6 +555,10 @@ class OfflineBackupManager(
         unique(data.functionChecks, "asignaciones de funciones") { it.id }
         unique(data.functionEvidence, "fotografías de funciones") { it.id }
         unique(data.functionEvents, "auditoría de funciones") { it.id }
+        unique(data.incidentTypes, "tipos de incidentes") { it.id }
+        unique(data.incidents, "incidentes") { it.id }
+        unique(data.incidents, "códigos de incidentes") { it.code }
+        unique(data.incidentActions, "acciones de incidentes") { it.id }
 
         val staffIds = data.staff.map { it.id }.toSet()
         val inspectionIds = data.inspections.map { it.id }.toSet()
@@ -603,6 +654,48 @@ class OfflineBackupManager(
         require(data.functionEvents.all { it.checkId in checksIds }) {
             "El historial de funciones tiene asignaciones desconocidas."
         }
+        val incidentIds = data.incidents.map { it.id }.toSet()
+        val typeIds = data.incidentTypes.map { it.id }.toSet()
+        require(data.incidentTypes.all {
+            it.id.isNotBlank() && it.category in IncidentRules.CATEGORIES &&
+                it.label.length in 3..120
+        }) { "Catálogo de incidentes inválido." }
+        require(data.incidentTypes.filter { it.isActive }
+            .groupBy { it.category to it.label.lowercase() }
+            .values.all { it.size == 1 }) { "Hay tipos de incidentes activos duplicados." }
+        require(data.incidents.all {
+            it.id.isNotBlank() &&
+                Regex("""INC-\d{4}-\d{4,}""").matches(it.code) &&
+                it.code.substring(4,8) == it.occurredDate.take(4) &&
+                IncidentRules.validDateTime(it.occurredDate,it.occurredTime) &&
+                it.category in IncidentRules.CATEGORIES &&
+                it.detectedArea in IncidentRules.AREAS &&
+                (it.originArea.isBlank() || it.originArea in IncidentRules.AREAS) &&
+                (it.confirmedOrigin.isBlank() || it.confirmedOrigin in IncidentRules.AREAS) &&
+                it.productOrProcess.length in 2..140 &&
+                it.typeLabelSnapshot.length in 3..120 &&
+                (it.typeId.isBlank() || it.typeId in typeIds) &&
+                it.description.length in 10..1500 &&
+                it.priority in IncidentRules.PRIORITIES &&
+                it.reporter.length in 2..90 &&
+                it.impact in IncidentRules.IMPACTS &&
+                it.immediateAction.length in 5..850 &&
+                (it.assignedStaffId.isBlank() || it.assignedStaffId in staffIds) &&
+                it.status in IncidentRules.STATUSES &&
+                (it.status == IncidentRules.CERRADO) ==
+                    (it.closedAtMillis != null && it.closedBy.isNotBlank()) &&
+                (it.status == IncidentRules.ANULADO) ==
+                    (it.voidedAtMillis != null && it.voidReason.isNotBlank())
+        }) { "Hay incidentes con fechas, estados, responsables o campos inválidos." }
+        require(data.incidentActions.all {
+            it.id.isNotBlank() && it.incidentId in incidentIds &&
+                it.kind in (IncidentRules.ACTIONS + setOf("reapertura","anulacion")) &&
+                it.description.length in 5..1500 && it.actor.length in 2..90 &&
+                (it.statusBefore.isBlank() || it.statusBefore in IncidentRules.STATUSES) &&
+                it.statusAfter in IncidentRules.STATUSES &&
+                (it.confirmedOrigin.isBlank() || it.confirmedOrigin in IncidentRules.AREAS) &&
+                (it.assignedStaffId.isBlank() || it.assignedStaffId in staffIds)
+        }) { "El historial de acciones de incidentes no es consistente." }
         // Un evento de descarte puede referirse a un borrador ya retirado:
         // los eventos históricos se conservan incluso si la inspección no existe.
     }
