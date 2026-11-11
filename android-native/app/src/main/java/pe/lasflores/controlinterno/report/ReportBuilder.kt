@@ -172,7 +172,7 @@ object ReportBuilder {
             listOf("Uniformes: inspecciones finalizadas",metrics.uniformsFinalized,"No incluye borradores"),
             listOf("Uniformes: observadas inicialmente",metrics.uniformsObserved,"Las correcciones no eliminan el resultado inicial"),
             listOf("Uniformes: días sin revisión",if(select.staffId==null)
-                snapshot.activityDays.count{select.includes(it.dateIso)&&it.module=="uniformes" && it.status!="REVIEWED"} else 0,
+                snapshot.activityDays.count{select.includes(it.dateIso)&&it.module=="uniformes" && it.status=="NO_REALIZADA"} else 0,
                 "Solo aplica a reportes de todo el equipo; estado según registro manual"),
             listOf("Briefings: registros",metrics.briefingRegistered,"Sin registrar no significa inasistencia"),
             listOf("Briefings: asistencias presenciales",briefings.count{it.presence=="ASISTIO"},"Personal que participó presencialmente"),
