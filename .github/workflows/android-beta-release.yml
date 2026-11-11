@@ -75,6 +75,39 @@ jobs:
           cp "$APK" dist/las-flores-beta.apk
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
+      - name: Verificar el certificado de 4.0007
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/previous
+          gh release download android-beta-v40007 --dir dist/previous --pattern 'las-flores-beta.apk*'
+          (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
+          SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          certificate() {
+            "$SIGNER" verify --print-certs "$1" | awk '/certificate SHA-256 digest:/ {print $NF}'
+          }
+          PREVIOUS_CERT="$(certificate dist/previous/las-flores-beta.apk)"
+          NEW_CERT="$(certificate dist/las-flores-beta.apk)"
+          test -n "$PREVIOUS_CERT"
+          test "$PREVIOUS_CERT" = "$NEW_CERT"
+          rm -f "$LF_KEYSTORE_PATH"
+      - name: Habilitar KVM para la prueba de actualización
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Probar la actualización firmada en Android
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: python3 android-native/ci/check_portrait_upgrade.py
       - name: Publicar en GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
