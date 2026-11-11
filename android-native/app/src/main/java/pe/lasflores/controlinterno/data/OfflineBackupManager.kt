@@ -706,7 +706,7 @@ class OfflineBackupManager(
         val taskIds = data.functionTasks.map { it.id }.toSet()
         val checksIds = data.functionChecks.map { it.id }.toSet()
         require(data.functionTasks.all {
-            it.area in FunctionRules.AREAS && it.label.length in 2..100 &&
+            it.area in FunctionRules.AREAS && FunctionRules.validTaskLabel(it.label) &&
                 it.periodicity in FunctionRules.PERIODS
         }) { "Catálogo de funciones no válido." }
         require(data.functionChecks.all {
