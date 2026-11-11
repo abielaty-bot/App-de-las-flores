@@ -48,17 +48,19 @@ private val negative = Color(0xFFFBEAE8)
 private val correctedColor = Color(0xFFE8F1FC)
 
 @Composable
-fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
+fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
     val dateIso by vm.dateIso.collectAsState()
     val snapshot by vm.day.collectAsState()
     val saved by vm.saveStatus.collectAsState()
     val validSnapshot = if (snapshot.dateIso == dateIso) snapshot else UniformDaySnapshot(dateIso)
+    val catalog by vm.catalog.collectAsState()
     val isNoReview = validSnapshot.activity?.status == "NO_REALIZADA"
     var expandedId by rememberSaveable { mutableStateOf("") }
     var dialog by remember { mutableStateOf("") }
     var dialogStaff by remember { mutableStateOf("") }
     var dialogRequirement by remember { mutableStateOf("") }
     var verifier by rememberSaveable { mutableStateOf("") }
+    var requiredQty by rememberSaveable { mutableStateOf("") }
     var reason by rememberSaveable { mutableStateOf("") }
     val vacations by staffVm.vacations.collectAsState()
     val overrides by staffVm.overrides.collectAsState()
@@ -113,7 +115,10 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
         }
         items(activePeople, key = { it.id }) { staff ->
             val inspection = validSnapshot.inspectionFor(staff.id)
-            val requirements = UniformRules.forRole(inspection?.roleSnapshot ?: staff.role)
+            val requirements = if (inspection != null)
+                validSnapshot.requirementsFor(inspection.id)
+            else catalog.filter { it.appliesTo(staff.role) }
+                .map { UniformRequirement(it.id, it.label, it.category, it.minQty) }
             val reviewed = inspection?.let { record ->
                 requirements.count { validSnapshot.answerFor(record.id, it.id) != null }
             } ?: 0
@@ -146,7 +151,14 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
                                         rowItems.forEach { requirement ->
                                             val answer = inspection?.let { validSnapshot.answerFor(it.id, requirement.id) }
                                             RequirementBox(requirement, answer, inspection?.workflow == "FINALIZED",
-                                                onAnswer = { value -> vm.choose(staff.id, requirement.id, value) },
+                                                onAnswer = { value ->
+                                                    if (value == UniformRules.OK && requirement.minQty > 0) {
+                                                        dialogStaff = staff.id
+                                                        dialogRequirement = requirement.id
+                                                        requiredQty = ""
+                                                        dialog = "QUANTITY"
+                                                    } else vm.choose(staff.id, requirement.id, value)
+                                                },
                                                 onCorrect = {
                                                     dialogStaff = staff.id; dialogRequirement = requirement.id
                                                     verifier = ""; reason = ""; dialog = "CORRECT"
@@ -186,6 +198,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
         AlertDialog(onDismissRequest = { dialog = "" },
             title = { Text(when(action) {
                 "NO_REVIEW" -> "No se realizó revisión"
+                "QUANTITY" -> "Verificar cantidad mínima"
                 "FINALIZE" -> "Finalizar inspección"
                 "CORRECT" -> "Verificar corrección"
                 else -> "Rectificar error de marcación"
@@ -194,9 +207,15 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when(action) {
                         "NO_REVIEW" -> Text("No podrás declararlo si ya existen inspecciones iniciadas.")
+                        "QUANTITY" -> Text("Introduce la cantidad comprobada antes de marcar Cumple.")
                         "FINALIZE" -> Text("Se guardará el resultado inicial. Después no podrás desmarcar las faltas sin dejar constancia.")
                         "CORRECT" -> Text("El trabajador solucionó una falta real. El resultado inicial continuará siendo Observado.")
                         "RECTIFY" -> Text("El requisito estaba mal marcado. Esta rectificación conservará un evento de auditoría.")
+                    }
+                    if (action == "QUANTITY") {
+                        OutlinedTextField(value = requiredQty, onValueChange = {
+                            requiredQty = it.filter(Char::isDigit).take(3)
+                        }, label = { Text("Cantidad encontrada") }, singleLine = true)
                     }
                     if (action == "CORRECT" || action == "RECTIFY") {
                         OutlinedTextField(value = verifier, onValueChange = { verifier = it.take(90) },
@@ -212,6 +231,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
                 Button(onClick = {
                     when(action) {
                         "NO_REVIEW" -> vm.markNotPerformed(reason)
+                        "QUANTITY" -> vm.choose(dialogStaff, dialogRequirement, UniformRules.OK, requiredQty.toIntOrNull())
                         "FINALIZE" -> vm.finalize(dialogStaff)
                         "CORRECT" -> vm.correct(dialogStaff, dialogRequirement, verifier)
                         "RECTIFY" -> vm.rectify(dialogStaff, dialogRequirement, verifier, reason)
@@ -219,6 +239,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
                     dialog = ""
                 }, enabled = when(action) {
                     "NO_REVIEW" -> reason.trim().length >= 3
+                    "QUANTITY" -> (requiredQty.toIntOrNull() ?: 0) in 1..100
                     "CORRECT" -> verifier.trim().length >= 2
                     "RECTIFY" -> verifier.trim().length >= 2 && reason.trim().length >= 5
                     else -> true
@@ -232,7 +253,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
 private fun statusColor(status: String?): Color = when(status) {
     "Conforme" -> Color(0xFF18744D)
     "Observado" -> Color(0xFFB43D36)
-    "Corregido" -> Color(0xFF296FA8)
+    "Corregido", "Rectificado" -> Color(0xFF296FA8)
     "Corrección parcial" -> Color(0xFF8A6817)
     else -> Color(0xFF63766B)
 }
@@ -263,6 +284,7 @@ private fun RequirementBox(
         colors = CardDefaults.cardColors(containerColor = background)) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(requirement.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            if (requirement.minQty > 0) Text("Mínimo: " + requirement.minQty, style = MaterialTheme.typography.labelSmall)
             Text("${requirement.group} · $status", style = MaterialTheme.typography.labelSmall,
                 color = statusColor(status))
             if (!finalized) {

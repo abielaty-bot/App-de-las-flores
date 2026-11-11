@@ -10,13 +10,16 @@ import androidx.sqlite.execSQL
 @Database(
     entities = [StaffEntity::class, UniformInspectionEntity::class,
         UniformAnswerEntity::class, UniformEventEntity::class, DailyActivityEntity::class,
-        StaffVacationEntity::class, StaffDayOverrideEntity::class],
-    version = 3,
+        StaffVacationEntity::class, StaffDayOverrideEntity::class,
+        UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class],
+    version = 4,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun staffDao(): StaffDao
     abstract fun uniformDao(): UniformDao
+    abstract fun catalogDao(): UniformCatalogDao
+    abstract fun materialDao(): MaterialDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -86,4 +89,52 @@ val MIGRATION_2_3 = Migration(2, 3) { connection ->
         updatedAtMillis INTEGER NOT NULL,
         PRIMARY KEY(dateIso, staffId)
     )""".trimIndent())
+}
+
+
+/** Migración 4.0001 → 4.0002: preserva los controles y los historiales existentes. */
+val MIGRATION_3_4 = Migration(3, 4) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS uniform_requirements (
+        id TEXT NOT NULL PRIMARY KEY, label TEXT NOT NULL,
+        category TEXT NOT NULL, minQty INTEGER NOT NULL, rolesCsv TEXT NOT NULL,
+        isActive INTEGER NOT NULL, sortOrder INTEGER NOT NULL, updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS inspection_requirements (
+        inspectionId TEXT NOT NULL, requirementId TEXT NOT NULL,
+        labelSnapshot TEXT NOT NULL, categorySnapshot TEXT NOT NULL,
+        minQtySnapshot INTEGER NOT NULL, PRIMARY KEY(inspectionId,requirementId)
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_inspection_requirements_inspectionId ON inspection_requirements (inspectionId)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS material_deliveries (
+        id TEXT NOT NULL PRIMARY KEY, staffId TEXT NOT NULL,
+        staffNameSnapshot TEXT NOT NULL, dateIso TEXT NOT NULL,
+        material TEXT NOT NULL, quantity INTEGER NOT NULL,
+        reason TEXT NOT NULL, deliveredBy TEXT NOT NULL,
+        status TEXT NOT NULL, closingNote TEXT NOT NULL,
+        closedAtMillis INTEGER, createdAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_material_deliveries_staffId ON material_deliveries (staffId)")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_material_deliveries_dateIso ON material_deliveries (dateIso)")
+    connection.execSQL("ALTER TABLE uniform_answers ADD COLUMN quantity INTEGER")
+    connection.execSQL("""INSERT OR IGNORE INTO uniform_requirements
+        (id,label,category,minQty,rolesCsv,isActive,sortOrder,updatedAtMillis)
+        VALUES
+        ('unas','Uñas cortas y limpias','Presentación',0,'|Mozo|Caja|Recepción|Lavavasos|Apoyo|Otro|',1,0,0),
+        ('cabello','Cabello corto o recogido','Presentación',0,'|Mozo|Caja|Recepción|Lavavasos|Apoyo|Otro|',1,1,0),
+        ('camisa','Uniforme limpio y planchado','Uniforme',0,'|Mozo|Caja|Recepción|Apoyo|Otro|',1,2,0),
+        ('toca','Toca o redecilla','Presentación',0,'|Mozo|Lavavasos|Apoyo|',1,3,0),
+        ('mandil','Mandil limpio','Uniforme',0,'|Mozo|Apoyo|',1,4,0),
+        ('trapo','Trapo limpio','Implementos',0,'|Mozo|Apoyo|',1,5,0),
+        ('lapiceros','Lapiceros','Implementos',0,'|Mozo|Apoyo|',1,6,0),
+        ('sacacorchos','Sacacorchos','Implementos',0,'|Mozo|Apoyo|',1,7,0),
+        ('encendedor','Encendedor','Implementos',0,'|Mozo|Apoyo|',1,8,0)
+    """)
+    connection.execSQL("""INSERT OR IGNORE INTO inspection_requirements
+        (inspectionId,requirementId,labelSnapshot,categorySnapshot,minQtySnapshot)
+        SELECT i.id,r.id,r.label,r.category,r.minQty
+        FROM uniform_inspections i CROSS JOIN uniform_requirements r
+        WHERE instr(r.rolesCsv,'|' || i.roleSnapshot || '|') > 0
+    """)    // Solo aplica a revisiones nuevas; los snapshots anteriores conservan sus criterios.
+    connection.execSQL("UPDATE uniform_requirements SET minQty=3, label='Lapiceros (mínimo 3)' WHERE id='lapiceros'")
+
 }

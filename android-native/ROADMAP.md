@@ -1,25 +1,26 @@
 # Hoja de ruta — Las Flores Android
 
-## En desarrollo: versión visible 4.0001 (código Android 40001)
-- [x] Rama aislada desde Beta v4 para proteger el canal instalable.
-- [x] Migración Room 2 a 3, sin eliminar datos existentes.
-- [x] Personal: puestos, categorías, grupos de briefing, descansos, apoyos de fin de semana, vacaciones y excepciones por fecha.
-- [x] Pantalla de Personal y exclusión de trabajadores no programados en Uniformes.
-- [x] Exportación JSON de las tablas Android actuales; restauración transaccional con validación y copia interna previa.
-- [x] Nombre visible 4.0001 y etiqueta compatible android-beta-v40001.
-- [ ] Compilación CI de la rama completa y pruebas de migración en tablet.
-- [ ] Restauración real y actualización Beta v4 a 4.0001 comprobadas.
+## Instalada y comprobada: 4.0001
+- Actualización Beta v4 → 4.0001 desde la aplicación en tablet.
+- Conservación del trabajador de prueba y de una inspección 9/9 observada comprobada mediante capturas.
+- Respaldo y restauración Android efectuados; aún se requiere una prueba sistemática de regresión sobre el conjunto completo de registros.
 
-## Versiones planificadas
-- 4.0002: Uniformes e implementos completos, requisitos editables y entrega de materiales.
-- 4.0003: Briefings a las 11:00 y 12:00, asistencia e historial.
-- 4.0004: Funciones por oficina, correcciones, evidencias y control mensual.
-- 4.0005: Incidentes, acciones y cierre.
-- 4.0006: Reportes Excel, estadísticas y migración completa de respaldos de la web.
+## Rama de desarrollo: 4.0002 — Uniformes e implementos
+- [x] Room v3 → v4 no destructiva.
+- [x] Requisitos configurables por puesto, grupo, cantidad y activación.
+- [x] Registro inmutable de requisitos por inspección, para no alterar históricos al editar criterios.
+- [x] Comprobación de cantidades mínimas (ej. lapiceros).
+- [x] Entregas, devoluciones y anulaciones de materiales con responsable e historial.
+- [x] Pantallas nativas de inspección, configuración de requisitos y materiales.
+- [x] JSON Android versión 2: guarda catálogo, snapshots e historial de materiales; acepta JSON versión 1.
+- [ ] CI completo de la rama; pruebas reales de migración v3 a v4.
+- [ ] Prueba de copias JSON v1/v2, devoluciones y continuidad de inspecciones en tablet.
 
-## Política de seguridad
-- La aplicación web permanece disponible hasta verificar la migración.
-- No importar respaldos web de forma parcial ni perder historiales silenciosamente.
-- La clave de firma debe permanecer fuera del repositorio.
-- Las migraciones son explícitas y nunca destructivas.
-- No publicar una versión sin pruebas de compilación, respaldo y actualización.
+## Etapas siguientes, sin iniciar aún
+- 4.0003 — Briefings: asistencia presencial, información posterior, temas, histórico y estadísticas.
+- 4.0004 — Funciones por oficinas, correcciones, evidencias y análisis individual.
+- 4.0005 — Incidentes: alimentos, bebidas, atención, causas, acciones y cierre.
+- 4.0006 — Excel/estadísticas y migración total de respaldos de la web.
+
+## Criterios de publicación
+No fusionar ni publicar sin CI y pruebas en dispositivo. La web no se desinstala ni se importan respaldos incompletos. Se mantiene paquete y firma de actualización del canal Android.

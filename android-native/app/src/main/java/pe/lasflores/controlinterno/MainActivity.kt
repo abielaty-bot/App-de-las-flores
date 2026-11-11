@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as LasFloresApp
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]
-        val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository))[UniformViewModel::class.java]
+        val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository, app.materialRepository))[UniformViewModel::class.java]
         val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
         setContent { LasFloresScreen(staffVm, uniformVm, updateVm, app.backupManager) }
     }

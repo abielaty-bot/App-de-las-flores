@@ -1,27 +1,23 @@
-# Las Flores Android — versión 4.0001 en desarrollo
+# Las Flores Android — desarrollo 4.0002
 
-Aplicación nativa con Kotlin, Jetpack Compose, Material 3 y Room 3/SQLite.
+App nativa Kotlin/Compose/Material 3 y Room 3/SQLite. Esta rama parte de 4.0001 instalada.
 
-## Funciones de la rama
-- Personal: lista única, categoría, puesto, grupo de briefing, descanso semanal, apoyo de fin de semana, vacaciones y situación diaria.
-- Uniformes: inspección por puesto, borradores, cierre, correcciones y auditoría; solo trabajadores programados.
-- Respaldos: descarga JSON de todas las tablas Android actuales, selector de archivo, validación, vista previa y restauración transaccional; se conserva copia interna previa.
-- Actualizaciones: comprobación desde GitHub, descarga, verificación de SHA-256, paquete, versión y certificado; Android confirma la instalación.
-- Guardado local para uso sin conexión.
+## Mejoras implementadas en la rama
+- Versión visible 4.0002; versionCode 40002.
+- Catálogo de requisitos editable: puestos, grupo, mínimo de unidades, activación. No requiere nuevo APK para cambios de configuración.
+- Snapshots por inspección que congelan nombre, grupo y mínimo originalmente evaluados.
+- Cantidad mínima comprobada cuando un requisito tiene mínimo distinto de cero.
+- Registro de materiales: entregas, responsables, fecha, motivo, devoluciones y anulaciones.
+- JSON nativo formato 2 con todos los módulos actuales y compatibilidad de lectura con formato 1.
+- Migración Room 3 a 4 sin borrado de datos.
 
-## Límites explícitos
-- Los JSON de la versión web se rechazan por el momento: no existen todavía tablas compatibles con todos sus módulos. Esto impide perder briefings, funciones, incidentes y materiales.
-- El respaldo Android no sustituye la prueba de restauración en una tablet física.
-- Briefings, Funciones, Incidentes, entregas de materiales y Excel están pendientes.
-- No se incluyen cuentas multiusuario ni sincronización.
+## Pendiente antes de distribución
+CI completo en verde y pruebas de actualización v4.0001→v4.0002, respaldo/restauración y edición de criterios sin pérdida histórica.
 
-## Compatibilidad desde Beta v4
-- versionName: 4.0001
-- versionCode: 40001
-- Tag de publicación: android-beta-v40001 (compatible con el actualizador Beta v4 instalado).
-- applicationId: pe.lasflores.controlinterno.beta; conservar la firma original.
-- Room v2 -> v3 mediante MIGRATION_2_3 sin borrar tablas.
-- Antes de publicar: crear datos de prueba en la Beta v4, actualizar desde dentro y comprobar que se conservan.
+## Compatibilidad
+- applicationId pe.lasflores.controlinterno.beta sin cambiar.
+- Tag prevista android-beta-v40002, una vez aprobada la publicación.
+- Los JSON de la web todavía no se importan: sus módulos restantes deben migrarse de forma íntegra para no perder datos.
 
-## Desarrollo y publicación
-El CI ejecuta pruebas y compilaciones secuenciales por los conflictos previos entre KSP y Room. Las APK de distribución requieren la clave firmante configurada como secreto en GitHub; nunca guardarla en este repositorio.
+## Lo siguiente
+4.0003 briefings; 4.0004 funciones; 4.0005 incidentes; 4.0006 Excel y migración web.

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'android-beta-v*'
+    branches:
+      - 'publish/android-beta-v*'
+
+concurrency:
+  group: las-flores-firmada-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -36,8 +42,14 @@ jobs:
           LF_KEY_PASSWORD: ${{ secrets.LF_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF_NAME" =~ ^android-beta-v[1-9][0-9]*$ ]] || exit 1
-          VERSION_CODE="${GITHUB_REF_NAME#android-beta-v}"
+          RELEASE_TAG="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_REF_TYPE" == "branch" ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^publish/android-beta-v[1-9][0-9]*$ ]] || exit 1
+            RELEASE_TAG="${GITHUB_REF_NAME#publish/}"
+          fi
+          [[ "$RELEASE_TAG" =~ ^android-beta-v[1-9][0-9]*$ ]] || exit 1
+          VERSION_CODE="${RELEASE_TAG#android-beta-v}"
+          echo "LF_RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           grep -Eq "versionCode = ${VERSION_CODE}([[:space:]]|$)" app/build.gradle.kts || {
             echo 'La versión del tag no coincide con versionCode.'; exit 1;
           }
@@ -72,18 +84,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          VERSION_CODE="${GITHUB_REF_NAME#android-beta-v}"
+          VERSION_CODE="${LF_RELEASE_TAG#android-beta-v}"
           if (( VERSION_CODE >= 10000 )); then
             DISPLAY_VERSION="$((VERSION_CODE / 10000)).$(printf '%04d' "$((VERSION_CODE % 10000))")"
           else
             DISPLAY_VERSION="Beta v${VERSION_CODE}"
           fi
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" \
+          if gh release view "$LF_RELEASE_TAG" >/dev/null 2>&1; then
+            if [[ "$GITHUB_REF_TYPE" == "branch" ]]; then
+              echo "La versión ya existe; no se permite sobrescribir una APK firmada."
+              exit 1
+            fi
+            gh release upload "$LF_RELEASE_TAG" \
               dist/las-flores-beta.apk \
               dist/las-flores-beta.apk.sha256 --clobber
           else
-            gh release create "$GITHUB_REF_NAME" \
+            gh release create "$LF_RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
               dist/las-flores-beta.apk \
               dist/las-flores-beta.apk.sha256 \
               --title "Las Flores ${DISPLAY_VERSION}" \
