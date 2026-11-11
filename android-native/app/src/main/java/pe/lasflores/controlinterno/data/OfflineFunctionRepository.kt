@@ -85,6 +85,10 @@ class OfflineFunctionRepository(
                 require(dao.getActive(day,id,taskId)==null) {
                     person.fullName + " ya tiene asignada esta función."
                 }
+                if (task.periodicity == "MENSUAL")
+                    require(dao.getActiveMonthly(day.take(7),id,taskId)==null) {
+                        person.fullName + " ya tiene esta función asignada en el mes."
+                    }
                 val check = FunctionCheckEntity(
                     id=UUID.randomUUID().toString(), dateIso=day,
                     staffId=id,staffNameSnapshot=person.fullName,
