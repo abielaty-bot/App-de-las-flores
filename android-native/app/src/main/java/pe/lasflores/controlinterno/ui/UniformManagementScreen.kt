@@ -38,6 +38,8 @@ import pe.lasflores.controlinterno.data.MaterialDeliveryEntity
 import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.data.UniformRequirementEntity
 import pe.lasflores.controlinterno.domain.STAFF_ROLES
+import pe.lasflores.controlinterno.domain.MaterialRules
+import java.time.LocalDate
 
 @Composable
 fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
@@ -167,129 +169,246 @@ private fun RequirementDialog(
 }
 
 @Composable
-private fun MaterialsAdmin(people: List<StaffEntity>, vm: UniformViewModel) {
+private fun MaterialsAdmin(people:List<StaffEntity>,vm:UniformViewModel) {
     val deliveries by vm.deliveries.collectAsState()
-    val dateIso by vm.dateIso.collectAsState()
-    val active = people.filter { it.isActive }
+    val workers=people.filter {it.isActive}
     var adding by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf<MaterialDeliveryEntity?>(null) }
-    val current = deliveries.count { it.status == "ENTREGADA" }
-    LazyColumn(
-        Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var personId by rememberSaveable { mutableStateOf("") }
+    var materialFilter by rememberSaveable { mutableStateOf("") }
+    var statusFilter by rememberSaveable { mutableStateOf("") }
+    var fromDate by rememberSaveable { mutableStateOf("") }
+    var toDate by rememberSaveable { mutableStateOf("") }
+    val validRange=runCatching {
+        (fromDate.isBlank() || LocalDate.parse(fromDate).toString()==fromDate) &&
+        (toDate.isBlank() || LocalDate.parse(toDate).toString()==toDate) &&
+        (fromDate.isBlank() || toDate.isBlank() || fromDate <= toDate)
+    }.getOrDefault(false)
+    val materialNames=deliveries.map {it.material}.distinct().sorted()
+    val filtered=deliveries.filter {d->
+        validRange && (personId.isBlank()||d.staffId==personId) &&
+            (materialFilter.isBlank()||d.material==materialFilter) &&
+            (statusFilter.isBlank()||d.status==statusFilter) &&
+            (fromDate.isBlank()||d.dateIso>=fromDate) &&
+            (toDate.isBlank()||d.dateIso<=toDate) &&
+            (query.isBlank()||d.staffNameSnapshot.contains(query,true)||
+                d.material.contains(query,true)||d.deliveredBy.contains(query,true))
+    }
+    val balances=MaterialRules.balances(deliveries).filter { row ->
+        (personId.isBlank()||row.staffId==personId) &&
+        (materialFilter.isBlank()||row.material==materialFilter) &&
+        (query.isBlank()||row.staffName.contains(query,true)||
+            row.material.contains(query,true))
+    }
+    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),
+        verticalArrangement=Arrangement.spacedBy(10.dp)) {
         item {
-            Text("Entrega de materiales", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-            Text("Vigentes: " + current + " · Devueltas: " +
-                deliveries.count { it.status == "DEVUELTA" } + " · Anuladas: " +
-                deliveries.count { it.status == "ANULADA" },
-                style = MaterialTheme.typography.bodyMedium)
-            Text("El historial conserva las entregas aunque se devuelvan o anulen.",
-                style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(8.dp))
-            Button(enabled = active.isNotEmpty(), onClick = { adding = true }) {
+            Text("Entrega de materiales",style=MaterialTheme.typography.headlineSmall,
+                fontWeight=FontWeight.Bold)
+            Text("Control de entregas, devoluciones y reposiciones. El historial no se elimina.",
+                style=MaterialTheme.typography.bodySmall)
+            Text("Vigentes: "+deliveries.count{it.status=="ENTREGADA"}+
+                " · Devueltas: "+deliveries.count{it.status=="DEVUELTA"}+
+                " · Anuladas: "+deliveries.count{it.status=="ANULADA"})
+            Button(enabled=workers.isNotEmpty(),onClick={adding=true}) {
                 Text("+ Registrar entrega")
             }
         }
-        items(deliveries, key = { it.id }) { item ->
+        item {
             Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(item.staffNameSnapshot, fontWeight = FontWeight.Bold)
-                    Text(item.material + " · " + item.quantity + " unidad(es) · " + item.dateIso)
-                    Text("Motivo: " + item.reason + " · Entregado por: " + item.deliveredBy,
-                        style = MaterialTheme.typography.bodySmall)
-                    Text(when(item.status) {
-                        "ENTREGADA" -> "Entrega vigente"
-                        "DEVUELTA" -> "Devuelta"
-                        else -> "Anulada"
-                    }, color = if (item.status == "ENTREGADA") MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (item.closingNote.isNotBlank()) Text("Observación: " + item.closingNote,
-                        style = MaterialTheme.typography.bodySmall)
-                    if (item.status == "ENTREGADA")
-                        OutlinedButton(onClick = { closing = item }) {
-                            Text("Devolución / anulación")
+                Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+                    Text("Filtrar historial",fontWeight=FontWeight.Bold)
+                    OutlinedTextField(query,{query=it.take(80)},label={Text("Buscar trabajador, material o responsable")},
+                        modifier=Modifier.fillMaxWidth(),singleLine=true)
+                    Text("Trabajador",fontWeight=FontWeight.Medium)
+                    LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        item { FilterChip(selected=personId.isBlank(),onClick={personId=""},
+                            label={Text("Todos")}) }
+                        items(people,key={it.id}) { person ->
+                            FilterChip(selected=personId==person.id,onClick={personId=person.id},
+                                label={Text(person.fullName)})
                         }
+                    }
+                    Text("Material",fontWeight=FontWeight.Medium)
+                    LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        item { FilterChip(selected=materialFilter.isBlank(),onClick={materialFilter=""},
+                            label={Text("Todos")}) }
+                        items(materialNames,key={it}) { label ->
+                            FilterChip(selected=materialFilter==label,onClick={materialFilter=label},
+                                label={Text(label)})
+                        }
+                    }
+                    Text("Estado",fontWeight=FontWeight.Medium)
+                    LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                        items(listOf("" to "Todos","ENTREGADA" to "Vigentes",
+                            "DEVUELTA" to "Devueltas","ANULADA" to "Anuladas")) { (status,label) ->
+                            FilterChip(selected=statusFilter==status,onClick={statusFilter=status},
+                                label={Text(label)})
+                        }
+                    }
+                    OutlinedTextField(fromDate,{fromDate=it.take(10)},
+                        label={Text("Desde · AAAA-MM-DD")},modifier=Modifier.fillMaxWidth())
+                    OutlinedTextField(toDate,{toDate=it.take(10)},
+                        label={Text("Hasta · AAAA-MM-DD")},modifier=Modifier.fillMaxWidth())
+                    if(!validRange)Text("Corrige el rango de fechas.",
+                        color=MaterialTheme.colorScheme.error)
+                    OutlinedButton(onClick={
+                        query="";personId="";materialFilter="";statusFilter=""
+                        fromDate="";toDate=""
+                    }) {Text("Limpiar filtros")}
                 }
             }
         }
-        if (deliveries.isEmpty()) item { Text("Todavía no hay entregas de materiales.") }
+        item {
+            Card {
+                Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+                    Text("Material vigente por trabajador",fontWeight=FontWeight.Bold)
+                    Text("Saldo actual de lotes entregados y no devueltos; independiente del filtro de fechas.",
+                        style=MaterialTheme.typography.bodySmall)
+                    Text(balances.sumOf{it.units}.toString()+" unidades vigentes en "+
+                        balances.size+" combinaciones.",color=MaterialTheme.colorScheme.primary)
+                    if(balances.isEmpty()) Text("No hay material vigente para estos filtros.")
+                    balances.take(80).forEach { row ->
+                        Text(row.staffName+" · "+row.material+" · "+row.units+
+                            " unidad(es) · "+row.deliveries+" entrega(s)")
+                    }
+                    if(balances.size>80)Text("Hay más registros; consulta el reporte Excel completo.")
+                }
+            }
+        }
+        item { Text("Historial filtrado: "+filtered.size+" entrega(s)",
+            fontWeight=FontWeight.Bold) }
+        items(filtered,key={it.id}) { item ->
+            Card {
+                Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Text(item.staffNameSnapshot,fontWeight=FontWeight.Bold)
+                    Text(item.material+" · "+item.quantity+" unidad(es) · "+item.dateIso)
+                    Text("Motivo: "+item.reason+" · Entregado por: "+item.deliveredBy,
+                        style=MaterialTheme.typography.bodySmall)
+                    Text(when(item.status) {
+                        "ENTREGADA"->"Entrega vigente";"DEVUELTA"->"Devuelta"
+                        else->"Anulada"
+                    },color=MaterialTheme.colorScheme.primary)
+                    if(item.closingNote.isNotBlank())Text("Observación: "+item.closingNote)
+                    if(item.status=="ENTREGADA") OutlinedButton(onClick={closing=item}) {
+                        Text("Devolución / anulación")
+                    }
+                }
+            }
+        }
+        if(filtered.isEmpty()&&validRange) item {
+            Text("No hay entregas que coincidan con los filtros.")
+        }
     }
-    if (adding) MaterialForm(active, dateIso, onDismiss = { adding = false },
-        onSave = { id, material, quantity, reason, actor ->
-            vm.deliver(id, material, quantity, reason, actor)
-            adding = false
+    if(adding) MaterialForm(workers,deliveries,onDismiss={adding=false},
+        onSave={id,date,material,qty,reason,by->
+            vm.deliver(id,date,material,qty,reason,by)
+            adding=false
         })
     closing?.let { item ->
-        MaterialCloseDialog(item, onDismiss = { closing = null },
-            onSave = { type, note ->
-                vm.closeDelivery(item.id, type, note)
-                closing = null
-            })
+        MaterialCloseDialog(item,onDismiss={closing=null},onSave={type,note->
+            vm.closeDelivery(item.id,type,note)
+            closing=null
+        })
     }
 }
 
 @Composable
 private fun MaterialForm(
-    workers: List<StaffEntity>, date: String, onDismiss: () -> Unit,
-    onSave: (String, String, Int, String, String) -> Unit
+    workers:List<StaffEntity>,deliveries:List<MaterialDeliveryEntity>,
+    onDismiss:()->Unit,
+    onSave:(String,String,String,Int,String,String)->Unit
 ) {
-    var workerId by remember { mutableStateOf(workers.firstOrNull()?.id.orEmpty()) }
+    var staffId by remember { mutableStateOf(workers.firstOrNull()?.id.orEmpty()) }
+    var dateIso by remember { mutableStateOf(LocalDate.now().toString()) }
     var material by remember { mutableStateOf("Trapo") }
     var otherMaterial by remember { mutableStateOf("") }
     var qty by remember { mutableStateOf("1") }
     var reason by remember { mutableStateOf("Dotación inicial") }
     var otherReason by remember { mutableStateOf("") }
     var actor by remember { mutableStateOf("") }
-    val materials = listOf("Trapo","Mandil","Camisa","Toca","Otro")
-    val reasons = listOf("Dotación inicial","Reposición por desgaste",
+    var confirmRepeat by remember { mutableStateOf(false) }
+    val materials=listOf("Trapo","Mandil","Camisa","Toca","Otro")
+    val reasons=listOf("Dotación inicial","Reposición por desgaste",
         "Pérdida","Daño","Cambio de talla","Otro")
-    val finalMaterial = if (material == "Otro") otherMaterial.trim() else material
-    val finalReason = if (reason == "Otro") otherReason.trim() else reason
-    val quantity = qty.toIntOrNull()
-    AlertDialog(onDismissRequest = onDismiss,
-        title = { Text("Registrar entrega · " + date) },
-        text = {
-            Column(Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Trabajador", fontWeight = FontWeight.Bold)
-                workers.forEach { person ->
-                    FilterChip(selected = workerId == person.id, onClick = { workerId = person.id },
-                        label = { Text(person.fullName) })
+    val finalMaterial=if(material=="Otro")otherMaterial.trim() else material
+    val finalReason=if(reason=="Otro")otherReason.trim() else reason
+    val quantity=qty.toIntOrNull()
+    val validDate=MaterialRules.validDay(dateIso)
+    val recent=if(validDate && staffId.isNotBlank() && finalMaterial.length>=2)
+        MaterialRules.recent(deliveries,staffId,finalMaterial,dateIso)
+        else emptyList()
+    val valid=staffId.isNotBlank() && validDate && finalMaterial.length in 2..80 &&
+        quantity!=null && quantity in 1..100 && finalReason.length in 3..120 &&
+        actor.trim().length in 2..120
+    fun save() {if(valid)onSave(staffId,dateIso,finalMaterial,quantity?:1,finalReason,actor)}
+    AlertDialog(onDismissRequest=onDismiss,
+        title={Text("Registrar entrega de material")},
+        text={
+            Column(Modifier.heightIn(max=530.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Text("Trabajador",fontWeight=FontWeight.Bold)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    items(workers,key={it.id}) { person ->
+                        FilterChip(selected=staffId==person.id,onClick={staffId=person.id},
+                            label={Text(person.fullName)})
+                    }
                 }
-                Text("Material", fontWeight = FontWeight.Bold)
-                materials.forEach { option ->
-                    FilterChip(selected = material == option, onClick = { material = option },
-                        label = { Text(option) })
+                OutlinedTextField(dateIso,{dateIso=it.take(10)},
+                    label={Text("Fecha de entrega · AAAA-MM-DD")},
+                    modifier=Modifier.fillMaxWidth(),singleLine=true)
+                if(!validDate)Text("La fecha debe ser válida y no puede ser futura.",
+                    color=MaterialTheme.colorScheme.error)
+                Text("Material",fontWeight=FontWeight.Bold)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    items(materials) { option ->
+                        FilterChip(selected=material==option,onClick={material=option},
+                            label={Text(option)})
+                    }
                 }
-                if (material == "Otro") OutlinedTextField(value = otherMaterial,
-                    onValueChange = { otherMaterial = it.take(80) },
-                    label = { Text("Nombre del material") })
-                OutlinedTextField(value = qty,
-                    onValueChange = { qty = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Cantidad entregada") })
-                Text("Motivo", fontWeight = FontWeight.Bold)
-                reasons.forEach { option ->
-                    FilterChip(selected = reason == option, onClick = { reason = option },
-                        label = { Text(option) })
+                if(material=="Otro")OutlinedTextField(otherMaterial,{
+                    otherMaterial=it.take(80)},label={Text("Nombre del material")},
+                    modifier=Modifier.fillMaxWidth())
+                OutlinedTextField(qty,{qty=it.filter(Char::isDigit).take(3)},
+                    label={Text("Cantidad entregada")},modifier=Modifier.fillMaxWidth())
+                Text("Motivo",fontWeight=FontWeight.Bold)
+                LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    items(reasons){option->
+                        FilterChip(selected=reason==option,onClick={reason=option},
+                            label={Text(option)})
+                    }
                 }
-                if (reason == "Otro") OutlinedTextField(value = otherReason,
-                    onValueChange = { otherReason = it.take(120) },
-                    label = { Text("Motivo específico") })
-                OutlinedTextField(value = actor, onValueChange = { actor = it.take(120) },
-                    label = { Text("Responsable de entrega") })
+                if(reason=="Otro")OutlinedTextField(otherReason,{otherReason=it.take(120)},
+                    label={Text("Motivo específico")},modifier=Modifier.fillMaxWidth())
+                OutlinedTextField(actor,{actor=it.take(120)},
+                    label={Text("Responsable de la entrega")},
+                    modifier=Modifier.fillMaxWidth())
+                if(recent.isNotEmpty()) {
+                    Text("Aviso: "+recent.size+
+                        " entrega(s) del mismo material durante los últimos 30 días.",
+                        color=MaterialTheme.colorScheme.error)
+                    Text("Última: "+recent.first().dateIso+
+                        ". Verifica si la reposición corresponde; esto no demuestra mal uso.",
+                        style=MaterialTheme.typography.bodySmall)
+                }
             }
         },
-        confirmButton = {
-            Button(enabled = workerId.isNotBlank() && finalMaterial.length in 2..80 &&
-                quantity != null && quantity in 1..100 && finalReason.length in 3..120 &&
-                actor.trim().length in 2..120,
-                onClick = { onSave(workerId, finalMaterial, quantity ?: 1, finalReason, actor) }) {
-                Text("Guardar")
-            }
+        confirmButton={
+            Button(enabled=valid,onClick={
+                if(recent.isNotEmpty())confirmRepeat=true else save()
+            }){Text("Guardar entrega")}
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton={TextButton(onClick=onDismiss){Text("Cancelar")}}
+    )
+    if(confirmRepeat) AlertDialog(onDismissRequest={confirmRepeat=false},
+        title={Text("Confirmar reposición frecuente")},
+        text={Text("Se registraron "+recent.size+" entrega(s) de "+finalMaterial+
+            " al mismo trabajador durante los 30 días previos. ¿Confirmas la nueva entrega?")},
+        confirmButton={
+            Button(onClick={confirmRepeat=false;save()}){Text("Registrar de todas formas")}
+        },
+        dismissButton={TextButton(onClick={confirmRepeat=false}){Text("Revisar")}}
     )
 }
 
