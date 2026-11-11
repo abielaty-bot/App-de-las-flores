@@ -1,5 +1,7 @@
 <resources>
     <style name="Theme.LasFlores.Starting" parent="Theme.LasFlores">
+        <item name="android:statusBarColor">@color/las_flores_ivory</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowSplashScreenBackground">@color/las_flores_ivory</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/las_flores_icon_foreground</item>
     </style>
