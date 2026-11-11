@@ -7,6 +7,8 @@ import pe.lasflores.controlinterno.data.LasFloresDatabase
 import pe.lasflores.controlinterno.data.MIGRATION_1_2
 import pe.lasflores.controlinterno.data.MIGRATION_2_3
 import pe.lasflores.controlinterno.data.MIGRATION_3_4
+import pe.lasflores.controlinterno.data.MIGRATION_4_5
+import pe.lasflores.controlinterno.data.OfflineBriefingRepository
 import pe.lasflores.controlinterno.data.OfflineStaffRepository
 import pe.lasflores.controlinterno.data.OfflineBackupManager
 import pe.lasflores.controlinterno.data.OfflineUniformRepository
@@ -18,7 +20,7 @@ class LasFloresApp : Application() {
     val database: LasFloresDatabase by lazy {
         Room.databaseBuilder<LasFloresDatabase>(applicationContext, "las_flores_control_interno.db")
             .setDriver(AndroidSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
     }
     val backupManager: OfflineBackupManager by lazy {
@@ -28,6 +30,9 @@ class LasFloresApp : Application() {
     val uniformRepository: UniformRepository by lazy {
         OfflineUniformRepository(database, database.uniformDao(),
             database.staffDao(), database.catalogDao())
+    }
+    val briefingRepository by lazy {
+        OfflineBriefingRepository(database, database.staffDao(), database.briefingDao())
     }
     val materialRepository by lazy {
         OfflineMaterialRepository(database, database.staffDao(), database.materialDao())
