@@ -21,7 +21,7 @@ class ReportRepository(private val database: LasFloresDatabase) {
             deliveries = database.materialDao().allDeliveries(),
             vacations = database.staffDao().allVacations(),
             overrides = database.staffDao().allOverrides(),
-            inspectionSnapshots = database.uniformCatalogDao().allSnapshots()
+            inspectionSnapshots = database.catalogDao().allSnapshots()
         )
     }
 }
