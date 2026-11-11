@@ -24,7 +24,8 @@ data class UniformAnswerEntity(
     val groupSnapshot: String,
     val status: String,
     val correctedAtMillis: Long?,
-    val correctedBy: String?
+    val correctedBy: String?,
+    val quantity: Int? = null
 )
 
 @Entity(tableName = "uniform_events", indices = [Index(value = ["inspectionId"])])
