@@ -139,6 +139,9 @@
     </div>
   </div>
   <input type="file" id="backupFile" accept=".json,application/json" hidden>
+  <input type="file" id="migrationWebFile" accept=".json,application/json" hidden>
+  <input type="file" id="migrationAndroidFile" accept=".json,application/json" hidden>
+  <script src="./migration/portable.js"></script>
   <script>(()=>{
 'use strict';
 const KEY='lasflores.control.v2', LEGACY='lasflores.uniformes.v1', PREF_KEY='lasflores.control.prefs.v2';
@@ -417,10 +420,10 @@ function sectionNav(){const section=getSection();if(!section)return [];
   if(section==='uniform')return [['uniform','Revisión diaria'],['implements','Implementos'],['requirements','Requisitos'],['deliveries','Entregas'],['uniform-history','Historial'],['uniform-export','Excel']];
   if(section==='functions')return [['functions','Control diario'],['functions-month','Resumen mensual']];
   if(section==='incidents')return [['incidents','Nuevo / Resumen'],['incidents-history','Seguimiento'],['incidents-stats','Análisis'],['incidents-reports','Excel']];
-  return [['personal','Trabajadores'],['settings','Guardado y respaldos']];
+  return [['personal','Trabajadores'],['settings','Guardado y respaldos'],['migration','Migración']];
 }
 // Historial de navegación para el botón Atrás y el gesto de Android.
-const NAV_VIEWS=new Set(['functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','incidents','incidents-history','incidents-stats','incidents-reports']);
+const NAV_VIEWS=new Set(['migration','functions','functions-month','home','brief','brief-pending','brief-history','brief-stats','brief-export','uniform','implements','requirements','deliveries','uniform-history','uniform-export','personal','settings','incidents','incidents-history','incidents-stats','incidents-reports']);
 let navigationReady=false,modalSequence=0;
 const modalSnapshots=new Map();
 function navigationEntry(v,dialogId=null,depth=0){return {lasFloresNavigation:true,view:v,dialogId,depth};}
@@ -508,6 +511,7 @@ function render(){
   else if(view==='functions-month')renderFunctionMonth();
   else if(view==='personal')renderPersonal();
   else if(view==='settings')renderSettings();
+  else if(view==='migration')renderMigration();
   else if(view==='uniform')renderUniform();
   else if(view==='implements')renderImplements();
   else if(view==='requirements')renderRequirements();
@@ -1697,12 +1701,89 @@ async function renderRecoveryList(){const element=$('#recoveryList');if(!element
   const values=await listSnapshots();if(!$('#recoveryList'))return;
   $('#recoveryList').innerHTML=values.length?values.slice(0,10).map(v=>`<div class="person-row"><div><b>${h(displayTime(v.at))}</b><div class="small">Copia interna · ${v.forced?'Manual':'Automática'}</div></div><button class="button tiny" data-action="restore-snapshot" data-id="${h(v.id)}">Restaurar</button></div>`).join(''):emptyHint('No hay copias internas','Las copias de recuperación aparecerán después de guardar registros.');
 }
+let migrationSource=null,migrationBase=null,migrationResult=null;
+function migrationInputs(){
+  const source=migrationSource||JSON.parse(JSON.stringify(state));
+  migrationResult=window.LasFloresPortable?.convert(source,migrationBase)||{ok:false,errors:['Convertidor no disponible'],warnings:[]};
+  renderMigration();
+}
+function renderMigration(){
+  setHeading('Centro de migración','Prepara un archivo compatible con Android sin modificar los datos de la web.');
+  const r=migrationResult,source=migrationSource;
+  const sourceLabel=source?'Archivo Web seleccionado':'Datos actuales de esta web';
+  const androidLabel=migrationBase?'Respaldo Android para fusión estricta':'Ninguna — reemplazar datos Android';
+  const stats=r?.counts;
+  $('#app').innerHTML=
+    '<div class="callout"><b>Migración local.</b> Selecciona un respaldo Web antiguo o utiliza los datos de esta instalación. La herramienta nunca modifica tu base web. Conserva el JSON original hasta verificar todo en Android.</div>'+
+    '<div class="panel"><div class="panel-head"><h2>1. Origen de los registros</h2></div><div class="panel-body stack">'+
+    '<p class="small"><b>'+h(sourceLabel)+'</b></p>'+
+    '<button class="button block" data-action="migration-select-web">Seleccionar JSON de Las Flores Web</button>'+
+    '<button class="button block" data-action="migration-current-web">Usar datos actuales de esta Web</button>'+
+    '<p class="small">También admite archivos guardados por versiones anteriores de Las Flores Web.</p></div></div>'+
+    '<div class="panel"><div class="panel-head"><h2>2. Qué hacer si Android ya tiene registros</h2></div><div class="panel-body stack">'+
+    '<p class="small"><b>'+h(androidLabel)+'</b></p>'+
+    '<button class="button block" data-action="migration-select-android">Seleccionar copia Android JSON para combinar</button>'+
+    '<button class="button block" data-action="migration-clear-android">Usar modo reemplazo</button>'+
+    '<button class="button block" data-action="migration-extract-web" '+(migrationBase?.webSourceArchive?'':'disabled')+'>Recuperar respaldo Web original archivado (sin cambios Android posteriores)</button>'+
+    '<div class="callout warn"><b>Atención:</b> «Reemplazar» borra los registros actuales de Android al restaurar. Para evitarlo exporta primero la copia Android, combínala aquí y verifica los conflictos. La fusión estricta no sobrescribe fichas contradictorias.</div></div></div>'+
+    '<div class="panel"><div class="panel-head"><h2>3. Revisar conversión</h2></div><div class="panel-body stack">'+
+    (!r?'<p>Analiza el archivo antes de generar la transferencia.</p>':(
+    '<p><b>'+(r.ok?'Archivo compatible':'No se puede generar una importación segura')+'</b></p>'+
+    (stats?'<div class="kpis">'+kpi(stats.staff,'Trabajadores')+kpi(stats.inspections,'Inspecciones')+
+      kpi(stats.briefings,'Briefings')+kpi(stats.functions,'Funciones')+kpi(stats.incidents,'Incidentes')+
+      kpi(stats.deliveries,'Entregas')+'</div>':'')+
+    (r.errors?.length?'<div class="callout danger"><b>Errores que bloquean la conversión:</b><ul>'+r.errors.map(x=>'<li>'+h(x)+'</li>').join('')+'</ul></div>':'')+
+    (r.warnings?.length?'<div class="callout warn"><b>Observaciones:</b><ul>'+r.warnings.map(x=>'<li>'+h(x)+'</li>').join('')+'</ul></div>':'')
+    ))+
+    '<button class="button primary block" data-action="migration-analyze">Analizar compatibilidad</button>'+
+    '<button class="button gold block" data-action="migration-download" '+(r?.ok?'':'disabled')+'>Descargar archivo compatible con Android</button>'+
+    '<p class="small">El archivo convertido incluye una copia íntegra del respaldo Web. Antes de usarlo realiza un respaldo de Android.</p>'+
+    '</div></div><div class="callout"><b>Android → Web:</b> el sistema nativo permite exportar su JSON en Respaldos. La restauración inversa se habilitará cuando la web represente sin pérdida las fotos y eventos exclusivos de Android.</div>';
+}
+async function migrationRead(file,kind){
+  if(!file)return;
+  if(file.size>15*1024*1024){toast('El archivo supera el límite de migración segura de 15 MB.');return;}
+  try{
+    const object=JSON.parse(await file.text());
+    if(kind==='web'){
+      const data=object?.app==='lasflores-transfer'?object.payload:object;
+      if(!data||!['lasflores-control','lasflores-uniformes'].includes(data.app))
+        throw Error('El archivo no es un respaldo de Las Flores Web');
+      migrationSource=object;
+    }else{
+      if(object?.app!=='lasflores-android'||object.formatVersion!==5)
+        throw Error('Selecciona un respaldo Android JSON de formato 5');
+      migrationBase=object;
+    }
+    migrationResult=null;migrationInputs();
+  }catch(e){toast(e.message||'Archivo JSON inválido.');}
+}
+function migrationDownloadWebOriginal(){
+  const original=migrationBase?.webSourceArchive;
+  if(!original || !['lasflores-control','lasflores-uniformes'].includes(original.app)){
+    toast('Esta copia Android no contiene un respaldo Web anterior.');return;
+  }
+  if(!confirm('Solo se recuperará el archivo Web original archivado. NO incluye cambios realizados después en Android. ¿Descargarlo?'))return;
+  downloadBlob(new Blob([JSON.stringify(original,null,2)],{type:'application/json;charset=utf-8'}),
+    'Las_Flores_Web_Original_Recuperado_'+dateISO()+'.json');
+  toast('Archivo Web original recuperado; verifica su contenido antes de restaurarlo.');
+}
+function migrationDownload(){
+  if(!migrationResult?.ok||!migrationResult.converted)return;
+  if(dirty){toast('Hay cambios Web sin guardar; guárdalos antes de exportar.');return;}
+  const value=JSON.stringify(migrationResult.converted,null,2);
+  if(new Blob([value]).size>30*1024*1024){toast('El archivo convertido supera el límite de Android.');return;}
+  downloadBlob(new Blob([value],{type:'application/json;charset=utf-8'}),
+    'Las_Flores_Transferencia_Android_'+dateISO()+'.json');
+  toast('Transferencia creada. Guarda también el respaldo Web original.');
+}
+
 function renderSettings(){
   setHeading('Guardado y respaldos','Elige autoguardado o guardado manual, crea puntos de recuperación y descarga un JSON para proteger tus datos.');
   $('#app').innerHTML=`<div class="panel"><div class="panel-head"><h2>Modo de guardado</h2>${badge(prefs.autoSave?'Automático':'Manual',prefs.autoSave?'ok':'warn')}</div>
     <div class="panel-body stack"><div class="fields"><div class="field"><label>Cómo guardar</label><select id="saveMode"><option value="auto" ${prefs.autoSave?'selected':''}>Guardar automáticamente cada cambio</option><option value="manual" ${!prefs.autoSave?'selected':''}>Guardar solamente cuando yo lo indique</option></select></div><div class="field"><label>Tema de la aplicación</label><select id="themeMode"><option value="light" ${prefs.theme!=='dark'?'selected':''}>Claro (día)</option><option value="dark" ${prefs.theme==='dark'?'selected':''}>Oscuro (noche)</option></select></div><div class="field"><label>Estado actual</label><input readonly value="${saveError?'ERROR: '+h(saveError):dirty?'Cambios sin guardar':'Todos los cambios confirmados guardados'}"></div></div>
     <div class="toolbar"><button class="button primary" data-action="manual-save" ${!dirty?'disabled':''}>Guardar cambios ahora</button><span class="small">En modo manual recibirás una advertencia si intentas cerrar con cambios pendientes.</span></div></div></div>
-    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, vacaciones, programación de apoyos, descansos, uniformes, historial de correcciones verificadas, controles de funciones, materiales, incidentes, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
+    <div class="two-col"><div class="panel"><div class="panel-head"><div><h2>Respaldo externo</h2><p>Guarda una copia completa editable de la aplicación.</p></div></div><div class="panel-body stack"><p class="small">Incluye trabajadores, vacaciones, programación de apoyos, descansos, uniformes, historial de correcciones verificadas, controles de funciones, materiales, incidentes, briefings y requisitos.</p><button class="button primary block" data-action="backup-download">↓ Descargar respaldo JSON</button><button class="button block" data-nav="migration">↔ Centro de migración Web / Android</button><button class="button block" data-action="backup-import">↑ Importar respaldo JSON</button><p class="small">Último respaldo descargado: <b>${h(displayTime(state.backupAt))}</b></p></div></div>
     <div class="panel"><div class="panel-head"><div><h2>Copias internas de recuperación</h2><p>Guardadas en el navegador, separadas de la base principal.</p></div></div><div class="panel-body stack"><p class="small">Se crea una copia periódica y puedes crear una manualmente. No reemplazan al respaldo JSON externo.</p><button class="button block" data-action="snapshot-now">+ Crear punto de recuperación</button><div id="recoveryList">Cargando copias…</div></div></div></div>
     <div class="callout warn"><b>Importante:</b> los datos locales y las copias internas pueden perderse si se borran los datos del navegador, se cambia de navegador o se avería la tablet. Descarga regularmente el respaldo JSON y guárdalo fuera del dispositivo.</div>
     <div class="callout">La versión anterior de Uniformes se importa automáticamente cuando es accesible en el mismo navegador y origen. Si abriste el HTML desde otra ubicación y no aparecen los datos antiguos, exporta el JSON desde la aplicación anterior e impórtalo aquí.</div>`;
@@ -1825,6 +1906,13 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'export-uniform':exportReport('uniform');break;
     case 'export-brief':exportReport('brief');break;
     case 'export-all':exportReport('all');break;
+    case 'migration-select-web':$('#migrationWebFile').click();break;
+    case 'migration-current-web':migrationSource=null;migrationResult=null;migrationInputs();break;
+    case 'migration-select-android':$('#migrationAndroidFile').click();break;
+    case 'migration-clear-android':migrationBase=null;migrationResult=null;migrationInputs();break;
+    case 'migration-analyze':migrationInputs();break;
+    case 'migration-download':migrationDownload();break;
+    case 'migration-extract-web':migrationDownloadWebOriginal();break;
     case 'backup-download':exportBackup();break;
     case 'backup-import':$('#backupFile').click();break;
     case 'snapshot-now':if(dirty&&!persist())return;createSnapshot(savedJSON,true).then(()=>{renderRecoveryList();toast('Punto de recuperación creado.');});break;
@@ -1838,6 +1926,8 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('change',event=>{
   const x=event.target;
+  if(x.id==='migrationWebFile'){migrationRead(x.files?.[0],'web');x.value='';return;}
+  if(x.id==='migrationAndroidFile'){migrationRead(x.files?.[0],'android');x.value='';return;}
   if(x.id==='incidentCategory'){switchIncidentCategory();return;}
   if(x.id==='incidentType'){toggleIncidentOtherType();return;}
   if(x.id==='incidentFilterCategory'){incidentFilterCategory=x.value;render();return;}

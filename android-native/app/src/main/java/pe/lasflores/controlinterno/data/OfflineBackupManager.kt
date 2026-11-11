@@ -93,11 +93,65 @@ class OfflineBackupManager(
     private fun <T> arr(rows: List<T>, encoder: (T) -> JSONObject): JSONArray =
         JSONArray().apply { rows.forEach { put(encoder(it)) } }
 
+    private val sourceArchivePath: File get() =
+        File(context.filesDir, "las_flores_web_origen.json")
+
+    private fun archiveRead(): String? {
+        if (!sourceArchivePath.exists()) return null
+        return AtomicFile(sourceArchivePath).openRead()
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+
+    private fun archiveWrite(content: String?) {
+        val path = sourceArchivePath
+        if (content == null) {
+            if (path.exists() && !path.delete()) error("No se pudo retirar el archivo web anterior.")
+            return
+        }
+        val file = AtomicFile(path)
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = file.startWrite()
+            stream.write(content.toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+        } catch (e: Exception) {
+            stream?.let(file::failWrite)
+            throw e
+        }
+    }
+
+    /** Comparación estable de un respaldo local: ignora el orden de claves de JSON
+     * y de consultas SQL, pero no ignora diferencias en registros.
+     */
+    private fun canonicalJson(value: Any?): String = when(value) {
+        null, JSONObject.NULL -> "null"
+        is JSONObject -> value.keys().asSequence().toList().sorted()
+            .joinToString(prefix="{", postfix="}") { key ->
+                JSONObject.quote(key) + ":" + canonicalJson(value.get(key))
+            }
+        is JSONArray -> (0 until value.length()).map { canonicalJson(value.get(it)) }
+            .sorted().joinToString(prefix="[", postfix="]")
+        is String -> JSONObject.quote(value)
+        else -> value.toString()
+    }
+
+    /** Verificar origen al seleccionar un archivo convertido en la pantalla de respaldo. */
+    fun webMigrationMode(json: String): String? {
+        val root = JSONObject(json)
+        val migration = root.optJSONObject("migration")
+        return if (root.optJSONObject("webSourceArchive") != null &&
+            migration?.optString("origin") == "web"
+        ) migration.optString("mode", "replace") else null
+    }
+
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
             "app" to "lasflores-android", "formatVersion" to 5,
             "exportedAtMillis" to System.currentTimeMillis()
         )
+        // Conserva el JSON Web sin modificar para poder auditar campos históricos
+        // que Room todavía no representa. El respaldo Android también lo incluye.
+        archiveRead()?.let { root.put("webSourceArchive", JSONObject(it)) }
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
             "id" to x.id, "fullName" to x.fullName, "role" to x.role,
             "category" to x.category, "briefingGroup" to x.briefingGroup,
@@ -247,6 +301,21 @@ class OfflineBackupManager(
     suspend fun restore(json: String): BackupPreview {
         val payload = decode(json)
         val previous = exportJson()
+        val migration = JSONObject(json).optJSONObject("migration")
+        if (migration?.optString("mode") == "merge") {
+            require(migration.optString("origin") == "web") {
+                "Origen de la fusión inválido."
+            }
+            val originalBase = migration.optJSONObject("baseAndroidSnapshot")
+                ?: error("La fusión no contiene la copia Android de referencia.")
+            val currentBase = JSONObject(previous)
+            originalBase.remove("exportedAtMillis")
+            currentBase.remove("exportedAtMillis")
+            require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
+                "Los registros Android cambiaron desde que generaste la transferencia. " +
+                    "Exporta una copia Android nueva y vuelve a combinar los archivos."
+            }
+        }
         val rescue = AtomicFile(File(context.filesDir, "respaldo_anterior_a_restauracion.json"))
         var stream: java.io.FileOutputStream? = null
         try {
@@ -257,7 +326,13 @@ class OfflineBackupManager(
             stream?.let { rescue.failWrite(it) }
             throw error
         }
-        database.withWriteTransaction {
+        val archive = JSONObject(json).optJSONObject("webSourceArchive")?.toString()
+        val formerArchive = archiveRead()
+        // El archivo original debe quedar disponible antes de reemplazar datos.
+        // Si Room falla, recuperamos la versión anterior.
+        try {
+            archiveWrite(archive)
+            database.withWriteTransaction<Unit> {
             incidentDao.clearActions()
             incidentDao.clearIncidents()
             incidentDao.clearTypes()
@@ -298,6 +373,10 @@ class OfflineBackupManager(
             payload.incidentTypes.forEach { incidentDao.upsertType(it) }
             payload.incidents.forEach { incidentDao.upsertIncident(it) }
             payload.incidentActions.forEach { incidentDao.upsertAction(it) }
+            }
+        } catch (error: Exception) {
+            runCatching { archiveWrite(formerArchive) }
+            throw error
         }
         return payload.preview()
     }
@@ -325,6 +404,15 @@ class OfflineBackupManager(
             "El archivo supera 30 MB."
         }
         val root = JSONObject(text)
+        if (root.has("webSourceArchive") && !root.isNull("webSourceArchive")) {
+            val archive = root.getJSONObject("webSourceArchive")
+            require(archive.optString("app") in listOf("lasflores-control","lasflores-uniformes")) {
+                "Origen Web no reconocido en el archivo convertido."
+            }
+            require(archive.toString().toByteArray(Charsets.UTF_8).size <= 15*1024*1024) {
+                "El archivo Web original supera el límite de 15 MB."
+            }
+        }
         val app = root.optString("app")
         require(app == "lasflores-android") {
             if (app == "lasflores-control" || app == "lasflores-uniformes")
@@ -577,7 +665,7 @@ class OfflineBackupManager(
         }) { "Vacaciones inconsistentes." }
         require(data.overrides.all {
             it.staffId in staffIds &&
-                it.status in listOf("working", "rest", "vacation", "absent", "leave", "support")
+                it.status in listOf("working", "rest", "vacation", "absent", "leave", "support", "off")
         }) { "Situación diaria incompatible." }
         require(data.inspections.all { it.staffId in staffIds }) {
             "Una inspección referencia un trabajador desconocido."
