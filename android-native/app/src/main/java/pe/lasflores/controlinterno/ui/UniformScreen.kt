@@ -44,11 +44,6 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRequirement
 import pe.lasflores.controlinterno.domain.UniformRules
 
-private val neutral = Color(0xFFF8F5F0)
-private val positive = Color(0xFFE5F2EA)
-private val negative = Color(0xFFFCE9E6)
-private val correctedColor = Color(0xFFF3E6D5)
-
 @Composable
 fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
     val dateIso by vm.dateIso.collectAsState()
@@ -250,13 +245,14 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
     }
 }
 
-private fun statusColor(status: String?): Color = when(status) {
-    "Conforme" -> LasFloresPalette.Success
-    "Observado" -> LasFloresPalette.Danger
-    "Corregido", "Rectificado" -> Color(0xFF76582F)
-    "Corrección parcial" -> LasFloresPalette.Warning
-    else -> LasFloresPalette.Muted
-}
+@Composable
+private fun statusColor(status: String?): Color = semanticForeground(when(status) {
+    "Conforme", "Cumple" -> "success"
+    "Observado", "No cumple" -> "danger"
+    "Corregido", "Rectificado" -> "corrected"
+    "Corrección parcial" -> "warning"
+    else -> "neutral"
+})
 
 /** Una fila por requisito para permitir inspección rápida en orientación vertical. */
 @Composable
@@ -275,12 +271,12 @@ private fun RequirementBox(
         answer.correctedAtMillis != null -> "Corregido"
         else -> "No cumple"
     }
-    val background = when(status) {
-        "Cumple" -> positive
-        "No cumple" -> negative
-        "Corregido" -> correctedColor
-        else -> neutral
-    }
+    val background = semanticBackground(when(status) {
+        "Cumple" -> "success"
+        "No cumple" -> "danger"
+        "Corregido" -> "corrected"
+        else -> "neutral"
+    })
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
@@ -312,8 +308,8 @@ private fun RequirementBox(
                     onClick = { onAnswer(UniformRules.OK) },
                     label = { Text("Sí") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = positive,
-                        selectedLabelColor = LasFloresPalette.Success
+                        selectedContainerColor = semanticBackground("success"),
+                        selectedLabelColor = semanticForeground("success")
                     )
                 )
                 FilterChip(
@@ -322,8 +318,8 @@ private fun RequirementBox(
                     onClick = { onAnswer(UniformRules.BAD) },
                     label = { Text("No") },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = negative,
-                        selectedLabelColor = LasFloresPalette.Danger
+                        selectedContainerColor = semanticBackground("danger"),
+                        selectedLabelColor = semanticForeground("danger")
                     )
                 )
             }
@@ -342,7 +338,7 @@ private fun RequirementBox(
             } else if (answer?.correctedBy != null) {
                 Text("Verificado por " + answer.correctedBy,
                     style = MaterialTheme.typography.labelSmall,
-                    color = LasFloresPalette.Success)
+                    color = semanticForeground("success"))
             }
         }
     }
