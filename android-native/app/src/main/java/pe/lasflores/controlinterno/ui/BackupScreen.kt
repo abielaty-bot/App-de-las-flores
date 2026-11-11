@@ -141,6 +141,37 @@ fun BackupScreen(manager: OfflineBackupManager) {
             }
         }
         item {
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Recuperación local", fontWeight = FontWeight.Bold)
+                    Text("Después de una restauración puedes recuperar el respaldo anterior guardado dentro de la app. Descarga también copias externas.",
+                        style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(
+                        enabled = !working,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            working = true
+                            scope.launch {
+                                try {
+                                    val text = withContext(Dispatchers.IO) {
+                                        manager.recoveryJson() ?: error("No existe un respaldo interno anterior.")
+                                    }
+                                    val summary = withContext(Dispatchers.IO) { manager.preview(text) }
+                                    pendingJson = text
+                                    pendingPreview = summary
+                                    message = "Copia interna validada. Confirma su restauración."
+                                } catch (error: Exception) {
+                                    message = "Error al recuperar copia: " + (error.message ?: "no disponible")
+                                } finally {
+                                    working = false
+                                }
+                            }
+                        }
+                    ) { Text("Seleccionar copia interna anterior") }
+                }
+            }
+        }
+        item {
             Text(message, color = if (message.startsWith("Error") || message.startsWith("No se importó"))
                 MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium)

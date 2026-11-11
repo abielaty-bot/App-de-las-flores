@@ -1,6 +1,7 @@
 package pe.lasflores.controlinterno.data
 
 import android.content.Context
+import android.util.AtomicFile
 import androidx.room3.withWriteTransaction
 import org.json.JSONArray
 import org.json.JSONObject
@@ -97,6 +98,13 @@ class OfflineBackupManager(
 
     fun preview(json: String): BackupPreview = decode(json).preview()
 
+    /** Punto de recuperación previo al último reemplazo; nunca sustituye el JSON externo. */
+    fun recoveryJson(): String? {
+        val file = AtomicFile(File(context.filesDir, "respaldo_anterior_a_restauracion.json"))
+        if (!file.exists()) return null
+        return file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+
     /**
      * Sustitución atómica: valida primero; antes de tocar tablas, deja una copia
      * interna de seguridad. Una excepción dentro de la transacción revierte todo.
@@ -104,8 +112,16 @@ class OfflineBackupManager(
     suspend fun restore(json: String): BackupPreview {
         val payload = decode(json)
         val previous = exportJson()
-        val rescue = File(context.filesDir, "respaldo_anterior_a_restauracion.json")
-        rescue.writeText(previous, Charsets.UTF_8)
+        val rescue = AtomicFile(File(context.filesDir, "respaldo_anterior_a_restauracion.json"))
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = rescue.startWrite()
+            stream.write(previous.toByteArray(Charsets.UTF_8))
+            rescue.finishWrite(stream)
+        } catch (error: Exception) {
+            stream?.let { rescue.failWrite(it) }
+            throw error
+        }
         database.withWriteTransaction {
             uniformDao.clearEvents()
             uniformDao.clearAnswers()
