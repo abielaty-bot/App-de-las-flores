@@ -1,6 +1,6 @@
 <resources>
-    <color name="las_flores_ivory">#FAF2E7</color>
-    <color name="las_flores_burgundy">#801D38</color>
+    <color name="las_flores_ivory">#F8F5F0</color>
+    <color name="las_flores_burgundy">#351C27</color>
     <style name="Theme.LasFlores" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/las_flores_ivory</item>
         <item name="android:statusBarColor">@color/las_flores_burgundy</item>
