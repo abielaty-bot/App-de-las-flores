@@ -43,6 +43,8 @@ import pe.lasflores.controlinterno.report.ReportCounts
 import pe.lasflores.controlinterno.report.ReportPeriod
 import pe.lasflores.controlinterno.report.ReportRepository
 import pe.lasflores.controlinterno.report.ReportSelection
+import pe.lasflores.controlinterno.ui.ErrorReportText
+import pe.lasflores.controlinterno.ui.LocalErrorReporter
 
 @Composable
 fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
@@ -54,6 +56,10 @@ fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
     var workerId by rememberSaveable {mutableStateOf<String?>(null)}
     var preview by remember {mutableStateOf<ReportCounts?>(null)}
     var message by remember {mutableStateOf("Selecciona período y trabajador para preparar el reporte.")}
+    val reportError = LocalErrorReporter.current
+    LaunchedEffect(message) {
+        if (ErrorReportText.isError(message)) reportError("Reportes", message)
+    }
     var previewWorking by remember {mutableStateOf(false)}
     var exporting by remember {mutableStateOf(false)}
     var pendingExport by remember {mutableStateOf<ReportSelection?>(null)}
@@ -80,7 +86,7 @@ fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
                 }
                 message="Excel guardado correctamente ("+total+" filas de datos). Ya puedes compartirlo con administración."
             } catch(e:Exception) {
-                message="Error al exportar: "+(e.message?:"comprueba el almacenamiento")
+                message="Error al exportar: "+ErrorReportText.compact(e.message?:"comprueba el almacenamiento")
             } finally {exporting=false}
         }
     }
