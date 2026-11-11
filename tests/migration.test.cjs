@@ -53,8 +53,11 @@ test("bloquea inspecciones observadas e incompletas", () => {
  const f=fixture();
  f.inspections[0].result="observado";
  f.inspections[0].issues=["req:camisa"];
+ f.requirements.push({id:"sacacorchos",label:"Sacacorchos",
+   group:"Implementos",positions:["Mozo"],minQty:0,active:true});
  f.checklists=[{id:"c-1",date:"2026-11-10",staffId:"p-1",items:[
-   {reqId:"camisa",status:null,label:"Uniforme limpio",group:"Uniforme"}
+   {reqId:"camisa",status:"bad",label:"Uniforme limpio",group:"Uniforme"},
+   {reqId:"sacacorchos",status:null,label:"Sacacorchos",group:"Implementos"}
  ]}];
  const x=convert(f);assert.equal(x.ok,false);
  assert.match(x.errors.join(" "),/incompleta/);
