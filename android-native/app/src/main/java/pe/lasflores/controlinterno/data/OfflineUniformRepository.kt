@@ -4,6 +4,7 @@ import androidx.room3.withWriteTransaction
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import pe.lasflores.controlinterno.domain.UniformDaySnapshot
 import pe.lasflores.controlinterno.domain.UniformRepository
 import pe.lasflores.controlinterno.domain.UniformRules
@@ -17,6 +18,18 @@ class OfflineUniformRepository(
 ) : UniformRepository {
 
     override val catalog: Flow<List<UniformRequirementEntity>> = catalogDao.observeCatalog()
+        .onStart { ensureCatalogInitialized() }
+
+    /** La migración siembra el catálogo al actualizar. Esta ruta cubre instalaciones nuevas.
+     * Nunca resiembra si existe un requisito: respeta desactivaciones y ediciones del usuario. */
+    private suspend fun ensureCatalogInitialized() {
+        database.withWriteTransaction {
+            val existing = catalogDao.allRequirements()
+            if (existing.isEmpty()) {
+                defaultRequirements().forEach { catalogDao.upsertRequirement(it) }
+            }
+        }
+    }
 
     override fun observeDay(dateIso: String): Flow<UniformDaySnapshot> =
         combine(dao.observeInspections(dateIso), dao.observeAnswers(dateIso),
@@ -73,6 +86,9 @@ class OfflineUniformRepository(
             )
             require(StaffScheduleRules.isScheduled(status)) { "El trabajador no está programado para este día." }
             val now = System.currentTimeMillis()
+            if (catalogDao.allRequirements().isEmpty()) {
+                defaultRequirements().forEach { catalogDao.upsertRequirement(it) }
+            }
             var inspection = dao.getInspection(dateIso, staffId)
             if (inspection == null) {
                 val active = catalogDao.allRequirements().filter { it.appliesTo(worker.role) }
