@@ -1724,6 +1724,7 @@ function renderMigration(){
     '<p class="small"><b>'+h(androidLabel)+'</b></p>'+
     '<button class="button block" data-action="migration-select-android">Seleccionar copia Android JSON para combinar</button>'+
     '<button class="button block" data-action="migration-clear-android">Usar modo reemplazo</button>'+
+    '<button class="button block" data-action="migration-extract-web" '+(migrationBase?.webSourceArchive?'':'disabled')+'>Recuperar respaldo Web original archivado (sin cambios Android posteriores)</button>'+
     '<div class="callout warn"><b>Atención:</b> «Reemplazar» borra los registros actuales de Android al restaurar. Para evitarlo exporta primero la copia Android, combínala aquí y verifica los conflictos. La fusión estricta no sobrescribe fichas contradictorias.</div></div></div>'+
     '<div class="panel"><div class="panel-head"><h2>3. Revisar conversión</h2></div><div class="panel-body stack">'+
     (!r?'<p>Analiza el archivo antes de generar la transferencia.</p>':(
@@ -1756,6 +1757,16 @@ async function migrationRead(file,kind){
     }
     migrationResult=null;migrationInputs();
   }catch(e){toast(e.message||'Archivo JSON inválido.');}
+}
+function migrationDownloadWebOriginal(){
+  const original=migrationBase?.webSourceArchive;
+  if(!original || !['lasflores-control','lasflores-uniformes'].includes(original.app)){
+    toast('Esta copia Android no contiene un respaldo Web anterior.');return;
+  }
+  if(!confirm('Solo se recuperará el archivo Web original archivado. NO incluye cambios realizados después en Android. ¿Descargarlo?'))return;
+  downloadBlob(new Blob([JSON.stringify(original,null,2)],{type:'application/json;charset=utf-8'}),
+    'Las_Flores_Web_Original_Recuperado_'+dateISO()+'.json');
+  toast('Archivo Web original recuperado; verifica su contenido antes de restaurarlo.');
 }
 function migrationDownload(){
   if(!migrationResult?.ok||!migrationResult.converted)return;
@@ -1901,6 +1912,7 @@ function handleAction(el){const action=el.dataset.action,id=el.dataset.id;
     case 'migration-clear-android':migrationBase=null;migrationResult=null;migrationInputs();break;
     case 'migration-analyze':migrationInputs();break;
     case 'migration-download':migrationDownload();break;
+    case 'migration-extract-web':migrationDownloadWebOriginal();break;
     case 'backup-download':exportBackup();break;
     case 'backup-import':$('#backupFile').click();break;
     case 'snapshot-now':if(dirty&&!persist())return;createSnapshot(savedJSON,true).then(()=>{renderRecoveryList();toast('Punto de recuperación creado.');});break;
