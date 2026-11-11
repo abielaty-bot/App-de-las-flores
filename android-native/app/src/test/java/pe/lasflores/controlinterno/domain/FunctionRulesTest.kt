@@ -60,6 +60,15 @@ class FunctionRulesTest {
         assertEquals(1,after.sentEvidence)
     }
 
+    @Test fun shortValidAreaCodesCanBeRestoredWithoutRenaming() {
+        assertTrue(FunctionRules.validTaskLabel("C"))
+        assertTrue(FunctionRules.validTaskLabel("O1"))
+        assertFalse(FunctionRules.validTaskLabel(""))
+        assertFalse(FunctionRules.validTaskLabel("   "))
+        assertFalse(FunctionRules.validTaskLabel("X".repeat(101)))
+        assertTrue(FunctionRules.defaultTasks().all { FunctionRules.validTaskLabel(it.label) })
+    }
+
     @Test fun defaultCatalogHasBothOfficesAndGeneralDuties() {
         val tasks=FunctionRules.defaultTasks()
         assertEquals(17,tasks.size)
