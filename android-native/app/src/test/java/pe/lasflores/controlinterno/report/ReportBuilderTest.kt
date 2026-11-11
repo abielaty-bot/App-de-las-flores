@@ -57,7 +57,7 @@ class ReportBuilderTest {
         assertEquals(2,counts.briefingRegistered)
         assertEquals(1,counts.briefingPendingInformation)
         val book=ReportBuilder.build(snapshot,selected)
-        assertEquals(9,book.size)
+        assertEquals(19,book.size)
         assertTrue(book.any{it.name=="Funciones" && it.rows.size==4})
     }
 
