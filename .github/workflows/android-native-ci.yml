@@ -6,7 +6,7 @@ on:
       - 'android-native/**'
       - '.github/workflows/android-native-ci.yml'
   pull_request:
-    branches: [android-updater-v030, android-v40001-foundation]
+    branches: [android-updater-v030, android-v40001-foundation, android-v40002-uniformes]
     paths:
       - 'android-native/**'
       - '.github/workflows/android-native-ci.yml'
