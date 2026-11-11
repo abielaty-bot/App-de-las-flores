@@ -20,6 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import pe.lasflores.controlinterno.ui.ErrorReportText
+import pe.lasflores.controlinterno.ui.LocalErrorReporter
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -32,6 +35,10 @@ import java.io.File
 @Composable
 fun UpdateScreen(vm: UpdateViewModel) {
     val ui by vm.state.collectAsState()
+    val reportError = LocalErrorReporter.current
+    LaunchedEffect(ui.status, ui.error) {
+        if (ui.error) reportError("Actualizaciones", ui.status)
+    }
     val context = LocalContext.current
     val installedVersion = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Desconocida"
@@ -48,7 +55,8 @@ fun UpdateScreen(vm: UpdateViewModel) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Estado", style = MaterialTheme.typography.titleMedium)
-                    Text(ui.status, color = if (ui.error) MaterialTheme.colorScheme.error
+                    Text(if (ui.error) ErrorReportText.compact(ui.status) else ui.status,
+                        color = if (ui.error) MaterialTheme.colorScheme.error
                         else MaterialTheme.colorScheme.onSurface)
                     Button(onClick = { vm.checkForUpdates() }, enabled = !ui.busy) {
                         Text("Buscar actualizaciones")
