@@ -20,6 +20,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,10 +44,10 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRequirement
 import pe.lasflores.controlinterno.domain.UniformRules
 
-private val neutral = Color(0xFFF5F7F5)
-private val positive = Color(0xFFE7F4EC)
-private val negative = Color(0xFFFBEAE8)
-private val correctedColor = Color(0xFFE8F1FC)
+private val neutral = Color(0xFFF8F5F0)
+private val positive = Color(0xFFE5F2EA)
+private val negative = Color(0xFFFCE9E6)
+private val correctedColor = Color(0xFFF3E6D5)
 
 @Composable
 fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
@@ -249,13 +251,14 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
 }
 
 private fun statusColor(status: String?): Color = when(status) {
-    "Conforme" -> Color(0xFF18744D)
-    "Observado" -> Color(0xFFB43D36)
-    "Corregido", "Rectificado" -> Color(0xFF296FA8)
-    "Corrección parcial" -> Color(0xFF8A6817)
-    else -> Color(0xFF63766B)
+    "Conforme" -> LasFloresPalette.Success
+    "Observado" -> LasFloresPalette.Danger
+    "Corregido", "Rectificado" -> Color(0xFF76582F)
+    "Corrección parcial" -> LasFloresPalette.Warning
+    else -> LasFloresPalette.Muted
 }
 
+/** Una fila por requisito para permitir inspección rápida en orientación vertical. */
 @Composable
 private fun RequirementBox(
     requirement: UniformRequirement,
@@ -278,25 +281,68 @@ private fun RequirementBox(
         "Corregido" -> correctedColor
         else -> neutral
     }
-    Card(modifier = modifier, shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = background)) {
-        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(requirement.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            if (requirement.minQty > 0) Text("Mínimo: " + requirement.minQty, style = MaterialTheme.typography.labelSmall)
-            Text("${requirement.group} · $status", style = MaterialTheme.typography.labelSmall,
-                color = statusColor(status))
-            if (!finalized) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(onClick = { onAnswer(UniformRules.OK) }, modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("✓ Cumple", style = MaterialTheme.typography.labelSmall) }
-                    OutlinedButton(onClick = { onAnswer(UniformRules.BAD) }, modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp)) { Text("× No cumple", style = MaterialTheme.typography.labelSmall) }
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = background)
+    ) {
+        Column(
+            Modifier.padding(horizontal=12.dp,vertical=6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(requirement.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    if(requirement.minQty > 0)
+                        Text("Mínimo: " + requirement.minQty,
+                            style = MaterialTheme.typography.labelSmall)
+                    Text(status,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor(status))
                 }
-            } else if (answer?.status == UniformRules.BAD && answer.correctedAtMillis == null) {
-                OutlinedButton(onClick = onCorrect, modifier = Modifier.fillMaxWidth()) { Text("Verificar corrección") }
-                TextButton(onClick = onRectify) { Text("Desmarcar error") }
+                FilterChip(
+                    enabled = !finalized,
+                    selected = answer?.status == UniformRules.OK,
+                    onClick = { onAnswer(UniformRules.OK) },
+                    label = { Text("Sí") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = positive,
+                        selectedLabelColor = LasFloresPalette.Success
+                    )
+                )
+                FilterChip(
+                    enabled = !finalized,
+                    selected = answer?.status == UniformRules.BAD,
+                    onClick = { onAnswer(UniformRules.BAD) },
+                    label = { Text("No") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = negative,
+                        selectedLabelColor = LasFloresPalette.Danger
+                    )
+                )
+            }
+            if (finalized && answer?.status == UniformRules.BAD && answer.correctedAtMillis == null) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = onCorrect) {
+                        Text("Verificar corrección")
+                    }
+                    TextButton(onClick = onRectify) {
+                        Text("Rectificar error")
+                    }
+                }
             } else if (answer?.correctedBy != null) {
-                Text("Verificado por ${answer.correctedBy}", style = MaterialTheme.typography.labelSmall)
+                Text("Verificado por " + answer.correctedBy,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LasFloresPalette.Success)
             }
         }
     }
