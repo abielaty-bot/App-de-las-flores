@@ -25,6 +25,11 @@ interface FunctionDao {
     @Query("""SELECT * FROM function_checks WHERE dateIso=:dateIso AND staffId=:staffId
         AND taskId=:taskId AND voidedAtMillis IS NULL LIMIT 1""")
     suspend fun getActive(dateIso: String, staffId: String, taskId: String): FunctionCheckEntity?
+    @Query("""SELECT * FROM function_checks
+        WHERE dateIso LIKE :monthPrefix || '%' AND staffId=:staffId AND taskId=:taskId
+        AND periodicitySnapshot='MENSUAL' AND voidedAtMillis IS NULL LIMIT 1""")
+    suspend fun getActiveMonthly(monthPrefix:String, staffId:String, taskId:String): FunctionCheckEntity?
+
     @Upsert suspend fun upsertCheck(c: FunctionCheckEntity)
     @Query("DELETE FROM function_checks") suspend fun clearChecks()
 
