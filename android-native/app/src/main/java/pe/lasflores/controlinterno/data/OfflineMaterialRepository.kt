@@ -2,6 +2,7 @@ package pe.lasflores.controlinterno.data
 
 import androidx.room3.withWriteTransaction
 import java.time.LocalDate
+import pe.lasflores.controlinterno.domain.MaterialRules
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -14,7 +15,7 @@ class OfflineMaterialRepository(
     suspend fun create(staffId: String, dateIso: String, material: String,
         quantity: Int, reason: String, deliveredBy: String
     ) {
-        LocalDate.parse(dateIso)
+        require(MaterialRules.validDay(dateIso)) { "Fecha de entrega inválida o futura." }
         require(material.trim().length in 2..80) { "Material no válido." }
         require(quantity in 1..100) { "Cantidad de 1 a 100." }
         require(reason.trim().length in 3..120) { "Debes indicar el motivo." }
