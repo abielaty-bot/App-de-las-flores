@@ -29,7 +29,10 @@ jobs:
         with:
           gradle-version: '9.3.1'
       - name: Unit tests and debug APK
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+        run: |
+          # Las variantes comparten exportación de esquemas Room: compilarlas secuencialmente.
+          gradle --no-daemon --no-build-cache --no-parallel -Pksp.incremental=false :app:testDebugUnitTest :app:assembleDebug
+          gradle --no-daemon --no-build-cache --no-parallel -Pksp.incremental=false :app:assembleRelease
       - uses: actions/upload-artifact@v4
         if: success()
         with:
