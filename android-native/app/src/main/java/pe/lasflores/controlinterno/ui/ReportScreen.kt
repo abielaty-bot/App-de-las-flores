@@ -186,6 +186,8 @@ fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
                             color=MaterialTheme.colorScheme.primary)
                         Text("Incidentes registrados: "+counts.incidentsRegistered+
                             " · Abiertos: "+counts.incidentsOpen)
+                        Text("Entregas de materiales: "+counts.deliveriesRegistered+
+                            " · Unidades no anuladas: "+counts.deliveryUnits)
                     }
                     Text("Los pendientes no se contabilizan como incumplimientos. " +
                         "Las fotos no se incrustan en el Excel; sus detalles sí aparecen y " +
