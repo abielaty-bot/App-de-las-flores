@@ -7,7 +7,7 @@ import org.junit.Test
 
 class ErrorReportTextTest {
     @Test fun stripsWholeJsonFromMalformedFileError() {
-        val raw = "Unterminated string at character 234147 of {\\"app\\":\\"lasflores-android\\",\\"staff\\":[{\\"fullName\\":\\"Nombre de prueba\\"}]}"
+        val raw = """Unterminated string at character 234147 of {"app":"lasflores-android","staff":[{"fullName":"Nombre de prueba"}]}"""
         val result = ErrorReportText.compact(raw)
         assertEquals("Unterminated string at character 234147", result)
         assertFalse(result.contains("fullName"))
@@ -15,7 +15,9 @@ class ErrorReportTextTest {
     }
 
     @Test fun noSensitiveJsonWhenMessageContainsMultilineDump() {
-        val raw = "No se importó ningún dato: JSON malformado of {\n \\"staff\\": [\\"Datos privados\\"]}"
+        val raw = """No se importó ningún dato: JSON malformado of {
+ "staff": ["Datos privados"]
+}"""
         val result = ErrorReportText.compact(raw)
         assertEquals("No se importó ningún dato: JSON malformado", result)
         assertFalse(result.contains("Datos privados"))
@@ -35,7 +37,7 @@ class ErrorReportTextTest {
 
     @Test fun producesCopyableStructuredReportWithoutJsonDump() {
         val report = ErrorReport("Respaldos",
-            ErrorReportText.compact("Unterminated string at character 12 of {\\"staff\\":[\\"Privado\\"]}"),
+            ErrorReportText.compact("""Unterminated string at character 12 of {"staff":["Privado"]}"""),
             0L)
         val output = report.clipboardText("4.0012")
         assertTrue(output.contains("Módulo: Respaldos"))
