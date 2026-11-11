@@ -93,11 +93,50 @@ class OfflineBackupManager(
     private fun <T> arr(rows: List<T>, encoder: (T) -> JSONObject): JSONArray =
         JSONArray().apply { rows.forEach { put(encoder(it)) } }
 
+    private val sourceArchivePath: File get() =
+        File(context.filesDir, "las_flores_web_origen.json")
+
+    private fun archiveRead(): String? {
+        if (!sourceArchivePath.exists()) return null
+        return AtomicFile(sourceArchivePath).openRead()
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
+
+    private fun archiveWrite(content: String?) {
+        val path = sourceArchivePath
+        if (content == null) {
+            if (path.exists() && !path.delete()) error("No se pudo retirar el archivo web anterior.")
+            return
+        }
+        val file = AtomicFile(path)
+        var stream: java.io.FileOutputStream? = null
+        try {
+            stream = file.startWrite()
+            stream.write(content.toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+        } catch (e: Exception) {
+            stream?.let(file::failWrite)
+            throw e
+        }
+    }
+
+    /** Verificar origen al seleccionar un archivo convertido en la pantalla de respaldo. */
+    fun webMigrationMode(json: String): String? {
+        val root = JSONObject(json)
+        val migration = root.optJSONObject("migration")
+        return if (root.optJSONObject("webSourceArchive") != null &&
+            migration?.optString("origin") == "web"
+        ) migration.optString("mode", "replace") else null
+    }
+
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
             "app" to "lasflores-android", "formatVersion" to 5,
             "exportedAtMillis" to System.currentTimeMillis()
         )
+        // Conserva el JSON Web sin modificar para poder auditar campos históricos
+        // que Room todavía no representa. El respaldo Android también lo incluye.
+        archiveRead()?.let { root.put("webSourceArchive", JSONObject(it)) }
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
             "id" to x.id, "fullName" to x.fullName, "role" to x.role,
             "category" to x.category, "briefingGroup" to x.briefingGroup,
@@ -257,7 +296,13 @@ class OfflineBackupManager(
             stream?.let { rescue.failWrite(it) }
             throw error
         }
-        database.withWriteTransaction {
+        val archive = JSONObject(json).optJSONObject("webSourceArchive")?.toString()
+        val formerArchive = archiveRead()
+        // El archivo original debe quedar disponible antes de reemplazar datos.
+        // Si Room falla, recuperamos la versión anterior.
+        try {
+            archiveWrite(archive)
+            database.withWriteTransaction {
             incidentDao.clearActions()
             incidentDao.clearIncidents()
             incidentDao.clearTypes()
@@ -298,6 +343,10 @@ class OfflineBackupManager(
             payload.incidentTypes.forEach { incidentDao.upsertType(it) }
             payload.incidents.forEach { incidentDao.upsertIncident(it) }
             payload.incidentActions.forEach { incidentDao.upsertAction(it) }
+            }
+        } catch (error: Exception) {
+            runCatching { archiveWrite(formerArchive) }
+            throw error
         }
         return payload.preview()
     }
@@ -325,6 +374,15 @@ class OfflineBackupManager(
             "El archivo supera 30 MB."
         }
         val root = JSONObject(text)
+        if (root.has("webSourceArchive") && !root.isNull("webSourceArchive")) {
+            val archive = root.getJSONObject("webSourceArchive")
+            require(archive.optString("app") in listOf("lasflores-control","lasflores-uniformes")) {
+                "Origen Web no reconocido en el archivo convertido."
+            }
+            require(archive.toString().toByteArray(Charsets.UTF_8).size <= 15*1024*1024) {
+                "El archivo Web original supera el límite de 15 MB."
+            }
+        }
         val app = root.optString("app")
         require(app == "lasflores-android") {
             if (app == "lasflores-control" || app == "lasflores-uniformes")
