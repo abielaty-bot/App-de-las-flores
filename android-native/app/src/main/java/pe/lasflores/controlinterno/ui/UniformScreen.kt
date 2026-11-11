@@ -84,7 +84,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 style = MaterialTheme.typography.labelSmall)
         }
         item {
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isNoReview) neutral else MaterialTheme.colorScheme.secondaryContainer)) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isNoReview) semanticBackground("neutral") else MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(if (isNoReview) "No se realizó revisión" else "Estado del día: sin cierre general",
                         fontWeight = FontWeight.SemiBold)
