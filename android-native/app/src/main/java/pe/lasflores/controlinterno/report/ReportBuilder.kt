@@ -42,7 +42,11 @@ data class ReportSnapshot(
     val functions: List<FunctionCheckEntity>,
     val evidence: List<ReportEvidenceMeta>,
     val incidents: List<IncidentEntity>,
-    val incidentActions: List<IncidentActionEntity>
+    val incidentActions: List<IncidentActionEntity>,
+    val deliveries: List<MaterialDeliveryEntity> = emptyList(),
+    val vacations: List<StaffVacationEntity> = emptyList(),
+    val overrides: List<StaffDayOverrideEntity> = emptyList(),
+    val inspectionSnapshots: List<InspectionRequirementEntity> = emptyList()
 )
 
 data class ReportCounts(
@@ -50,7 +54,8 @@ data class ReportCounts(
     val briefingRegistered: Int, val briefingPendingInformation: Int,
     val dutiesAssigned: Int, val dutiesEvaluated: Int, val dutiesOk: Int,
     val dutiesBad: Int, val dutiesPending: Int, val dutiesCorrected: Int,
-    val incidentsRegistered: Int, val incidentsOpen: Int, val incidentsClosed: Int
+    val incidentsRegistered: Int, val incidentsOpen: Int, val incidentsClosed: Int,
+    val deliveriesRegistered: Int = 0, val deliveryUnits: Int = 0
 ) {
     val dutiesPercent: Int? get() = if(dutiesEvaluated == 0) null
         else (dutiesOk * 100.0 / dutiesEvaluated).toInt()
@@ -76,7 +81,10 @@ object ReportBuilder {
             f.size,f.count{it.result=="OK"||it.result=="BAD"},
             f.count{it.result=="OK"},f.count{it.result=="BAD"},
             f.count{it.result=="PENDING"},f.count{it.result=="BAD" && it.correctedAtMillis!=null},
-            inc.size,inc.count{it.status!="cerrado"},inc.count{it.status=="cerrado"})
+            inc.size,inc.count{it.status!="cerrado"},inc.count{it.status=="cerrado"},
+            snapshot.deliveries.count{select.includes(it.dateIso)&&select.matches(it.staffId)},
+            snapshot.deliveries.filter{select.includes(it.dateIso)&&select.matches(it.staffId)&&
+                it.status!="ANULADA"}.sumOf{it.quantity})
     }
 
     fun build(snapshot:ReportSnapshot, select:ReportSelection):List<ExcelSheet> {
@@ -188,7 +196,7 @@ object ReportBuilder {
             listOf("Incidentes: abiertos",metrics.incidentsOpen,"Según estado actual"),
             listOf("Incidentes: cerrados",metrics.incidentsClosed,"Con verificación registrada"),
             listOf("Incidentes: alta/crítica abiertos",validIncidents.count{it.status!="cerrado"&&it.priority in setOf("alta","critica")},"Pendientes prioritarios")
-        )
+        ) + ReportExtras.summaryMetrics(snapshot,select)
         val presentIds= (finalInspections.map{it.staffId}+briefings.map{it.staffId}+
             validFunctions.map{it.staffId}+validIncidents.map{it.assignedStaffId})
             .filter{it.isNotBlank()}.toSet()
@@ -208,7 +216,10 @@ object ReportBuilder {
                 f.size,evaluated,ok,f.count{it.result=="BAD"},
                 if(evaluated==0)"Sin evaluaciones" else ((ok*100.0/evaluated).toInt()).toString()+"%",
                 f.count{it.result=="PENDING"},
-                validIncidents.count{it.assignedStaffId==id&&it.status!="cerrado"})
+                validIncidents.count{it.assignedStaffId==id&&it.status!="cerrado"},
+                snapshot.deliveries.count{it.staffId==id&&select.includes(it.dateIso)},
+                snapshot.deliveries.filter{it.staffId==id&&select.includes(it.dateIso)&&
+                    it.status!="ANULADA"}.sumOf{it.quantity})
         }
         return listOf(
             sheet("Resumen","Indicadores con reglas explícitas",
@@ -216,7 +227,8 @@ object ReportBuilder {
             sheet("Por trabajador","El porcentaje solo incluye funciones evaluadas",
                 listOf("Trabajador","Uniformes revisados","Uniformes observados","Briefings registrados",
                     "Asistió","Por informar","Funciones asignadas","Evaluadas","Cumplió","No cumplió",
-                    "% cumplimiento","Pendientes","Incidentes abiertos a cargo"),personnelRows),
+                    "% cumplimiento","Pendientes","Incidentes abiertos a cargo",
+                    "Entregas período","Unidades entregadas no anuladas"),personnelRows),
             sheet("Uniformes","Estado inicial vs. corrección posterior",
                 listOf("Fecha","Trabajador","Puesto","Revisión","Resultado inicial","Estado actual",
                     "Requisitos revisados","Incumplimientos marcados","Correcciones","Rectificaciones"),uniformRows),
@@ -238,6 +250,6 @@ object ReportBuilder {
             sheet("Acciones incidentes","Historial vinculado a casos del período seleccionado",
                 listOf("Código","Fecha incidente","Acción","Ejecutó","Estado anterior",
                     "Estado posterior","Descripción","Origen verificado"),actions)
-        )
+        ) + ReportExtras.build(snapshot,select)
     }
 }

@@ -64,8 +64,8 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         perform { repository.saveRequirement(id, label, category, minQty, roles) }
     fun setRequirementActive(id: String, active: Boolean) =
         perform { repository.setRequirementActive(id, active) }
-    fun deliver(staffId: String, material: String, quantity: Int, reason: String, actor: String) =
-        perform { materials.create(staffId, _dateIso.value, material, quantity, reason, actor) }
+    fun deliver(staffId: String, dateIso: String, material: String, quantity: Int, reason: String, actor: String) =
+        perform { materials.create(staffId, dateIso, material, quantity, reason, actor) }
     fun closeDelivery(id: String, action: String, note: String) =
         perform { materials.close(id, action, note) }
     fun finalize(staffId: String) = perform { repository.finalize(_dateIso.value, staffId) }
