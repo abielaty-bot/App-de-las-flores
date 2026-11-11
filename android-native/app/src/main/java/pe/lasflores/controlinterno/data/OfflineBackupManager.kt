@@ -100,8 +100,9 @@ class OfflineBackupManager(
 
     /** Punto de recuperación previo al último reemplazo; nunca sustituye el JSON externo. */
     fun recoveryJson(): String? {
-        val file = AtomicFile(File(context.filesDir, "respaldo_anterior_a_restauracion.json"))
-        if (!file.exists()) return null
+        val path = File(context.filesDir, "respaldo_anterior_a_restauracion.json")
+        val file = AtomicFile(path)
+        if (!path.exists()) return null
         return file.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
