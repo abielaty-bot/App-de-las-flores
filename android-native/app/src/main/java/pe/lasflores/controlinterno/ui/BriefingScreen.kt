@@ -62,8 +62,8 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
     val scheduled = staff.filter { it.id in scheduledIds }
     val visible = scheduled.filter { person ->
         val record = currentRecord[person.id]
-        record?.groupHour == group || (record == null &&
-            (showAll || person.briefingGroup == 0 || person.briefingGroup == group))
+        showAll || record?.groupHour == group || (record == null &&
+            (person.briefingGroup == 0 || person.briefingGroup == group))
     }
     val stats = BriefingRules.stats(records)
     Column(Modifier.fillMaxSize()) {
@@ -237,8 +237,14 @@ private fun BriefingRegisterPanel(
         AlertDialog(
             onDismissRequest = { pendingPresence = null },
             title = { Text("Confirmar asistencia") },
-            text = { Text(name + ": " + (presence?.let(BriefingRules::label) ?: "Quitar registro") +
-                ". Los cambios quedarán en el historial.") },
+            text = {
+                val previous = allRecords[staffId]
+                val moved = previous != null && previous.groupHour != group && presence != null
+                Text(name + ": " + (presence?.let(BriefingRules::label) ?: "Quitar registro") +
+                    (if (moved) ". Cambiarás su registro del grupo " +
+                        previous!!.groupHour + ":00 al grupo " + group + ":00."
+                    else "") + " El cambio quedará en el historial.")
+            },
             confirmButton = {
                 Button(onClick = { vm.mark(staffId, presence); pendingPresence = null }) {
                     Text("Confirmar")

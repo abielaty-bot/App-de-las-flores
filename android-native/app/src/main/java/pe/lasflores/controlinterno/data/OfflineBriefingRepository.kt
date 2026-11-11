@@ -58,6 +58,8 @@ class OfflineBriefingRepository(
                     "No está programado ese día. Corrige la situación desde Personal."
                 }
             }
+            if (prior != null && prior.presence == presence && prior.groupHour == group)
+                return@withWriteTransaction
             val now = System.currentTimeMillis()
             val change = prior?.copy(
                 groupHour = group, presence = presence,

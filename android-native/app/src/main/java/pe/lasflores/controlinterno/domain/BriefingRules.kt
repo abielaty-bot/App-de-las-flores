@@ -26,7 +26,8 @@ object BriefingRules {
         a.id.isNotBlank() && a.staffId.isNotBlank() &&
             a.groupHour in GROUPS && a.presence in PRESENCES &&
             (a.presence == MESA || (a.informedAtMillis == null && a.informedBy == null)) &&
-            (a.informedAtMillis == null || !a.informedBy.isNullOrBlank())
+            ((a.informedAtMillis == null && a.informedBy == null) ||
+                (a.informedAtMillis != null && !a.informedBy.isNullOrBlank()))
 
     data class Stats(
         val registered: Int,
