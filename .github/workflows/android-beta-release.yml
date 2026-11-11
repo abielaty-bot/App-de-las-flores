@@ -54,7 +54,10 @@ jobs:
           LF_KEYSTORE_PASSWORD: ${{ secrets.LF_KEYSTORE_PASSWORD }}
           LF_KEY_ALIAS: ${{ secrets.LF_KEY_ALIAS }}
           LF_KEY_PASSWORD: ${{ secrets.LF_KEY_PASSWORD }}
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+        run: |
+          # Evitar que KSP/Room procese debug y release a la vez sobre el mismo directorio de esquemas.
+          gradle --no-daemon --no-build-cache --no-parallel -Pksp.incremental=false :app:testDebugUnitTest
+          gradle --no-daemon --no-build-cache --no-parallel -Pksp.incremental=false :app:assembleRelease
       - name: Verificar firma y hash
         run: |
           set -euo pipefail
