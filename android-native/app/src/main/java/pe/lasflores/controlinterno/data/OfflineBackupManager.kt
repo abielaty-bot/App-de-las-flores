@@ -378,6 +378,36 @@ class OfflineBackupManager(
                     x.getString("beforeValue"), x.getString("afterValue"),
                     x.getString("actor"), x.getString("details"), x.getLong("atMillis"))
             } else emptyList(),
+            functionTasks = if(version>=4) rows(root,"functionTasks") { x ->
+                FunctionTaskEntity(x.getString("id"),x.getString("area"),x.getString("label"),
+                    x.getString("periodicity"),x.getBoolean("isActive"),x.getInt("sortOrder"),
+                    x.getLong("updatedAtMillis"))
+            } else FunctionRules.defaultTasks(),
+            functionChecks = if(version>=4) rows(root,"functionChecks") { x ->
+                FunctionCheckEntity(
+                    x.getString("id"),x.getString("dateIso"),x.getString("staffId"),
+                    x.getString("staffNameSnapshot"),x.getString("taskId"),
+                    x.getString("taskLabelSnapshot"),x.getString("areaSnapshot"),
+                    x.getString("periodicitySnapshot"),x.getString("result"),
+                    x.getString("note"),nullableLong(x,"correctedAtMillis"),
+                    x.getString("correctionNote"),nullableLong(x,"voidedAtMillis"),
+                    x.getLong("createdAtMillis"),x.getLong("updatedAtMillis")
+                )
+            } else emptyList(),
+            functionEvidence = if(version>=4) rows(root,"functionEvidence") { x ->
+                FunctionEvidenceEntity(
+                    x.getString("id"),x.getString("checkId"),x.getString("description"),
+                    x.getString("imageBase64"),x.getLong("createdAtMillis"),
+                    nullableLong(x,"groupSentAtMillis"),nullableString(x,"groupSentBy")
+                )
+            } else emptyList(),
+            functionEvents = if(version>=4) rows(root,"functionEvents") { x ->
+                FunctionEventEntity(
+                    x.getString("id"),x.getString("checkId"),x.getString("action"),
+                    x.getString("beforeValue"),x.getString("afterValue"),x.getString("actor"),
+                    x.getString("note"),x.getLong("atMillis")
+                )
+            } else emptyList(),
             formatVersion = version
         )
         validate(data)
@@ -430,6 +460,10 @@ class OfflineBackupManager(
         unique(data.briefingAttendance, "briefing por trabajador y día") { it.dateIso to it.staffId }
         unique(data.briefingSessions, "sesiones de briefing") { it.dateIso to it.groupHour }
         unique(data.briefingEvents, "eventos de briefing") { it.id }
+        unique(data.functionTasks, "catálogo de funciones") { it.id }
+        unique(data.functionChecks, "asignaciones de funciones") { it.id }
+        unique(data.functionEvidence, "fotografías de funciones") { it.id }
+        unique(data.functionEvents, "auditoría de funciones") { it.id }
 
         val staffIds = data.staff.map { it.id }.toSet()
         val inspectionIds = data.inspections.map { it.id }.toSet()
@@ -486,6 +520,45 @@ class OfflineBackupManager(
         require(data.briefingEvents.all {
             it.staffId.isBlank() || it.staffId in staffIds
         }) { "Auditoría de briefings inconsistente." }
+        val taskIds = data.functionTasks.map { it.id }.toSet()
+        val checksIds = data.functionChecks.map { it.id }.toSet()
+        require(data.functionTasks.all {
+            it.area in FunctionRules.AREAS && it.label.length in 2..100 &&
+                it.periodicity in FunctionRules.PERIODS
+        }) { "Catálogo de funciones no válido." }
+        require(data.functionChecks.all {
+            it.staffId in staffIds && it.taskId in taskIds &&
+                it.areaSnapshot in FunctionRules.AREAS &&
+                it.periodicitySnapshot in FunctionRules.PERIODS &&
+                it.result in FunctionRules.RESULTS &&
+                it.note.length <= 2000 && it.correctionNote.length <= 2000 &&
+                it.taskLabelSnapshot.isNotBlank() &&
+                it.staffNameSnapshot.isNotBlank() &&
+                StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso &&
+                (it.correctedAtMillis == null || it.result == FunctionRules.BAD)
+        }) { "Asignaciones de funciones incompatibles." }
+        require(data.functionChecks.filter { it.voidedAtMillis == null }
+            .groupBy { Triple(it.dateIso,it.staffId,it.taskId) }
+            .values.all { it.size == 1 }) { "Asignaciones duplicadas para el mismo día." }
+        require(data.functionEvidence.all {
+            it.checkId in checksIds && it.description.length in 3..300 &&
+                it.imageBase64.length in 4..350_000 &&
+                (it.groupSentAtMillis == null && it.groupSentBy == null ||
+                    it.groupSentAtMillis != null && !it.groupSentBy.isNullOrBlank()) &&
+                runCatching {
+                    val bytes=Base64.decode(it.imageBase64,Base64.DEFAULT)
+                    bytes.size in 3..220_000 &&
+                        (bytes[0].toInt() and 255)==255 &&
+                        (bytes[1].toInt() and 255)==216 &&
+                        (bytes[2].toInt() and 255)==255
+                }.getOrDefault(false)
+        }) { "Fotografía de evidencia inválida." }
+        require(data.functionEvidence.groupBy { it.checkId }.values.all { it.size <= 2 }) {
+            "Demasiadas fotografías para una asignación."
+        }
+        require(data.functionEvents.all { it.checkId in checksIds }) {
+            "El historial de funciones tiene asignaciones desconocidas."
+        }
         // Un evento de descarte puede referirse a un borrador ya retirado:
         // los eventos históricos se conservan incluso si la inspección no existe.
     }
