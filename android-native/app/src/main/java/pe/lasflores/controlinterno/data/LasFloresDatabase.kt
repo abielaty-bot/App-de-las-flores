@@ -134,5 +134,7 @@ val MIGRATION_3_4 = Migration(3, 4) { connection ->
         SELECT i.id,r.id,r.label,r.category,r.minQty
         FROM uniform_inspections i CROSS JOIN uniform_requirements r
         WHERE instr(r.rolesCsv,'|' || i.roleSnapshot || '|') > 0
-    """)
+    """)    // Solo aplica a revisiones nuevas; los snapshots anteriores conservan sus criterios.
+    connection.execSQL("UPDATE uniform_requirements SET minQty=3, label='Lapiceros (mínimo 3)' WHERE id='lapiceros'")
+
 }

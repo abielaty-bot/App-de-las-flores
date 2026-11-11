@@ -1,7 +1,7 @@
 package pe.lasflores.controlinterno.domain
 
 /** Reglas puras: no dependen de Android ni de la base de datos. */
-data class UniformRequirement(val id: String, val label: String, val group: String)
+data class UniformRequirement(val id: String, val label: String, val group: String, val minQty: Int = 0)
 
 object UniformRules {
     const val OK = "OK"

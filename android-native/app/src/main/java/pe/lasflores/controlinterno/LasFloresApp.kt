@@ -10,6 +10,7 @@ import pe.lasflores.controlinterno.data.MIGRATION_3_4
 import pe.lasflores.controlinterno.data.OfflineStaffRepository
 import pe.lasflores.controlinterno.data.OfflineBackupManager
 import pe.lasflores.controlinterno.data.OfflineUniformRepository
+import pe.lasflores.controlinterno.data.OfflineMaterialRepository
 import pe.lasflores.controlinterno.domain.StaffRepository
 import pe.lasflores.controlinterno.domain.UniformRepository
 
@@ -25,6 +26,10 @@ class LasFloresApp : Application() {
     }
     val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao(), database.uniformDao()) }
     val uniformRepository: UniformRepository by lazy {
-        OfflineUniformRepository(database, database.uniformDao(), database.staffDao())
+        OfflineUniformRepository(database, database.uniformDao(),
+            database.staffDao(), database.catalogDao())
+    }
+    val materialRepository by lazy {
+        OfflineMaterialRepository(database, database.staffDao(), database.materialDao())
     }
 }
