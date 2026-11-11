@@ -9,8 +9,9 @@ import androidx.sqlite.execSQL
  * Nunca borrar el almacenamiento ni usar fallbackToDestructiveMigration(). */
 @Database(
     entities = [StaffEntity::class, UniformInspectionEntity::class,
-        UniformAnswerEntity::class, UniformEventEntity::class, DailyActivityEntity::class],
-    version = 2,
+        UniformAnswerEntity::class, UniformEventEntity::class, DailyActivityEntity::class,
+        StaffVacationEntity::class, StaffDayOverrideEntity::class],
+    version = 3,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -60,5 +61,29 @@ val MIGRATION_1_2 = Migration(1, 2) { connection ->
         reason TEXT NOT NULL,
         updatedAtMillis INTEGER NOT NULL,
         PRIMARY KEY(dateIso, module)
+    )""".trimIndent())
+}
+
+
+/** Migración no destructiva desde la Beta v4 (Room 2) a 4.0001 (Room 3). */
+val MIGRATION_2_3 = Migration(2, 3) { connection ->
+    connection.execSQL("ALTER TABLE staff ADD COLUMN category INTEGER NOT NULL DEFAULT 0")
+    connection.execSQL("ALTER TABLE staff ADD COLUMN briefingGroup INTEGER NOT NULL DEFAULT 0")
+    connection.execSQL("ALTER TABLE staff ADD COLUMN scheduleMode TEXT NOT NULL DEFAULT 'regular'")
+    connection.execSQL("ALTER TABLE staff ADD COLUMN restDaysMask INTEGER NOT NULL DEFAULT 0")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS staff_vacations (
+        id TEXT NOT NULL PRIMARY KEY,
+        staffId TEXT NOT NULL,
+        startDateIso TEXT NOT NULL,
+        endDateIso TEXT NOT NULL,
+        note TEXT NOT NULL,
+        createdAtMillis INTEGER NOT NULL
+    )""".trimIndent())
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS staff_day_overrides (
+        dateIso TEXT NOT NULL,
+        staffId TEXT NOT NULL,
+        status TEXT NOT NULL,
+        updatedAtMillis INTEGER NOT NULL,
+        PRIMARY KEY(dateIso, staffId)
     )""".trimIndent())
 }

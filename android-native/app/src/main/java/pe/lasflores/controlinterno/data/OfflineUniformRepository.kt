@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.combine
 import pe.lasflores.controlinterno.domain.UniformDaySnapshot
 import pe.lasflores.controlinterno.domain.UniformRepository
 import pe.lasflores.controlinterno.domain.UniformRules
+import pe.lasflores.controlinterno.domain.StaffScheduleRules
 
 class OfflineUniformRepository(
     private val database: LasFloresDatabase,
@@ -24,7 +25,11 @@ class OfflineUniformRepository(
             require(value == UniformRules.OK || value == UniformRules.BAD) { "Respuesta desconocida" }
             require(dao.getDayStatus(dateIso)?.status != "NO_REALIZADA") { "El día figura sin revisión." }
             val worker = staffDao.getById(staffId) ?: error("Trabajador no encontrado")
-            require(worker.isActive) { "Trabajador inactivo" }
+            val status = StaffScheduleRules.status(
+                worker, dateIso, staffDao.vacationsOnDate(staffId, dateIso),
+                listOfNotNull(staffDao.overrideOnDate(staffId, dateIso))
+            )
+            require(StaffScheduleRules.isScheduled(status)) { "El trabajador no está programado para este día." }
             val requirement = UniformRules.forRole(worker.role).firstOrNull { it.id == requirementId }
                 ?: error("El requisito no corresponde al puesto")
             val now = System.currentTimeMillis()

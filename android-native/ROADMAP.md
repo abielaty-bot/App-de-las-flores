@@ -1,19 +1,25 @@
-# Roadmap de Las Flores Android
+# Hoja de ruta — Las Flores Android
 
-- [x] Fase 1a: proyecto fuente, Compose, Room, Personal y pruebas iniciales.
-- [x] Fase 1b: compilación en CI exitosa e instalación en tablet; persisten pruebas instrumentadas de Room.
-- [ ] Fase 2: modelo completo de personal/turnos/vacaciones y esquemas exportados de Room.
-- [x] Fase 3 (prototipo): inspecciones de uniformes (borradores, observaciones, rectificaciones, requisitos predeterminados por puesto).
-- [ ] Fase 3b: editor de requisitos, validación de migración 1→2, instrumentadas Android, respaldos.
-- [ ] Fase 4: sesiones de briefing 0/1/2 por día y asistencia por sesión.
-- [ ] Fase 5: funciones, incidentes y control diario.
-- [ ] Fase 6: importación de respaldos JSON de la PWA, conciliación y exportación Excel.
-- [ ] Fase 7: backups automáticos y recuperación.
-- [ ] Fase 8: APK de producción firmada y actualizaciones desde GitHub Releases.
+## En desarrollo: versión visible 4.0001 (código Android 40001)
+- [x] Rama aislada desde Beta v4 para proteger el canal instalable.
+- [x] Migración Room 2 a 3, sin eliminar datos existentes.
+- [x] Personal: puestos, categorías, grupos de briefing, descansos, apoyos de fin de semana, vacaciones y excepciones por fecha.
+- [x] Pantalla de Personal y exclusión de trabajadores no programados en Uniformes.
+- [x] Exportación JSON de las tablas Android actuales; restauración transaccional con validación y copia interna previa.
+- [x] Nombre visible 4.0001 y etiqueta compatible android-beta-v40001.
+- [ ] Compilación CI de la rama completa y pruebas de migración en tablet.
+- [ ] Restauración real y actualización Beta v4 a 4.0001 comprobadas.
 
-## Política
-La aplicación web actual permanece operativa hasta validar migración, integridad de datos, respaldos y APK.
+## Versiones planificadas
+- 4.0002: Uniformes e implementos completos, requisitos editables y entrega de materiales.
+- 4.0003: Briefings a las 11:00 y 12:00, asistencia e historial.
+- 4.0004: Funciones por oficina, correcciones, evidencias y control mensual.
+- 4.0005: Incidentes, acciones y cierre.
+- 4.0006: Reportes Excel, estadísticas y migración completa de respaldos de la web.
 
-
-- [x] Preparación del actualizador integrado (consulta, verificación y diálogo del sistema).
-- [ ] Firma privada permanente, primer GitHub Release y prueba real de actualización entre dos versiones.
+## Política de seguridad
+- La aplicación web permanece disponible hasta verificar la migración.
+- No importar respaldos web de forma parcial ni perder historiales silenciosamente.
+- La clave de firma debe permanecer fuera del repositorio.
+- Las migraciones son explícitas y nunca destructivas.
+- No publicar una versión sin pruebas de compilación, respaldo y actualización.
