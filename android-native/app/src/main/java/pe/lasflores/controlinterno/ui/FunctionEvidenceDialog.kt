@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -116,6 +117,10 @@ fun FunctionEvidenceDialog(
     var caption by remember(check.id){mutableStateOf("")}
     var actor by remember(check.id){mutableStateOf("")}
     var error by remember(check.id){mutableStateOf("")}
+    val reportError = LocalErrorReporter.current
+    LaunchedEffect(error) {
+        if (error.isNotBlank()) reportError("Funciones · Evidencias", error)
+    }
     var loading by remember {mutableStateOf(false)}
     var sending by remember {mutableStateOf<String?>(null)}
     var removing by remember {mutableStateOf<String?>(null)}
@@ -129,7 +134,7 @@ fun FunctionEvidenceDialog(
                     vm.addPhoto(check.id,caption,base64)
                     caption=""
                 } catch(e:Exception) {
-                    error=e.message ?: "No se pudo adjuntar la foto."
+                    error=ErrorReportText.compact(e.message ?: "No se pudo adjuntar la foto.")
                 } finally {loading=false}
             }
         }
@@ -180,7 +185,7 @@ fun FunctionEvidenceDialog(
                                 style=MaterialTheme.typography.bodySmall)
                             OutlinedButton(onClick={
                                 runCatching { sharePhoto(context,photo) }.onFailure {
-                                    error=it.message?:"No se pudo compartir la fotografía."
+                                    error=ErrorReportText.compact(it.message?:"No se pudo compartir la fotografía.")
                                 }
                             }) { Text("Compartir fotografía") }
                             if(photo.groupSentAtMillis==null) {
