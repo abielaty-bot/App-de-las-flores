@@ -302,7 +302,7 @@ class OfflineBackupManager(
         // Si Room falla, recuperamos la versión anterior.
         try {
             archiveWrite(archive)
-            database.withWriteTransaction {
+            database.withWriteTransaction<Unit> {
             incidentDao.clearActions()
             incidentDao.clearIncidents()
             incidentDao.clearTypes()
