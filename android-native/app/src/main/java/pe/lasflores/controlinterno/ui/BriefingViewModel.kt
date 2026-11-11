@@ -62,12 +62,18 @@ class BriefingViewModel(private val repository: OfflineBriefingRepository) : Vie
         }
     }
 
-    fun mark(id: String, presence: String?) =
-        runSave { repository.mark(day.value, group.value, id, presence) }
+    fun mark(id: String, presence: String?) {
+        val capturedDate = day.value
+        val capturedGroup = group.value
+        runSave { repository.mark(capturedDate, capturedGroup, id, presence) }
+    }
     fun inform(id: String, actor: String, value: Boolean = true) =
         runSave { repository.informed(id, actor, value) }
-    fun saveTopics(text: String) =
-        runSave { repository.saveTopics(day.value, group.value, text) }
+    fun saveTopics(text: String) {
+        val capturedDate = day.value
+        val capturedGroup = group.value
+        runSave { repository.saveTopics(capturedDate, capturedGroup, text) }
+    }
 
     class Factory(private val repository: OfflineBriefingRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

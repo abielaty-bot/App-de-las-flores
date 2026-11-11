@@ -46,7 +46,8 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
     val overrides by staffVm.overrides.collectAsState()
     val date by vm.day.collectAsState()
     val group by vm.group.collectAsState()
-    val records by vm.dayRecords.collectAsState()
+    val loadedRecords by vm.dayRecords.collectAsState()
+    val records = loadedRecords.filter { it.dateIso == date }
     val session by vm.session.collectAsState()
     val pending by vm.pending.collectAsState()
     val history by vm.history.collectAsState()
@@ -66,6 +67,7 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
             (person.briefingGroup == 0 || person.briefingGroup == group))
     }
     val stats = BriefingRules.stats(records)
+    val sessionTopics = session?.takeIf { it.dateIso == date && it.groupHour == group }?.topics.orEmpty()
     Column(Modifier.fillMaxSize()) {
         LazyRow(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -89,7 +91,7 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
             "estadisticas" -> BriefingStatisticsPanel(history, staff)
             else -> BriefingRegisterPanel(
                 date, group, visible, status, currentRecord, records, scheduled.size,
-                stats.pending, stats.attended, stats.missed, session?.topics.orEmpty(),
+                stats.pending, stats.attended, stats.missed, sessionTopics,
                 session?.dateIso == date && session?.groupHour == group, vm,
                 showAll, onShowAll = { showAll = !showAll }
             )
@@ -143,7 +145,7 @@ private fun BriefingRegisterPanel(
                     Text("Programados y apoyos: " + scheduled)
                     Text("Asistieron: " + attended + " · Por informar: " + pending)
                     Text("No asistieron al briefing: " + absent)
-                    Text("Sin registrar: " + (scheduled - dailyRecords.count { it.staffId in allRecords.keys }).coerceAtLeast(0))
+                    Text("Sin registrar: " + (scheduled - dailyRecords.size).coerceAtLeast(0))
                     Text("Sin registrar no significa falta.", style = MaterialTheme.typography.bodySmall)
                 }
             }
