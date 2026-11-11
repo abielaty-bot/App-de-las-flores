@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.data.UniformAnswerEntity
 import pe.lasflores.controlinterno.domain.UniformDaySnapshot
+import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRequirement
 import pe.lasflores.controlinterno.domain.UniformRules
 
@@ -47,7 +48,7 @@ private val negative = Color(0xFFFBEAE8)
 private val correctedColor = Color(0xFFE8F1FC)
 
 @Composable
-fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel) {
+fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
     val dateIso by vm.dateIso.collectAsState()
     val snapshot by vm.day.collectAsState()
     val saved by vm.saveStatus.collectAsState()
@@ -59,7 +60,11 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel) {
     var dialogRequirement by remember { mutableStateOf("") }
     var verifier by rememberSaveable { mutableStateOf("") }
     var reason by rememberSaveable { mutableStateOf("") }
-    val activePeople = people.filter { it.isActive }
+    val vacations by staffVm.vacations.collectAsState()
+    val overrides by staffVm.overrides.collectAsState()
+    val activePeople = people.filter { it.isActive &&
+        StaffScheduleRules.isScheduled(StaffScheduleRules.status(it, dateIso, vacations, overrides))
+    }
 
     LazyColumn(modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -103,7 +108,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel) {
         item {
             Text("Trabajadores activos (${activePeople.size})",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("La programación y los descansos se integrarán en otra etapa. No se registran faltas automáticamente.",
+            Text("Solo se muestran personas programadas o de apoyo. Los descansos, vacaciones y ausencias no se cuentan como incumplimiento.",
                 style = MaterialTheme.typography.bodySmall)
         }
         items(activePeople, key = { it.id }) { staff ->

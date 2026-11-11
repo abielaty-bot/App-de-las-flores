@@ -6,20 +6,26 @@ import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffRepository
 import pe.lasflores.controlinterno.domain.STAFF_ROLES
 
-class OfflineStaffRepository(private val dao: StaffDao) : StaffRepository {
+class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: UniformDao) : StaffRepository {
     override val staff: Flow<List<StaffEntity>> = dao.observeStaff()
     override val vacations: Flow<List<StaffVacationEntity>> = dao.observeVacations()
     override val overrides: Flow<List<StaffDayOverrideEntity>> = dao.observeOverrides()
 
-    override suspend fun create(fullName: String, role: String) {
+    override suspend fun create(fullName: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int) {
         require(StaffName.isValid(fullName)) { "Nombre inválido: debe tener entre 2 y 120 caracteres." }
         require(role in STAFF_ROLES) { "Puesto no admitido." }
+        require(category in 0..4 && briefingGroup in listOf(0, 11, 12)) { "Categoría o grupo inválido." }
+        require(scheduleMode in listOf("regular", "weekend") && restDaysMask in 0..127) { "Programación inválida." }
         require(dao.findNameConflict(StaffName.normalize(fullName), "") == null) { "Ya existe un trabajador con ese nombre." }
         val now = System.currentTimeMillis()
         dao.upsert(StaffEntity(
             id = UUID.randomUUID().toString(),
             fullName = StaffName.normalize(fullName),
             role = role,
+            category = category,
+            briefingGroup = briefingGroup,
+            scheduleMode = scheduleMode,
+            restDaysMask = restDaysMask,
             isActive = true,
             createdAtMillis = now,
             updatedAtMillis = now
@@ -57,6 +63,9 @@ class OfflineStaffRepository(private val dao: StaffDao) : StaffRepository {
         require(!end.isBefore(start)) { "La fecha final debe ser igual o posterior a la inicial." }
         require(java.time.temporal.ChronoUnit.DAYS.between(start, end) <= 365) { "Período demasiado largo." }
         require(dao.getById(staffId) != null) { "Trabajador no encontrado." }
+        require(uniformDao.countInspectionsInRange(staffId, from, to) == 0) {
+            "Existen inspecciones en ese período. No puedes marcarlo como vacaciones."
+        }
         require(dao.findOverlappingVacation(staffId, from, to) == null) {
             "El trabajador ya tiene vacaciones en ese período."
         }
@@ -72,6 +81,11 @@ class OfflineStaffRepository(private val dao: StaffDao) : StaffRepository {
     override suspend fun overrideDay(staffId: String, dateIso: String, status: String?) {
         pe.lasflores.controlinterno.domain.StaffScheduleRules.parseDate(dateIso)
         require(dao.getById(staffId) != null) { "Trabajador no encontrado." }
+        if (status != null && !pe.lasflores.controlinterno.domain.StaffScheduleRules.isScheduled(status)) {
+            require(uniformDao.countInspectionsInRange(staffId, dateIso, dateIso) == 0) {
+                "Hay una inspección en ese día. Revisa el historial antes de cambiar su estado."
+            }
+        }
         if (status == null) dao.deleteOverride(dateIso, staffId)
         else {
             require(status in setOf("working", "rest", "vacation", "absent", "leave", "support")) {

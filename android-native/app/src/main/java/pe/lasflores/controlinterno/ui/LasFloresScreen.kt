@@ -87,8 +87,8 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, updateVm: U
                     color = if ((if (screen == "uniformes") uniformSaveStatus else saveStatus).startsWith("Error")) MaterialTheme.colorScheme.error else green
                 )
                 when (screen) {
-                    "personal" -> StaffScreen(people, vm)
-                    "uniformes" -> UniformScreen(people, uniformVm)
+                    "personal" -> StaffManagementScreen(people, vm)
+                    "uniformes" -> UniformScreen(people, uniformVm, vm)
                     "updates" -> UpdateScreen(updateVm)
                     else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
                         onOpenUniforms = { screen = "uniformes" },

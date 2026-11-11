@@ -30,6 +30,9 @@ interface UniformDao {
     @Query("SELECT * FROM uniform_answers WHERE inspectionId = :inspectionId AND requirementId = :requirementId LIMIT 1")
     suspend fun getAnswer(inspectionId: String, requirementId: String): UniformAnswerEntity?
 
+    @Query("SELECT COUNT(*) FROM uniform_inspections WHERE staffId = :staffId AND dateIso BETWEEN :startDate AND :endDate")
+    suspend fun countInspectionsInRange(staffId: String, startDate: String, endDate: String): Int
+
     @Query("SELECT COUNT(*) FROM uniform_inspections WHERE dateIso = :dateIso")
     suspend fun countInspections(dateIso: String): Int
 

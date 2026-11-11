@@ -18,7 +18,7 @@ class LasFloresApp : Application() {
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
     }
-    val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao()) }
+    val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao(), database.uniformDao()) }
     val uniformRepository: UniformRepository by lazy {
         OfflineUniformRepository(database, database.uniformDao(), database.staffDao())
     }
