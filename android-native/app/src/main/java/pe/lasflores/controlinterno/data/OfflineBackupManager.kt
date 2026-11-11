@@ -665,7 +665,7 @@ class OfflineBackupManager(
         }) { "Vacaciones inconsistentes." }
         require(data.overrides.all {
             it.staffId in staffIds &&
-                it.status in listOf("working", "rest", "vacation", "absent", "leave", "support")
+                it.status in listOf("working", "rest", "vacation", "absent", "leave", "support", "off")
         }) { "Situación diaria incompatible." }
         require(data.inspections.all { it.staffId in staffIds }) {
             "Una inspección referencia un trabajador desconocido."
