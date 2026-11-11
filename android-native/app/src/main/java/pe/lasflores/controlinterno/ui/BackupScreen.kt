@@ -116,7 +116,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Exportar copia de seguridad", fontWeight = FontWeight.Bold)
-                    Text("Incluye personal, programación, vacaciones, inspecciones, requisitos, uniformes, briefings y funciones con evidencias fotográficas y auditoría.",
+                    Text("Incluye personal, programación, vacaciones, inspecciones, requisitos, uniformes, briefings, funciones e incidentes con todas sus acciones de seguimiento.",
                         style = MaterialTheme.typography.bodySmall)
                     Button(
                         onClick = {
@@ -202,6 +202,12 @@ fun BackupScreen(manager: OfflineBackupManager) {
                     Text("Asignaciones: " + p.functionChecks)
                     Text("Fotos de evidencia: " + p.functionEvidence)
                     Text("Eventos de funciones: " + p.functionEvents)
+                    Text("Tipos de incidentes: " + p.incidentTypes)
+                    Text("Incidentes: " + p.incidents)
+                    Text("Acciones de seguimiento: " + p.incidentActions)
+                    if (p.formatVersion < 5)
+                        Text("Este archivo es anterior a Incidentes. Si lo restauras, reemplazará los incidentes que hayas registrado en esta tablet.",
+                            color = MaterialTheme.colorScheme.error)
                     if (p.formatVersion < 4)
                         Text("Respaldo anterior a Funciones. Restaurarlo reemplazará todos los registros actuales de Funciones.",
                             color = MaterialTheme.colorScheme.error)

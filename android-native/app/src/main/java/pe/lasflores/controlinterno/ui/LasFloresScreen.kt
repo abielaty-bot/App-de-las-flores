@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -28,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,13 +53,24 @@ private val lightBackground = Color(0xFFF7F9F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, functionVm: FunctionViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
+fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm: BriefingViewModel, functionVm: FunctionViewModel, incidentVm: IncidentViewModel, updateVm: UpdateViewModel, backupManager: OfflineBackupManager) {
     var screen by rememberSaveable { mutableStateOf("inicio") }
     val people by vm.staff.collectAsState()
     val saveStatus by vm.saveState.collectAsState()
     val uniformSaveStatus by uniformVm.saveStatus.collectAsState()
     val briefingStatus by briefingVm.message.collectAsState()
     val functionStatus by functionVm.message.collectAsState()
+    val incidentStatus by incidentVm.message.collectAsState()
+    val navItems = listOf(
+        "inicio" to "Inicio", "personal" to "Personal", "uniformes" to "Uniformes",
+        "briefings" to "Briefings", "funciones" to "Funciones", "incidentes" to "Incidentes",
+        "backups" to "Respaldos", "updates" to "Actualizar"
+    )
+    val navScroll = rememberLazyListState()
+    LaunchedEffect(screen) {
+        val index = navItems.indexOfFirst { it.first == screen }
+        if (index >= 0) navScroll.animateScrollToItem(index)
+    }
 
     MaterialTheme(colorScheme = androidx.compose.material3.lightColorScheme(
         primary = green, background = lightBackground, surface = Color.White
@@ -73,21 +86,20 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
             },
             bottomBar = {
                 Surface(shadowElevation = 6.dp) {
-                    Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        TextButton(onClick = { screen = "inicio" }) { Text("Inicio") }
-                        TextButton(onClick = { screen = "personal" }) { Text("Personal") }
-                        TextButton(onClick = { screen = "uniformes" }) { Text("Uniformes") }
-                        TextButton(onClick = { screen = "briefings" }) { Text("Briefings") }
-                        TextButton(onClick = { screen = "funciones" }) { Text("Funciones") }
-                        TextButton(onClick = { screen = "backups" }) { Text("Respaldos") }
-                        TextButton(onClick = { screen = "updates" }) { Text("Actualizar") }
+                    LazyRow(state = navScroll, modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(navItems, key = { it.first }) { (id, title) ->
+                            FilterChip(selected = screen == id, onClick = { screen = id },
+                                label = { Text(title) })
+                        }
                     }
                 }
             }
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 Text(
-                    when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; "funciones" -> functionStatus; else -> saveStatus },
+                    when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; "funciones" -> functionStatus; "incidentes" -> incidentStatus; else -> saveStatus },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = if ((when(screen) { "uniformes" -> uniformSaveStatus; "briefings" -> briefingStatus; "funciones" -> functionStatus; else -> saveStatus }).startsWith("Error")) MaterialTheme.colorScheme.error else green
@@ -97,12 +109,14 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
                     "uniformes" -> UniformScreen(people, uniformVm, vm)
                     "briefings" -> BriefingScreen(briefingVm, vm)
                     "funciones" -> FunctionScreen(functionVm, vm)
+                    "incidentes" -> IncidentScreen(incidentVm, vm)
                     "updates" -> UpdateScreen(updateVm)
                     "backups" -> BackupScreen(backupManager)
                     else -> HomeScreen(people, onOpenStaff = { screen = "personal" },
                         onOpenUniforms = { screen = "uniformes" },
                         onOpenUpdates = { screen = "updates" }, onOpenBackups = { screen = "backups" },
-                        onOpenBriefings = { screen = "briefings" }, onOpenFunctions = { screen = "funciones" })
+                        onOpenBriefings = { screen = "briefings" }, onOpenFunctions = { screen = "funciones" },
+                        onOpenIncidents = { screen = "incidentes" })
                 }
             }
         }
@@ -110,13 +124,13 @@ fun LasFloresScreen(vm: StaffViewModel, uniformVm: UniformViewModel, briefingVm:
 }
 
 @Composable
-private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit, onOpenFunctions: () -> Unit) {
+private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpenUniforms: () -> Unit, onOpenUpdates: () -> Unit, onOpenBackups: () -> Unit, onOpenBriefings: () -> Unit, onOpenFunctions: () -> Unit, onOpenIncidents: () -> Unit) {
     val modules = listOf(
         "Personal" to "Disponible · ${people.count { it.isActive }} activos",
         "Briefings" to "Disponible · Asistencia, temas e historial",
         "Uniformes" to "Disponible · Borradores y correcciones",
         "Funciones" to "Disponible · Asignaciones, evidencias y estadísticas",
-        "Incidentes" to "Próxima etapa",
+        "Incidentes" to "Disponible · Casos, seguimiento, análisis y tipos",
         "Reportes" to "Próxima etapa",
         "Respaldos" to "Disponible · Exportación y restauración JSON",
         "Actualizaciones" to "Consultar GitHub Releases desde Las Flores"
@@ -129,7 +143,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
         item {
             Text("Panel principal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("Personal, Uniformes, Briefings y Funciones disponibles. Incidentes y los demás módulos se añadirán progresivamente.",
+            Text("Personal, Uniformes, Briefings, Funciones e Incidentes disponibles. Faltan Reportes Excel y la migración web.",
                 style = MaterialTheme.typography.bodyMedium)
         }
         items(modules) { (title, description) ->
@@ -137,7 +151,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Funciones" -> onOpenFunctions(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
+                onClick = { when(title) { "Personal" -> onOpenStaff(); "Uniformes" -> onOpenUniforms(); "Briefings" -> onOpenBriefings(); "Funciones" -> onOpenFunctions(); "Incidentes" -> onOpenIncidents(); "Actualizaciones" -> onOpenUpdates(); "Respaldos" -> onOpenBackups() } }
             ) {
                 Row(Modifier.padding(18.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
@@ -145,7 +159,7 @@ private fun HomeScreen(people: List<StaffEntity>, onOpenStaff: () -> Unit, onOpe
                         Text(title, fontWeight = FontWeight.Bold)
                         Text(description, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Funciones" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
+                    Text(if (title == "Personal" || title == "Uniformes" || title == "Briefings" || title == "Funciones" || title == "Incidentes" || title == "Actualizaciones" || title == "Respaldos") "Abrir" else "Pendiente", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

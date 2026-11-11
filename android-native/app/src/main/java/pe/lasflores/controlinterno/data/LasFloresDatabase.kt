@@ -13,8 +13,9 @@ import androidx.sqlite.execSQL
         StaffVacationEntity::class, StaffDayOverrideEntity::class,
         UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class,
         BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class,
-        FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class],
-    version = 6,
+        FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
+        IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class],
+    version = 7,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun materialDao(): MaterialDao
     abstract fun briefingDao(): BriefingDao
     abstract fun functionDao(): FunctionDao
+    abstract fun incidentDao(): IncidentDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -239,4 +241,60 @@ val MIGRATION_5_6 = Migration(5, 6) { connection ->
         atMillis INTEGER NOT NULL
     )""")
     connection.execSQL("CREATE INDEX IF NOT EXISTS index_function_events_checkId ON function_events(checkId)")
+}
+
+
+/** 4.0004 → 4.0005: solo agrega incidentes y tipos, mantiene intactos todos los registros previos. */
+val MIGRATION_6_7 = Migration(6, 7) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS incident_types (
+        id TEXT NOT NULL PRIMARY KEY,
+        category TEXT NOT NULL,
+        label TEXT NOT NULL,
+        isActive INTEGER NOT NULL,
+        createdAtMillis INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS incidents (
+        id TEXT NOT NULL PRIMARY KEY,
+        code TEXT NOT NULL,
+        category TEXT NOT NULL,
+        occurredDate TEXT NOT NULL,
+        occurredTime TEXT NOT NULL,
+        detectedArea TEXT NOT NULL,
+        originArea TEXT NOT NULL,
+        confirmedOrigin TEXT NOT NULL,
+        productOrProcess TEXT NOT NULL,
+        typeId TEXT NOT NULL,
+        typeLabelSnapshot TEXT NOT NULL,
+        description TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        reporter TEXT NOT NULL,
+        impact TEXT NOT NULL,
+        immediateAction TEXT NOT NULL,
+        assignedStaffId TEXT NOT NULL,
+        assignedStaffNameSnapshot TEXT NOT NULL,
+        status TEXT NOT NULL,
+        createdAtMillis INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL,
+        closedAtMillis INTEGER,
+        closedBy TEXT NOT NULL,
+        voidedAtMillis INTEGER,
+        voidReason TEXT NOT NULL
+    )""")
+    connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_incidents_code ON incidents(code)")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_incidents_occurredDate ON incidents(occurredDate)")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_incidents_status ON incidents(status)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS incident_actions (
+        id TEXT NOT NULL PRIMARY KEY,
+        incidentId TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        description TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        atMillis INTEGER NOT NULL,
+        statusBefore TEXT NOT NULL,
+        statusAfter TEXT NOT NULL,
+        confirmedOrigin TEXT NOT NULL,
+        assignedStaffId TEXT NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_incident_actions_incidentId ON incident_actions(incidentId)")
 }

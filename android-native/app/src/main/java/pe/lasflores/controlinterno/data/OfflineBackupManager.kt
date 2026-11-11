@@ -11,6 +11,7 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRules
 import pe.lasflores.controlinterno.domain.BriefingRules
 import pe.lasflores.controlinterno.domain.FunctionRules
+import pe.lasflores.controlinterno.domain.IncidentRules
 import android.util.Base64
 import java.io.File
 
@@ -30,7 +31,10 @@ data class BackupPreview(
     val functionChecks: Int = 0,
     val functionEvidence: Int = 0,
     val functionEvents: Int = 0,
-    val formatVersion: Int = 4
+    val incidentTypes: Int = 0,
+    val incidents: Int = 0,
+    val incidentActions: Int = 0,
+    val formatVersion: Int = 5
 )
 
 /**
@@ -45,7 +49,8 @@ class OfflineBackupManager(
     private val catalogDao: UniformCatalogDao,
     private val materialsDao: MaterialDao,
     private val briefingDao: BriefingDao,
-    private val functionDao: FunctionDao
+    private val functionDao: FunctionDao,
+    private val incidentDao: IncidentDao
 ) {
     private data class Payload(
         val staff: List<StaffEntity>,
@@ -65,6 +70,9 @@ class OfflineBackupManager(
         val functionChecks: List<FunctionCheckEntity>,
         val functionEvidence: List<FunctionEvidenceEntity>,
         val functionEvents: List<FunctionEventEntity>,
+        val incidentTypes: List<IncidentTypeEntity>,
+        val incidents: List<IncidentEntity>,
+        val incidentActions: List<IncidentActionEntity>,
         val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
@@ -72,6 +80,7 @@ class OfflineBackupManager(
             requirements.size, deliveries.size,
             briefingAttendance.size, briefingSessions.size, briefingEvents.size,
             functionTasks.size, functionChecks.size, functionEvidence.size, functionEvents.size,
+            incidentTypes.size, incidents.size, incidentActions.size,
             formatVersion
         )
     }
@@ -86,7 +95,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 4,
+            "app" to "lasflores-android", "formatVersion" to 5,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
@@ -189,6 +198,35 @@ class OfflineBackupManager(
             "beforeValue" to x.beforeValue, "afterValue" to x.afterValue,
             "actor" to x.actor, "note" to x.note, "atMillis" to x.atMillis
         ) })
+        root.put("incidentTypes", arr(incidentDao.allTypes()) { x -> obj(
+            "id" to x.id,"category" to x.category,"label" to x.label,
+            "isActive" to x.isActive,"createdAtMillis" to x.createdAtMillis,
+            "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("incidents", arr(incidentDao.allIncidents()) { x -> obj(
+            "id" to x.id, "code" to x.code,"category" to x.category,
+            "occurredDate" to x.occurredDate,"occurredTime" to x.occurredTime,
+            "detectedArea" to x.detectedArea,"originArea" to x.originArea,
+            "confirmedOrigin" to x.confirmedOrigin,
+            "productOrProcess" to x.productOrProcess,
+            "typeId" to x.typeId,"typeLabelSnapshot" to x.typeLabelSnapshot,
+            "description" to x.description,"priority" to x.priority,
+            "reporter" to x.reporter,"impact" to x.impact,
+            "immediateAction" to x.immediateAction,
+            "assignedStaffId" to x.assignedStaffId,
+            "assignedStaffNameSnapshot" to x.assignedStaffNameSnapshot,
+            "status" to x.status,
+            "createdAtMillis" to x.createdAtMillis,"updatedAtMillis" to x.updatedAtMillis,
+            "closedAtMillis" to x.closedAtMillis,"closedBy" to x.closedBy,
+            "voidedAtMillis" to x.voidedAtMillis,"voidReason" to x.voidReason
+        ) })
+        root.put("incidentActions", arr(incidentDao.allActions()) { x -> obj(
+            "id" to x.id,"incidentId" to x.incidentId,"kind" to x.kind,
+            "description" to x.description,"actor" to x.actor,
+            "atMillis" to x.atMillis,"statusBefore" to x.statusBefore,
+            "statusAfter" to x.statusAfter,"confirmedOrigin" to x.confirmedOrigin,
+            "assignedStaffId" to x.assignedStaffId
+        ) })
         root.toString(2)
     }
 
@@ -220,6 +258,9 @@ class OfflineBackupManager(
             throw error
         }
         database.withWriteTransaction {
+            incidentDao.clearActions()
+            incidentDao.clearIncidents()
+            incidentDao.clearTypes()
             functionDao.clearEvents()
             functionDao.clearEvidence()
             functionDao.clearChecks()
@@ -254,6 +295,9 @@ class OfflineBackupManager(
             payload.functionChecks.forEach { functionDao.upsertCheck(it) }
             payload.functionEvidence.forEach { functionDao.upsertEvidence(it) }
             payload.functionEvents.forEach { functionDao.upsertEvent(it) }
+            payload.incidentTypes.forEach { incidentDao.upsertType(it) }
+            payload.incidents.forEach { incidentDao.upsertIncident(it) }
+            payload.incidentActions.forEach { incidentDao.upsertAction(it) }
         }
         return payload.preview()
     }
@@ -288,7 +332,7 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..4) {
+        require(version in 1..5) {
             "Formato de respaldo Android incompatible."
         }
 
@@ -408,6 +452,53 @@ class OfflineBackupManager(
                     x.getString("note"),x.getLong("atMillis")
                 )
             } else emptyList(),
+            incidentTypes = if(version>=5) rows(root,"incidentTypes") { x ->
+                IncidentTypeEntity(
+                    x.getString("id"),x.getString("category"),x.getString("label"),
+                    x.getBoolean("isActive"),x.getLong("createdAtMillis"),
+                    x.getLong("updatedAtMillis")
+                )
+            } else IncidentRules.seedTypes(),
+            incidents = if(version>=5) rows(root,"incidents") { x ->
+                IncidentEntity(
+                    id=x.getString("id"),code=x.getString("code"),
+                    category=x.getString("category"),
+                    occurredDate=x.getString("occurredDate"),
+                    occurredTime=x.getString("occurredTime"),
+                    detectedArea=x.getString("detectedArea"),
+                    originArea=x.getString("originArea"),
+                    confirmedOrigin=x.getString("confirmedOrigin"),
+                    productOrProcess=x.getString("productOrProcess"),
+                    typeId=x.getString("typeId"),
+                    typeLabelSnapshot=x.getString("typeLabelSnapshot"),
+                    description=x.getString("description"),
+                    priority=x.getString("priority"),
+                    reporter=x.getString("reporter"),
+                    impact=x.getString("impact"),
+                    immediateAction=x.getString("immediateAction"),
+                    assignedStaffId=x.getString("assignedStaffId"),
+                    assignedStaffNameSnapshot=x.getString("assignedStaffNameSnapshot"),
+                    status=x.getString("status"),
+                    createdAtMillis=x.getLong("createdAtMillis"),
+                    updatedAtMillis=x.getLong("updatedAtMillis"),
+                    closedAtMillis=nullableLong(x,"closedAtMillis"),
+                    closedBy=x.getString("closedBy"),
+                    voidedAtMillis=nullableLong(x,"voidedAtMillis"),
+                    voidReason=x.getString("voidReason")
+                )
+            } else emptyList(),
+            incidentActions = if(version>=5) rows(root,"incidentActions") { x ->
+                IncidentActionEntity(
+                    id=x.getString("id"),incidentId=x.getString("incidentId"),
+                    kind=x.getString("kind"),
+                    description=x.getString("description"),
+                    actor=x.getString("actor"),atMillis=x.getLong("atMillis"),
+                    statusBefore=x.getString("statusBefore"),
+                    statusAfter=x.getString("statusAfter"),
+                    confirmedOrigin=x.getString("confirmedOrigin"),
+                    assignedStaffId=x.getString("assignedStaffId")
+                )
+            } else emptyList(),
             formatVersion = version
         )
         validate(data)
@@ -464,6 +555,10 @@ class OfflineBackupManager(
         unique(data.functionChecks, "asignaciones de funciones") { it.id }
         unique(data.functionEvidence, "fotografías de funciones") { it.id }
         unique(data.functionEvents, "auditoría de funciones") { it.id }
+        unique(data.incidentTypes, "tipos de incidentes") { it.id }
+        unique(data.incidents, "incidentes") { it.id }
+        unique(data.incidents, "códigos de incidentes") { it.code }
+        unique(data.incidentActions, "acciones de incidentes") { it.id }
 
         val staffIds = data.staff.map { it.id }.toSet()
         val inspectionIds = data.inspections.map { it.id }.toSet()
@@ -559,6 +654,48 @@ class OfflineBackupManager(
         require(data.functionEvents.all { it.checkId in checksIds }) {
             "El historial de funciones tiene asignaciones desconocidas."
         }
+        val incidentIds = data.incidents.map { it.id }.toSet()
+        val typeIds = data.incidentTypes.map { it.id }.toSet()
+        require(data.incidentTypes.all {
+            it.id.isNotBlank() && it.category in IncidentRules.CATEGORIES &&
+                it.label.length in 3..120
+        }) { "Catálogo de incidentes inválido." }
+        require(data.incidentTypes.filter { it.isActive }
+            .groupBy { it.category to it.label.lowercase() }
+            .values.all { it.size == 1 }) { "Hay tipos de incidentes activos duplicados." }
+        require(data.incidents.all {
+            it.id.isNotBlank() &&
+                Regex("""INC-\d{4}-\d{4,}""").matches(it.code) &&
+                it.code.substring(4,8) == it.occurredDate.take(4) &&
+                IncidentRules.validDateTime(it.occurredDate,it.occurredTime) &&
+                it.category in IncidentRules.CATEGORIES &&
+                it.detectedArea in IncidentRules.AREAS &&
+                (it.originArea.isBlank() || it.originArea in IncidentRules.AREAS) &&
+                (it.confirmedOrigin.isBlank() || it.confirmedOrigin in IncidentRules.AREAS) &&
+                it.productOrProcess.length in 2..140 &&
+                it.typeLabelSnapshot.length in 3..120 &&
+                (it.typeId.isBlank() || it.typeId in typeIds) &&
+                it.description.length in 10..1500 &&
+                it.priority in IncidentRules.PRIORITIES &&
+                it.reporter.length in 2..90 &&
+                it.impact in IncidentRules.IMPACTS &&
+                it.immediateAction.length in 5..850 &&
+                (it.assignedStaffId.isBlank() || it.assignedStaffId in staffIds) &&
+                it.status in IncidentRules.STATUSES &&
+                (it.status == IncidentRules.CERRADO) ==
+                    (it.closedAtMillis != null && it.closedBy.isNotBlank()) &&
+                (it.status == IncidentRules.ANULADO) ==
+                    (it.voidedAtMillis != null && it.voidReason.isNotBlank())
+        }) { "Hay incidentes con fechas, estados, responsables o campos inválidos." }
+        require(data.incidentActions.all {
+            it.id.isNotBlank() && it.incidentId in incidentIds &&
+                it.kind in (IncidentRules.ACTIONS + setOf("reapertura","anulacion")) &&
+                it.description.length in 5..1500 && it.actor.length in 2..90 &&
+                (it.statusBefore.isBlank() || it.statusBefore in IncidentRules.STATUSES) &&
+                it.statusAfter in IncidentRules.STATUSES &&
+                (it.confirmedOrigin.isBlank() || it.confirmedOrigin in IncidentRules.AREAS) &&
+                (it.assignedStaffId.isBlank() || it.assignedStaffId in staffIds)
+        }) { "El historial de acciones de incidentes no es consistente." }
         // Un evento de descarte puede referirse a un borrador ya retirado:
         // los eventos históricos se conservan incluso si la inspección no existe.
     }
