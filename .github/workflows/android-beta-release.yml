@@ -7,6 +7,10 @@ on:
     branches:
       - 'publish/android-beta-v*'
 
+concurrency:
+  group: las-flores-firmada-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
