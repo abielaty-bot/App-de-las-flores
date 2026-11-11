@@ -212,7 +212,7 @@ fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
                 modifier=Modifier.fillMaxWidth()) {
                 Text(if(exporting)"Creando Excel…" else "Guardar reporte Excel (.xlsx)")
             }
-            Text(message,modifier=Modifier.padding(top=8.dp),
+            Text(if (ErrorReportText.isError(message)) ErrorReportText.compact(message) else message,modifier=Modifier.padding(top=8.dp),
                 color=if(message.startsWith("Error")||message.startsWith("No se"))
                     MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 style=MaterialTheme.typography.bodySmall)
