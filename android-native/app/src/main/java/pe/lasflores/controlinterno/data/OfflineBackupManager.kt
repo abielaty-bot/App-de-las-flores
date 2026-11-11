@@ -10,6 +10,8 @@ import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRules
 import pe.lasflores.controlinterno.domain.BriefingRules
+import pe.lasflores.controlinterno.domain.FunctionRules
+import android.util.Base64
 import java.io.File
 
 data class BackupPreview(
@@ -24,7 +26,11 @@ data class BackupPreview(
     val briefings: Int = 0,
     val briefingSessions: Int = 0,
     val briefingEvents: Int = 0,
-    val formatVersion: Int = 3
+    val functionTasks: Int = 0,
+    val functionChecks: Int = 0,
+    val functionEvidence: Int = 0,
+    val functionEvents: Int = 0,
+    val formatVersion: Int = 4
 )
 
 /**
@@ -38,7 +44,8 @@ class OfflineBackupManager(
     private val uniformDao: UniformDao,
     private val catalogDao: UniformCatalogDao,
     private val materialsDao: MaterialDao,
-    private val briefingDao: BriefingDao
+    private val briefingDao: BriefingDao,
+    private val functionDao: FunctionDao
 ) {
     private data class Payload(
         val staff: List<StaffEntity>,
@@ -54,12 +61,18 @@ class OfflineBackupManager(
         val briefingAttendance: List<BriefingAttendanceEntity>,
         val briefingSessions: List<BriefingSessionEntity>,
         val briefingEvents: List<BriefingEventEntity>,
+        val functionTasks: List<FunctionTaskEntity>,
+        val functionChecks: List<FunctionCheckEntity>,
+        val functionEvidence: List<FunctionEvidenceEntity>,
+        val functionEvents: List<FunctionEventEntity>,
         val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
             staff.size, inspections.size, answers.size, events.size, vacations.size, overrides.size,
             requirements.size, deliveries.size,
-            briefingAttendance.size, briefingSessions.size, briefingEvents.size, formatVersion
+            briefingAttendance.size, briefingSessions.size, briefingEvents.size,
+            functionTasks.size, functionChecks.size, functionEvidence.size, functionEvents.size,
+            formatVersion
         )
     }
 
@@ -73,7 +86,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 3,
+            "app" to "lasflores-android", "formatVersion" to 4,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
@@ -150,6 +163,32 @@ class OfflineBackupManager(
             "afterValue" to x.afterValue, "actor" to x.actor,
             "details" to x.details, "atMillis" to x.atMillis
         ) })
+        root.put("functionTasks", arr(functionDao.allTasks()) { x -> obj(
+            "id" to x.id, "area" to x.area, "label" to x.label,
+            "periodicity" to x.periodicity, "isActive" to x.isActive,
+            "sortOrder" to x.sortOrder, "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("functionChecks", arr(functionDao.allChecks()) { x -> obj(
+            "id" to x.id, "dateIso" to x.dateIso, "staffId" to x.staffId,
+            "staffNameSnapshot" to x.staffNameSnapshot, "taskId" to x.taskId,
+            "taskLabelSnapshot" to x.taskLabelSnapshot, "areaSnapshot" to x.areaSnapshot,
+            "periodicitySnapshot" to x.periodicitySnapshot,
+            "result" to x.result, "note" to x.note,
+            "correctedAtMillis" to x.correctedAtMillis,
+            "correctionNote" to x.correctionNote, "voidedAtMillis" to x.voidedAtMillis,
+            "createdAtMillis" to x.createdAtMillis, "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("functionEvidence", arr(functionDao.allEvidence()) { x -> obj(
+            "id" to x.id, "checkId" to x.checkId,
+            "description" to x.description, "imageBase64" to x.imageBase64,
+            "createdAtMillis" to x.createdAtMillis, "groupSentAtMillis" to x.groupSentAtMillis,
+            "groupSentBy" to x.groupSentBy
+        ) })
+        root.put("functionEvents", arr(functionDao.allEvents()) { x -> obj(
+            "id" to x.id, "checkId" to x.checkId, "action" to x.action,
+            "beforeValue" to x.beforeValue, "afterValue" to x.afterValue,
+            "actor" to x.actor, "note" to x.note, "atMillis" to x.atMillis
+        ) })
         root.toString(2)
     }
 
@@ -181,6 +220,10 @@ class OfflineBackupManager(
             throw error
         }
         database.withWriteTransaction {
+            functionDao.clearEvents()
+            functionDao.clearEvidence()
+            functionDao.clearChecks()
+            functionDao.clearTasks()
             briefingDao.clearEvents()
             briefingDao.clearSessions()
             briefingDao.clearAttendance()
@@ -207,6 +250,10 @@ class OfflineBackupManager(
             payload.briefingAttendance.forEach { briefingDao.upsertAttendance(it) }
             payload.briefingSessions.forEach { briefingDao.upsertSession(it) }
             payload.briefingEvents.forEach { briefingDao.upsertEvent(it) }
+            payload.functionTasks.forEach { functionDao.upsertTask(it) }
+            payload.functionChecks.forEach { functionDao.upsertCheck(it) }
+            payload.functionEvidence.forEach { functionDao.upsertEvidence(it) }
+            payload.functionEvents.forEach { functionDao.upsertEvent(it) }
         }
         return payload.preview()
     }
@@ -241,7 +288,7 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..3) {
+        require(version in 1..4) {
             "Formato de respaldo Android incompatible."
         }
 
