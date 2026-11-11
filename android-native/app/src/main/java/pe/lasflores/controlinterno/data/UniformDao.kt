@@ -9,6 +9,30 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UniformDao {
+    @Query("SELECT * FROM uniform_inspections")
+    suspend fun allInspections(): List<UniformInspectionEntity>
+
+    @Query("SELECT * FROM uniform_answers")
+    suspend fun allAnswers(): List<UniformAnswerEntity>
+
+    @Query("SELECT * FROM uniform_events")
+    suspend fun allEvents(): List<UniformEventEntity>
+
+    @Query("SELECT * FROM activity_days")
+    suspend fun allActivityDays(): List<DailyActivityEntity>
+
+    @Query("DELETE FROM uniform_events")
+    suspend fun clearEvents()
+
+    @Query("DELETE FROM uniform_answers")
+    suspend fun clearAnswers()
+
+    @Query("DELETE FROM uniform_inspections")
+    suspend fun clearInspections()
+
+    @Query("DELETE FROM activity_days")
+    suspend fun clearActivityDays()
+
     @Query("SELECT * FROM uniform_inspections WHERE dateIso = :dateIso ORDER BY createdAtMillis DESC")
     fun observeInspections(dateIso: String): Flow<List<UniformInspectionEntity>>
 
