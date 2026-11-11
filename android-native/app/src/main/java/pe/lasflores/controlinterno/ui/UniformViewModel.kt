@@ -13,8 +13,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pe.lasflores.controlinterno.domain.UniformDaySnapshot
 import pe.lasflores.controlinterno.domain.UniformRepository
+import pe.lasflores.controlinterno.data.OfflineMaterialRepository
+import pe.lasflores.controlinterno.data.UniformRequirementEntity
+import pe.lasflores.controlinterno.data.MaterialDeliveryEntity
 
-class UniformViewModel(private val repository: UniformRepository) : ViewModel() {
+class UniformViewModel(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModel() {
+    val catalog: StateFlow<List<UniformRequirementEntity>> =
+        repository.catalog.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val deliveries: StateFlow<List<MaterialDeliveryEntity>> =
+        materials.deliveries.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _dateIso = MutableStateFlow(LocalDate.now().toString())
     val dateIso: StateFlow<String> = _dateIso.asStateFlow()
 
@@ -43,8 +51,16 @@ class UniformViewModel(private val repository: UniformRepository) : ViewModel() 
         }
     }
 
-    fun choose(staffId: String, requirementId: String, value: String) =
-        perform { repository.choose(_dateIso.value, staffId, requirementId, value) }
+    fun choose(staffId: String, requirementId: String, value: String, quantity: Int? = null) =
+        perform { repository.choose(_dateIso.value, staffId, requirementId, value, quantity) }
+    fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>) =
+        perform { repository.saveRequirement(id, label, category, minQty, roles) }
+    fun setRequirementActive(id: String, active: Boolean) =
+        perform { repository.setRequirementActive(id, active) }
+    fun deliver(staffId: String, material: String, quantity: Int, reason: String, actor: String) =
+        perform { materials.create(staffId, _dateIso.value, material, quantity, reason, actor) }
+    fun closeDelivery(id: String, action: String, note: String) =
+        perform { materials.close(id, action, note) }
     fun finalize(staffId: String) = perform { repository.finalize(_dateIso.value, staffId) }
     fun correct(staffId: String, requirementId: String, verifier: String) =
         perform { repository.correct(_dateIso.value, staffId, requirementId, verifier) }
@@ -54,11 +70,11 @@ class UniformViewModel(private val repository: UniformRepository) : ViewModel() 
         perform { repository.markNotPerformed(_dateIso.value, reason) }
     fun reopenDay() = perform { repository.reopenDay(_dateIso.value) }
 
-    class Factory(private val repository: UniformRepository) : ViewModelProvider.Factory {
+    class Factory(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(UniformViewModel::class.java))
-            return UniformViewModel(repository) as T
+            return UniformViewModel(repository, materials) as T
         }
     }
 }

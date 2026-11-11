@@ -106,6 +106,7 @@ class OfflineUniformRepository(
                     requirement.categorySnapshot, next, null, null, quantity)
             )
             if (dao.getAnswers(inspection.id).isEmpty()) {
+                catalogDao.deleteForInspection(inspection.id)
                 dao.deleteInspection(inspection.id)
                 dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,requirementId,
                     "DESCARTAR_BORRADOR",previous?.status,null,"","Sin respuestas en borrador",now))

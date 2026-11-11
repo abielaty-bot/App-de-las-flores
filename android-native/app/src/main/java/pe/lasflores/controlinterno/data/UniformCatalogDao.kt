@@ -24,6 +24,8 @@ interface UniformCatalogDao {
     @Query("SELECT * FROM inspection_requirements")
     suspend fun allSnapshots(): List<InspectionRequirementEntity>
     @Upsert suspend fun upsertSnapshot(item: InspectionRequirementEntity)
+    @Query("DELETE FROM inspection_requirements WHERE inspectionId=:id")
+    suspend fun deleteForInspection(id: String)
     @Query("DELETE FROM inspection_requirements")
     suspend fun clearSnapshots()
 }
