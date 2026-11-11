@@ -16,8 +16,15 @@ import pe.lasflores.controlinterno.domain.UniformRepository
 import pe.lasflores.controlinterno.data.OfflineMaterialRepository
 import pe.lasflores.controlinterno.data.UniformRequirementEntity
 import pe.lasflores.controlinterno.data.MaterialDeliveryEntity
+import pe.lasflores.controlinterno.data.UniformInspectionEntity
+import pe.lasflores.controlinterno.data.UniformEventEntity
 
 class UniformViewModel(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModel() {
+    val history: StateFlow<List<UniformInspectionEntity>> =
+        repository.history.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val auditHistory: StateFlow<List<UniformEventEntity>> =
+        repository.auditHistory.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val catalog: StateFlow<List<UniformRequirementEntity>> =
         repository.catalog.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val deliveries: StateFlow<List<MaterialDeliveryEntity>> =

@@ -253,7 +253,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
 private fun statusColor(status: String?): Color = when(status) {
     "Conforme" -> Color(0xFF18744D)
     "Observado" -> Color(0xFFB43D36)
-    "Corregido" -> Color(0xFF296FA8)
+    "Corregido", "Rectificado" -> Color(0xFF296FA8)
     "Corrección parcial" -> Color(0xFF8A6817)
     else -> Color(0xFF63766B)
 }

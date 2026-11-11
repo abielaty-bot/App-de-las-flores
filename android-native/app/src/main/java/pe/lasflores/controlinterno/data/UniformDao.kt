@@ -9,6 +9,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UniformDao {
+    @Query("SELECT * FROM uniform_inspections ORDER BY dateIso DESC, createdAtMillis DESC")
+    fun observeHistory(): Flow<List<UniformInspectionEntity>>
+
+    @Query("SELECT * FROM uniform_events ORDER BY atMillis DESC")
+    fun observeAuditHistory(): Flow<List<UniformEventEntity>>
+
+    @Query("""SELECT e.* FROM uniform_events e
+        INNER JOIN uniform_inspections i ON i.id = e.inspectionId
+        WHERE i.dateIso = :dateIso ORDER BY e.atMillis DESC""")
+    fun observeDayEvents(dateIso: String): Flow<List<UniformEventEntity>>
+
     @Query("SELECT * FROM uniform_inspections")
     suspend fun allInspections(): List<UniformInspectionEntity>
 

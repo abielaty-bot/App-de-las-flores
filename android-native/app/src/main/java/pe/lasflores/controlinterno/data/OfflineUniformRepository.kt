@@ -17,6 +17,9 @@ class OfflineUniformRepository(
     private val catalogDao: UniformCatalogDao
 ) : UniformRepository {
 
+    override val history: Flow<List<UniformInspectionEntity>> = dao.observeHistory()
+    override val auditHistory: Flow<List<UniformEventEntity>> = dao.observeAuditHistory()
+
     override val catalog: Flow<List<UniformRequirementEntity>> = catalogDao.observeCatalog()
         .onStart { ensureCatalogInitialized() }
 
@@ -33,9 +36,10 @@ class OfflineUniformRepository(
 
     override fun observeDay(dateIso: String): Flow<UniformDaySnapshot> =
         combine(dao.observeInspections(dateIso), dao.observeAnswers(dateIso),
-            dao.observeDayStatus(dateIso), catalogDao.observeDayRequirements(dateIso)
-        ) { inspections, answers, activity, requirements ->
-            UniformDaySnapshot(dateIso, inspections, answers, activity, requirements)
+            dao.observeDayStatus(dateIso), catalogDao.observeDayRequirements(dateIso),
+            dao.observeDayEvents(dateIso)
+        ) { inspections, answers, activity, requirements, events ->
+            UniformDaySnapshot(dateIso, inspections, answers, activity, requirements, events)
         }
 
     override suspend fun saveRequirement(
@@ -185,10 +189,8 @@ class OfflineUniformRepository(
             }
             val now = System.currentTimeMillis()
             dao.upsertAnswer(answer.copy(status = UniformRules.OK, correctedAtMillis = null, correctedBy = null))
-            val statuses = dao.getAnswers(inspection.id).map { it.status }
-            dao.upsertInspection(inspection.copy(
-                initialResult = UniformRules.result(statuses), updatedAtMillis = now
-            ))
+            // Resultado original inmutable: la rectificación se registra en auditoría.
+            dao.upsertInspection(inspection.copy(updatedAtMillis = now))
             dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(), inspection.id, requirementId,
                 "RECTIFICAR", UniformRules.BAD, UniformRules.OK, verifier.trim(), reason.trim(), now))
         }

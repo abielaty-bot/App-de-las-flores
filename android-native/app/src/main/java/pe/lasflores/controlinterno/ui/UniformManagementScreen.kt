@@ -50,6 +50,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
             items(listOf(
                 "inspecciones" to "Inspecciones",
                 "requisitos" to "Configurar requisitos",
+                "historial" to "Historial",
                 "entregas" to "Entregas de materiales"
             )) { (key, title) ->
                 FilterChip(selected = section == key,
@@ -58,6 +59,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
         }
         when(section) {
             "requisitos" -> RequirementsAdmin(vm)
+            "historial" -> UniformHistoryAdmin(people, vm)
             "entregas" -> MaterialsAdmin(people, vm)
             else -> UniformInspectionScreen(people, vm, staffVm)
         }
