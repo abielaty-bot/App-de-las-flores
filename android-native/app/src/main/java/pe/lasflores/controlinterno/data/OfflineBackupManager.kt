@@ -11,6 +11,7 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRules
 import pe.lasflores.controlinterno.domain.BriefingRules
 import pe.lasflores.controlinterno.domain.FunctionRules
+import pe.lasflores.controlinterno.domain.IncidentRules
 import android.util.Base64
 import java.io.File
 
@@ -30,7 +31,10 @@ data class BackupPreview(
     val functionChecks: Int = 0,
     val functionEvidence: Int = 0,
     val functionEvents: Int = 0,
-    val formatVersion: Int = 4
+    val incidentTypes: Int = 0,
+    val incidents: Int = 0,
+    val incidentActions: Int = 0,
+    val formatVersion: Int = 5
 )
 
 /**
@@ -45,7 +49,8 @@ class OfflineBackupManager(
     private val catalogDao: UniformCatalogDao,
     private val materialsDao: MaterialDao,
     private val briefingDao: BriefingDao,
-    private val functionDao: FunctionDao
+    private val functionDao: FunctionDao,
+    private val incidentDao: IncidentDao
 ) {
     private data class Payload(
         val staff: List<StaffEntity>,
@@ -65,6 +70,9 @@ class OfflineBackupManager(
         val functionChecks: List<FunctionCheckEntity>,
         val functionEvidence: List<FunctionEvidenceEntity>,
         val functionEvents: List<FunctionEventEntity>,
+        val incidentTypes: List<IncidentTypeEntity>,
+        val incidents: List<IncidentEntity>,
+        val incidentActions: List<IncidentActionEntity>,
         val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
@@ -72,6 +80,7 @@ class OfflineBackupManager(
             requirements.size, deliveries.size,
             briefingAttendance.size, briefingSessions.size, briefingEvents.size,
             functionTasks.size, functionChecks.size, functionEvidence.size, functionEvents.size,
+            incidentTypes.size, incidents.size, incidentActions.size,
             formatVersion
         )
     }
@@ -86,7 +95,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 4,
+            "app" to "lasflores-android", "formatVersion" to 5,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         root.put("staff", arr(staffDao.allStaff()) { x -> obj(
@@ -189,6 +198,35 @@ class OfflineBackupManager(
             "beforeValue" to x.beforeValue, "afterValue" to x.afterValue,
             "actor" to x.actor, "note" to x.note, "atMillis" to x.atMillis
         ) })
+        root.put("incidentTypes", arr(incidentDao.allTypes()) { x -> obj(
+            "id" to x.id,"category" to x.category,"label" to x.label,
+            "isActive" to x.isActive,"createdAtMillis" to x.createdAtMillis,
+            "updatedAtMillis" to x.updatedAtMillis
+        ) })
+        root.put("incidents", arr(incidentDao.allIncidents()) { x -> obj(
+            "id" to x.id, "code" to x.code,"category" to x.category,
+            "occurredDate" to x.occurredDate,"occurredTime" to x.occurredTime,
+            "detectedArea" to x.detectedArea,"originArea" to x.originArea,
+            "confirmedOrigin" to x.confirmedOrigin,
+            "productOrProcess" to x.productOrProcess,
+            "typeId" to x.typeId,"typeLabelSnapshot" to x.typeLabelSnapshot,
+            "description" to x.description,"priority" to x.priority,
+            "reporter" to x.reporter,"impact" to x.impact,
+            "immediateAction" to x.immediateAction,
+            "assignedStaffId" to x.assignedStaffId,
+            "assignedStaffNameSnapshot" to x.assignedStaffNameSnapshot,
+            "status" to x.status,
+            "createdAtMillis" to x.createdAtMillis,"updatedAtMillis" to x.updatedAtMillis,
+            "closedAtMillis" to x.closedAtMillis,"closedBy" to x.closedBy,
+            "voidedAtMillis" to x.voidedAtMillis,"voidReason" to x.voidReason
+        ) })
+        root.put("incidentActions", arr(incidentDao.allActions()) { x -> obj(
+            "id" to x.id,"incidentId" to x.incidentId,"kind" to x.kind,
+            "description" to x.description,"actor" to x.actor,
+            "atMillis" to x.atMillis,"statusBefore" to x.statusBefore,
+            "statusAfter" to x.statusAfter,"confirmedOrigin" to x.confirmedOrigin,
+            "assignedStaffId" to x.assignedStaffId
+        ) })
         root.toString(2)
     }
 
@@ -220,6 +258,9 @@ class OfflineBackupManager(
             throw error
         }
         database.withWriteTransaction {
+            incidentDao.clearActions()
+            incidentDao.clearIncidents()
+            incidentDao.clearTypes()
             functionDao.clearEvents()
             functionDao.clearEvidence()
             functionDao.clearChecks()
@@ -254,6 +295,9 @@ class OfflineBackupManager(
             payload.functionChecks.forEach { functionDao.upsertCheck(it) }
             payload.functionEvidence.forEach { functionDao.upsertEvidence(it) }
             payload.functionEvents.forEach { functionDao.upsertEvent(it) }
+            payload.incidentTypes.forEach { incidentDao.upsertType(it) }
+            payload.incidents.forEach { incidentDao.upsertIncident(it) }
+            payload.incidentActions.forEach { incidentDao.upsertAction(it) }
         }
         return payload.preview()
     }
@@ -288,7 +332,7 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..4) {
+        require(version in 1..5) {
             "Formato de respaldo Android incompatible."
         }
 
