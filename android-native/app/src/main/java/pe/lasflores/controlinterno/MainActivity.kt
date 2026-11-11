@@ -16,6 +16,6 @@ class MainActivity : ComponentActivity() {
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]
         val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository))[UniformViewModel::class.java]
         val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
-        setContent { LasFloresScreen(staffVm, uniformVm, updateVm) }
+        setContent { LasFloresScreen(staffVm, uniformVm, updateVm, app.backupManager) }
     }
 }
