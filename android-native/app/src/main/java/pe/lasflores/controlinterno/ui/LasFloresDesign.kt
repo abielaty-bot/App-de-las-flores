@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -108,15 +111,24 @@ internal fun DayControls(date: String, onPrevious: () -> Unit, onNext: () -> Uni
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Pestañas en una sola fila: no consumen tres filas en tablets verticales. */
 @Composable
-internal fun SectionControls(sections: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+internal fun SectionControls(
+    sections: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        sections.forEach { (id, label) ->
-            FilterChip(selected = selected == id, onClick = { onSelect(id) }, label = { Text(label) })
+        items(sections, key = { it.first }) { (id, label) ->
+            FilterChip(
+                selected = selected == id,
+                onClick = { onSelect(id) },
+                label = { Text(label) }
+            )
         }
     }
 }

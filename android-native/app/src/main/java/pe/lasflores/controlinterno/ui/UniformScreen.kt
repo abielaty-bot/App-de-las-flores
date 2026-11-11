@@ -42,10 +42,10 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRequirement
 import pe.lasflores.controlinterno.domain.UniformRules
 
-private val neutral = Color(0xFFF5F7F5)
-private val positive = Color(0xFFE7F4EC)
-private val negative = Color(0xFFFBEAE8)
-private val correctedColor = Color(0xFFE8F1FC)
+private val neutral = Color(0xFFF8F5F0)
+private val positive = Color(0xFFE5F2EA)
+private val negative = Color(0xFFFCE9E6)
+private val correctedColor = Color(0xFFF3E6D5)
 
 @Composable
 fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
@@ -249,11 +249,11 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
 }
 
 private fun statusColor(status: String?): Color = when(status) {
-    "Conforme" -> Color(0xFF18744D)
-    "Observado" -> Color(0xFFB43D36)
-    "Corregido", "Rectificado" -> Color(0xFF296FA8)
-    "Corrección parcial" -> Color(0xFF8A6817)
-    else -> Color(0xFF63766B)
+    "Conforme" -> LasFloresPalette.Success
+    "Observado" -> LasFloresPalette.Danger
+    "Corregido", "Rectificado" -> Color(0xFF76582F)
+    "Corrección parcial" -> LasFloresPalette.Warning
+    else -> LasFloresPalette.Muted
 }
 
 @Composable
