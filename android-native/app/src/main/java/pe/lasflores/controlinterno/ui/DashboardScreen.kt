@@ -243,7 +243,7 @@ private fun DashboardMetric(
         Column(Modifier.fillMaxWidth().padding(13.dp),
             verticalArrangement=Arrangement.spacedBy(5.dp)) {
             Text(section.uppercase(),style=MaterialTheme.typography.labelSmall,
-                color=LasFloresPalette.Burgundy)
+                color=MaterialTheme.colorScheme.tertiary)
             Text(value,style=MaterialTheme.typography.headlineLarge,
                 fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.onSurface)
             Text(title,style=MaterialTheme.typography.labelLarge)
