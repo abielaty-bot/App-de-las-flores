@@ -45,20 +45,16 @@ import java.time.LocalDate
 fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: StaffViewModel) {
     var section by rememberSaveable { mutableStateOf("inspecciones") }
     Column(Modifier.fillMaxSize()) {
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(listOf(
+        SectionControls(
+            listOf(
                 "inspecciones" to "Inspecciones",
                 "requisitos" to "Configurar requisitos",
                 "historial" to "Historial",
                 "entregas" to "Entregas de materiales"
-            )) { (key, title) ->
-                FilterChip(selected = section == key,
-                    onClick = { section = key }, label = { Text(title) })
-            }
-        }
+            ),
+            selected = section,
+            onSelect = { section = it }
+        )
         when(section) {
             "requisitos" -> RequirementsAdmin(vm)
             "historial" -> UniformHistoryAdmin(people, vm)

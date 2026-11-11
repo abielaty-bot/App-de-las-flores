@@ -64,21 +64,12 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp)
     ) {
         item {
-            Text("Personal", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("Un único registro por trabajador para todos los módulos.",
-                style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { dateIso = LocalDate.parse(dateIso).minusDays(1).toString() }) {
-                    Text("‹")
-                }
-                Text(dateIso, fontWeight = FontWeight.SemiBold)
-                OutlinedButton(onClick = { dateIso = LocalDate.parse(dateIso).plusDays(1).toString() }) {
-                    Text("›")
-                }
-                TextButton(onClick = { dateIso = LocalDate.now().toString() }) { Text("Hoy") }
-            }
+            DayControls(
+                date = dateIso,
+                onPrevious = { dateIso = LocalDate.parse(dateIso).minusDays(1).toString() },
+                onNext = { dateIso = LocalDate.parse(dateIso).plusDays(1).toString() },
+                onToday = { dateIso = LocalDate.now().toString() }
+            )
             Text("Activos: " + people.count { it.isActive } +
                 " · Programados y apoyos: " + working,
                 style = MaterialTheme.typography.bodyMedium)
@@ -94,7 +85,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
         }
         items(visible, key = { it.id }) { person ->
             val status = StaffScheduleRules.status(person, dateIso, vacations, overrides)
-            Card(shape = RoundedCornerShape(14.dp),
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(person.fullName, fontWeight = FontWeight.Bold)

@@ -76,20 +76,18 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 fontWeight = FontWeight.Bold)
             Text("Inspección por puesto · Borradores guardados automáticamente",
                 style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { vm.changeDay(-1) }) { Text("‹") }
-                Text(dateIso, fontWeight = FontWeight.SemiBold)
-                OutlinedButton(onClick = { vm.changeDay(1) }) { Text("›") }
-                TextButton(onClick = vm::today) { Text("Hoy") }
-            }
+            DayControls(
+                date = dateIso,
+                onPrevious = { vm.changeDay(-1) },
+                onNext = { vm.changeDay(1) },
+                onToday = vm::today
+            )
             Text(saved, color = if (saved.startsWith("Error")) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelSmall)
         }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = if (isNoReview) neutral else Color.White)) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (isNoReview) neutral else MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(if (isNoReview) "No se realizó revisión" else "Estado del día: sin cierre general",
                         fontWeight = FontWeight.SemiBold)
@@ -122,7 +120,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             val reviewed = inspection?.let { record ->
                 requirements.count { validSnapshot.answerFor(record.id, it.id) != null }
             } ?: 0
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,

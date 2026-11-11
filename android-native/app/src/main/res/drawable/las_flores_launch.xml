@@ -1,0 +1,5 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/las_flores_ivory" />
+    <item android:drawable="@drawable/las_flores_tulip"
+        android:gravity="center" android:width="96dp" android:height="96dp" />
+</layer-list>

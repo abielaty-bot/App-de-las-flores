@@ -30,7 +30,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,18 +68,16 @@ fun BriefingScreen(vm: BriefingViewModel, staffVm: StaffViewModel) {
     val stats = BriefingRules.stats(records)
     val sessionTopics = session?.takeIf { it.dateIso == date && it.groupHour == group }?.topics.orEmpty()
     Column(Modifier.fillMaxSize()) {
-        LazyRow(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            items(listOf(
+        SectionControls(
+            listOf(
                 "registro" to "Registro",
                 "pendientes" to "Por informar",
                 "historial" to "Historial",
                 "estadisticas" to "Estadísticas"
-            )) { (key, text) ->
-                FilterChip(selected = section == key, onClick = { section = key },
-                    label = { Text(text) })
-            }
-        }
+            ),
+            selected = section,
+            onSelect = { section = it }
+        )
         Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp),
             color = if (message.startsWith("Error")) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
@@ -121,16 +118,12 @@ private fun BriefingRegisterPanel(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)) {
         item {
-            Text("Briefings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("Control diario por grupos de 11:00 a. m. y 12:00 p. m.",
-                style = MaterialTheme.typography.bodySmall)
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { vm.nextDay(-1) }) { Text("‹") }
-                Text(day, fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = { vm.nextDay(1) }) { Text("›") }
-                TextButton(onClick = { vm.setDay(java.time.LocalDate.now().toString()) }) { Text("Hoy") }
-            }
+            DayControls(
+                date = day,
+                onPrevious = { vm.nextDay(-1) },
+                onNext = { vm.nextDay(1) },
+                onToday = { vm.setDay(java.time.LocalDate.now().toString()) }
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = group == 11, onClick = { vm.setGroup(11) },
                     label = { Text("11:00 a. m.") })
@@ -139,7 +132,7 @@ private fun BriefingRegisterPanel(
             }
         }
         item {
-            Card {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text("Resumen del día · Ambos grupos", fontWeight = FontWeight.Bold)
                     Text("Programados y apoyos: " + scheduled)
@@ -151,8 +144,8 @@ private fun BriefingRegisterPanel(
             }
         }
         item {
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Grupo " + group + ":00", style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold)
                 OutlinedButton(onClick = onShowAll) {
@@ -164,7 +157,7 @@ private fun BriefingRegisterPanel(
         }
         items(visible, key = { it.id }) { worker ->
             val previous = allRecords[worker.id]
-            Card {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(worker.fullName, fontWeight = FontWeight.Bold)
                     Text(StaffScheduleRules.label(status[worker.id].orEmpty()) +
@@ -215,7 +208,7 @@ private fun BriefingRegisterPanel(
                 style = MaterialTheme.typography.bodyMedium)
         }
         item {
-            Card {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Indicaciones del briefing", fontWeight = FontWeight.Bold)
                     Text("Temas guardados por fecha y grupo; máximo 3000 caracteres.",

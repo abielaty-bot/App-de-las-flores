@@ -14,6 +14,7 @@ import pe.lasflores.controlinterno.update.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.Theme_LasFlores)
         super.onCreate(savedInstanceState)
         val app = application as LasFloresApp
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]

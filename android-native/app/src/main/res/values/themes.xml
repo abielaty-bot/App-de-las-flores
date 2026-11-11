@@ -1,0 +1,13 @@
+<resources>
+    <color name="las_flores_ivory">#FAF2E7</color>
+    <style name="Theme.LasFlores" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/las_flores_ivory</item>
+        <item name="android:statusBarColor">@color/las_flores_ivory</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/las_flores_ivory</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="Theme.LasFlores.Starting" parent="Theme.LasFlores">
+        <item name="android:windowBackground">@drawable/las_flores_launch</item>
+    </style>
+</resources>
