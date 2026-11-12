@@ -148,5 +148,46 @@ class BriefingMigrationTest(unittest.TestCase):
         self.assertIn("Convocatorias de briefings",blockers("pp"))
         db.close()
 
+    def test_delete_mistaken_inspection_only_removes_exact_record(self):
+        uniform=(SOURCE.parent / "UniformDao.kt").read_text(encoding="utf-8")
+        catalog=(SOURCE.parent / "UniformCatalogDao.kt").read_text(encoding="utf-8")
+        staff=(SOURCE.parent / "StaffDao.kt").read_text(encoding="utf-8")
+        def query(source,table,column):
+            match=re.search(r'@Query\("(DELETE FROM '+table+r' WHERE '+column+r'\s*=\s*:id)"\)',source)
+            self.assertIsNotNone(match)
+            return match.group(1)
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE staff(id TEXT PRIMARY KEY)")
+        db.execute("CREATE TABLE uniform_inspections(id TEXT PRIMARY KEY,dateIso TEXT,staffId TEXT,updatedAtMillis INTEGER)")
+        for table in ("uniform_answers","inspection_requirements","uniform_events"):
+            db.execute("CREATE TABLE "+table+"(inspectionId TEXT,other TEXT)")
+        db.execute("CREATE TABLE uniform_requirements(id TEXT PRIMARY KEY)")
+        db.execute("INSERT INTO uniform_requirements VALUES ('req')")
+        db.executemany("INSERT INTO staff VALUES (?)",[("p",),("other",)])
+        db.executemany("INSERT INTO uniform_inspections VALUES (?,?,?,?)",[
+            ("mistake","2026-11-12","p",2),("valid-old","2026-11-11","p",3),("valid-other","2026-11-12","other",4)])
+        for table in ("uniform_answers","inspection_requirements","uniform_events"):
+            db.executemany("INSERT INTO "+table+" VALUES (?,?)",[(i,"req") for i in ("mistake","valid-old","valid-other")])
+        deletion=[
+            query(uniform,"uniform_answers","inspectionId"),
+            query(catalog,"inspection_requirements","inspectionId"),
+            query(uniform,"uniform_events","inspectionId"),
+            query(uniform,"uniform_inspections","id")]
+        db.commit()
+        with self.assertRaises(RuntimeError):
+            with db:
+                db.execute(deletion[0],{"id":"mistake"})
+                raise RuntimeError("abort")
+        self.assertEqual(db.execute("SELECT count(*) FROM uniform_answers").fetchone()[0],3)
+        with db:
+            for sql in deletion:
+                db.execute(sql,{"id":"mistake"})
+        self.assertEqual(db.execute("SELECT id FROM uniform_inspections ORDER BY id").fetchall(),[("valid-old",),("valid-other",)])
+        for table in ("uniform_answers","inspection_requirements","uniform_events"):
+            self.assertEqual(db.execute("SELECT inspectionId FROM "+table+" ORDER BY inspectionId").fetchall(),[("valid-old",),("valid-other",)])
+        self.assertEqual(db.execute("SELECT id FROM staff ORDER BY id").fetchall(),[("other",),("p",)])
+        self.assertEqual(db.execute("SELECT id FROM uniform_requirements").fetchall(),[("req",)])
+        db.close()
+
 if __name__=="__main__":
     unittest.main()

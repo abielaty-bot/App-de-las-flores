@@ -47,12 +47,12 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
     fun today() { _dateIso.value = LocalDate.now().toString() }
     fun setDate(iso:String) { _dateIso.value = LocalDate.parse(iso).toString() }
 
-    private fun perform(action: suspend () -> Unit) {
+    private fun perform(success:String="Guardado automáticamente",action: suspend () -> Unit) {
         viewModelScope.launch {
             _saveStatus.value = "Guardando…"
             try {
                 action()
-                _saveStatus.value = "Guardado automáticamente"
+                _saveStatus.value = success
             } catch (error: Exception) {
                 _saveStatus.value = "Error: ${error.message ?: "No se pudo guardar"}"
             }
@@ -72,7 +72,7 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         perform { materials.create(staffId, dateIso, material, quantity, reason, actor) }
     fun closeDelivery(id: String, action: String, note: String) =
         perform { materials.close(id, action, note) }
-    fun deleteMistakenInspection(record:UniformInspectionEntity)=perform{
+    fun deleteMistakenInspection(record:UniformInspectionEntity)=perform("Revisión eliminada"){
         repository.deleteMistakenInspection(record.dateIso,record.staffId,record.id,record.updatedAtMillis)
     }
     fun finalize(staffId:String) {val date=_dateIso.value;perform{repository.finalize(date,staffId)}}
