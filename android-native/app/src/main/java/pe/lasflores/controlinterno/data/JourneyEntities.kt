@@ -1,6 +1,7 @@
 package pe.lasflores.controlinterno.data
 
 import androidx.room3.Entity
+import androidx.room3.ColumnInfo
 import androidx.room3.PrimaryKey
 import androidx.room3.Index
 
@@ -23,7 +24,9 @@ data class JourneyPreferencesEntity(
     val uniformAlerts:Boolean=true,
     val functionAlerts:Boolean=true,
     val summaryAlerts:Boolean=true,
-    val incidentAlerts:Boolean=true
+    val incidentAlerts:Boolean=true,
+    @ColumnInfo(defaultValue="1") val phoneAlerts:Boolean=true,
+    @ColumnInfo(defaultValue="'12:30'") val phoneTime:String="12:30"
 )
 
 @Entity(tableName="journey_reminders")

@@ -13,14 +13,15 @@ data class JourneyData(
     val scheduledCount:Int=0,val reviewedCount:Int=0,val noUniformReview:Boolean=false,
     val sessions:List<BriefingSessionEntity> = emptyList(),val noBriefing:Boolean=false,
     val pendingBriefings:Int=0,val functionCount:Int=0,val pendingFunctions:Int=0,
-    val openIncidents:Int=0,val urgentIncidents:Int=0,val communicationRequired:Boolean=false
+    val openIncidents:Int=0,val urgentIncidents:Int=0,val communicationRequired:Boolean=false,
+    val phoneTotal:Int=0,val phoneReviewed:Int=0,val noPhoneReview:Boolean=false
 )
 object JourneyRules{
     val RECURRENCES=setOf("ONCE","DAILY","WEEKLY","MONTHLY")
-    val MODULES=setOf("inicio","personal","briefings","uniformes","funciones","incidentes","reportes","backups","notifications")
+    val MODULES=setOf("inicio","personal","briefings","uniformes","funciones","incidentes","reportes","backups","notifications","celulares")
     val PRIORITIES=setOf("NORMAL","HIGH")
     fun validPreferences(p:JourneyPreferencesEntity):Boolean=p.id==1 &&
-        listOf(p.startTime,p.endTime,p.uniformsTime,p.informTime,p.functionsTime,p.summaryTime,p.quietStart,p.quietEnd).all(BriefingRules::validTime) &&
+        listOf(p.startTime,p.endTime,p.uniformsTime,p.informTime,p.functionsTime,p.summaryTime,p.quietStart,p.quietEnd,p.phoneTime).all(BriefingRules::validTime) &&
         p.startTime<p.endTime && p.workingDaysMask in 1..127 && p.briefingLead in 0..60
     fun validReminder(r:JourneyReminderEntity):Boolean=r.id.isNotBlank()&&r.id.length<=100&&r.title.trim().length in 3..140 &&
         runCatching{LocalDate.parse(r.startDateIso).let{it.year in 1970..9999&&it.toString()==r.startDateIso}}.getOrDefault(false)&&BriefingRules.validTime(r.time)&&
@@ -63,6 +64,8 @@ object JourneyRules{
                 data.reviewedCount.toString()+" de "+data.scheduledCount+" trabajadores programados revisados",
                 "uniformes",p.uniformsTime,data.reviewedCount>=data.scheduledCount,
                 !data.noUniformReview&&data.scheduledCount>0,p.uniformAlerts)
+            built("phone","Control de celulares",data.phoneReviewed.toString()+" de "+data.phoneTotal+" trabajadores revisados",
+                "celulares",p.phoneTime,data.phoneReviewed>=data.phoneTotal,!data.noPhoneReview&&data.phoneTotal>0,p.phoneAlerts)
             built("inform","Comunicación presencial",data.pendingBriefings.toString()+" trabajadores por informar (incluye fechas anteriores)",
                 "briefings",p.informTime,data.pendingBriefings==0,data.communicationRequired,p.briefingAlerts)
             built("functions","Verificar funciones",data.pendingFunctions.toString()+" de "+data.functionCount+" asignaciones sin evaluar",
