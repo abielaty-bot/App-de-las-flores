@@ -34,7 +34,7 @@ data class BackupPreview(
     val incidentTypes: Int = 0,
     val incidents: Int = 0,
     val incidentActions: Int = 0,
-    val formatVersion: Int = 5
+    val formatVersion: Int = 6
 )
 
 /**
@@ -66,6 +66,7 @@ class OfflineBackupManager(
         val briefingAttendance: List<BriefingAttendanceEntity>,
         val briefingSessions: List<BriefingSessionEntity>,
         val briefingEvents: List<BriefingEventEntity>,
+        val briefingPreferences: List<BriefingPreferencesEntity>,
         val functionTasks: List<FunctionTaskEntity>,
         val functionChecks: List<FunctionCheckEntity>,
         val functionEvidence: List<FunctionEvidenceEntity>,
@@ -146,7 +147,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 5,
+            "app" to "lasflores-android", "formatVersion" to 6,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         // Conserva el JSON Web sin modificar para poder auditar campos históricos
@@ -214,11 +215,18 @@ class OfflineBackupManager(
             "categorySnapshot" to x.categorySnapshot, "groupHour" to x.groupHour,
             "presence" to x.presence, "informedAtMillis" to x.informedAtMillis,
             "informedBy" to x.informedBy, "createdAtMillis" to x.createdAtMillis,
-            "updatedAtMillis" to x.updatedAtMillis
+            "updatedAtMillis" to x.updatedAtMillis, "communicationState" to x.communicationState,
+            "communicationResponsible" to x.communicationResponsible, "communicationNote" to x.communicationNote,
+            "communicationUpdatedAtMillis" to x.communicationUpdatedAtMillis
         ) })
         root.put("briefingSessions", arr(briefingDao.allSessions()) { x -> obj(
             "dateIso" to x.dateIso, "groupHour" to x.groupHour,
-            "topics" to x.topics, "updatedAtMillis" to x.updatedAtMillis
+            "topics" to x.topics, "updatedAtMillis" to x.updatedAtMillis,
+            "scheduledTime" to x.scheduledTime, "actualTime" to x.actualTime,
+            "status" to x.status, "participantIds" to x.participantIds
+        ) })
+        root.put("briefingPreferences", arr(briefingDao.allPreferences()) { x -> obj(
+            "id" to x.id, "firstTime" to x.firstTime, "secondTime" to x.secondTime
         ) })
         root.put("briefingEvents", arr(briefingDao.allEvents()) { x -> obj(
             "id" to x.id, "dateIso" to x.dateIso, "staffId" to x.staffId,
@@ -309,6 +317,7 @@ class OfflineBackupManager(
             val originalBase = migration.optJSONObject("baseAndroidSnapshot")
                 ?: error("La fusión no contiene la copia Android de referencia.")
             val currentBase = JSONObject(previous)
+            normalizeOldBriefings(originalBase)
             originalBase.remove("exportedAtMillis")
             currentBase.remove("exportedAtMillis")
             require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
@@ -341,6 +350,7 @@ class OfflineBackupManager(
             functionDao.clearChecks()
             functionDao.clearTasks()
             briefingDao.clearEvents()
+            briefingDao.clearPreferences()
             briefingDao.clearSessions()
             briefingDao.clearAttendance()
             catalogDao.clearSnapshots()
@@ -366,6 +376,7 @@ class OfflineBackupManager(
             payload.briefingAttendance.forEach { briefingDao.upsertAttendance(it) }
             payload.briefingSessions.forEach { briefingDao.upsertSession(it) }
             payload.briefingEvents.forEach { briefingDao.upsertEvent(it) }
+            payload.briefingPreferences.forEach { briefingDao.upsertPreferences(it) }
             payload.functionTasks.forEach { functionDao.upsertTask(it) }
             payload.functionChecks.forEach { functionDao.upsertCheck(it) }
             payload.functionEvidence.forEach { functionDao.upsertEvidence(it) }
@@ -399,6 +410,38 @@ class OfflineBackupManager(
         }
     }
 
+    /** Convierte v3–v5 sin deducir faltas ni inventar una hora real. */
+    private fun normalizeOldBriefings(root: JSONObject) {
+        val version=root.optInt("formatVersion",0)
+        if(version !in 3..5) return
+        val attendance=rows(root,"briefingAttendance"){it}
+        val sessions=rows(root,"briefingSessions"){it}.toMutableList()
+        attendance.forEach { row ->
+            val mesa=row.getString("presence")=="MESA"
+            val informed=!row.isNull("informedAtMillis")
+            row.put("communicationState",if(!mesa)"NO_APLICA" else if(informed)"INFORMADO_HISTORICO" else "PENDIENTE")
+            row.put("communicationResponsible",nullableString(row,"informedBy").orEmpty())
+            row.put("communicationNote","")
+            row.put("communicationUpdatedAtMillis",nullableLong(row,"informedAtMillis") ?: JSONObject.NULL)
+        }
+        val groups=attendance.groupBy{it.getString("dateIso") to it.getInt("groupHour")}
+        val existing=sessions.map{it.getString("dateIso") to it.getInt("groupHour")}.toSet()
+        groups.filterKeys{it !in existing}.forEach{(key,items)->
+            sessions.add(obj("dateIso" to key.first,"groupHour" to key.second,"topics" to "",
+                "updatedAtMillis" to items.maxOf{it.getLong("updatedAtMillis")}))
+        }
+        sessions.forEach { row ->
+            val key=row.getString("dateIso") to row.getInt("groupHour")
+            row.put("scheduledTime",BriefingRules.legacyTime(key.second))
+            row.put("actualTime",JSONObject.NULL)
+            row.put("status","HISTORICO")
+            row.put("participantIds",BriefingRules.encodeParticipants(groups[key].orEmpty().map{it.getString("staffId")}))
+        }
+        root.put("briefingSessions",JSONArray().apply{sessions.forEach{put(it)}})
+        root.put("briefingPreferences",JSONArray())
+        root.put("formatVersion",6)
+    }
+
     private fun decode(text: String): Payload {
         require(text.toByteArray(Charsets.UTF_8).size <= 30 * 1024 * 1024) {
             "El archivo supera 30 MB."
@@ -420,9 +463,10 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..5) {
+        require(version in 1..6) {
             "Formato de respaldo Android incompatible."
         }
+        normalizeOldBriefings(root)
 
         val data = Payload(
             staff = rows(root, "staff") { x -> StaffEntity(
@@ -497,12 +541,19 @@ class OfflineBackupManager(
                     x.getString("staffNameSnapshot"), x.getInt("categorySnapshot"),
                     x.getInt("groupHour"), x.getString("presence"),
                     nullableLong(x, "informedAtMillis"), nullableString(x, "informedBy"),
-                    x.getLong("createdAtMillis"), x.getLong("updatedAtMillis")
+                    x.getLong("createdAtMillis"), x.getLong("updatedAtMillis"),
+                    x.getString("communicationState"), x.getString("communicationResponsible"),
+                    x.getString("communicationNote"), nullableLong(x,"communicationUpdatedAtMillis")
                 )
             } else emptyList(),
             briefingSessions = if (version >= 3) rows(root, "briefingSessions") { x ->
                 BriefingSessionEntity(x.getString("dateIso"), x.getInt("groupHour"),
-                    x.getString("topics"), x.getLong("updatedAtMillis"))
+                    x.getString("topics"), x.getLong("updatedAtMillis"),
+                    x.getString("scheduledTime"), nullableString(x,"actualTime"),
+                    x.getString("status"), x.getString("participantIds"))
+            } else emptyList(),
+            briefingPreferences = if(version>=3) rows(root,"briefingPreferences") { x ->
+                BriefingPreferencesEntity(x.getInt("id"),x.getString("firstTime"),x.getString("secondTime"))
             } else emptyList(),
             briefingEvents = if (version >= 3) rows(root, "briefingEvents") { x ->
                 BriefingEventEntity(x.getString("id"), x.getString("dateIso"),
@@ -636,7 +687,7 @@ class OfflineBackupManager(
         unique(data.snapshots, "requisitos por inspección") { it.inspectionId to it.requirementId }
         unique(data.deliveries, "entregas de materiales") { it.id }
         unique(data.briefingAttendance, "asistencias de briefings") { it.id }
-        unique(data.briefingAttendance, "briefing por trabajador y día") { it.dateIso to it.staffId }
+        unique(data.briefingAttendance, "briefing por trabajador y sesión") { Triple(it.dateIso,it.groupHour,it.staffId) }
         unique(data.briefingSessions, "sesiones de briefing") { it.dateIso to it.groupHour }
         unique(data.briefingEvents, "eventos de briefing") { it.id }
         unique(data.functionTasks, "catálogo de funciones") { it.id }
@@ -695,11 +746,26 @@ class OfflineBackupManager(
                 StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso &&
                 it.categorySnapshot in 0..4 && BriefingRules.isValid(it)
         }) { "Asistencias de briefings inválidas." }
+        val briefingIndex=data.briefingSessions.associateBy { it.dateIso to it.groupHour }
         require(data.briefingSessions.all {
-            it.groupHour in BriefingRules.GROUPS &&
-                it.topics.isNotBlank() && it.topics.length <= 3000 &&
-                StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso
+            BriefingRules.validSlot(it.groupHour) && it.status in BriefingRules.SESSION_STATES &&
+                BriefingRules.validTime(it.scheduledTime) &&
+                (it.actualTime==null || BriefingRules.validTime(it.actualTime)) &&
+                (it.status!="REALIZADO" || it.actualTime!=null) &&
+                it.topics.length <= 3000 &&
+                StaffScheduleRules.parseDate(it.dateIso).toString() == it.dateIso &&
+                BriefingRules.participants(it).all { id -> id in staffIds }
         }) { "Sesiones de briefing inválidas." }
+        require(data.briefingAttendance.all {
+            val session=briefingIndex[it.dateIso to it.groupHour]
+            session!=null && session.status!="PROGRAMADO" && it.staffId in BriefingRules.participants(session)
+        }) { "Asistencias sin sesión o trabajador no convocado." }
+        require(data.briefingPreferences.size<=1 && data.briefingPreferences.all {
+            it.id==1 && BriefingRules.validTime(it.firstTime) && BriefingRules.validTime(it.secondTime)
+        }) { "Horarios predeterminados inválidos." }
+        require(data.activityDays.filter{it.module=="briefings"}.all{ d ->
+            d.status=="NO_REALIZADA" && data.briefingSessions.none{it.dateIso==d.dateIso&&it.status!="CANCELADO"}
+        }) { "Planificación de briefings inconsistente." }
         require(data.briefingEvents.all {
             it.staffId.isBlank() || it.staffId in staffIds
         }) { "Auditoría de briefings inconsistente." }
