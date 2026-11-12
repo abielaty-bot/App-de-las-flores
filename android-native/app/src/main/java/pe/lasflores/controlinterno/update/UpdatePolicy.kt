@@ -8,8 +8,9 @@ data class AppRelease(
     val description: String,
     val apkUrl: String,
     val sha256: String,
-    val sizeBytes: Long
-)
+    val sizeBytes: Long,
+    val publishedAt: String = ""
+
 
 /** Contrato estricto de nuestra distribución: releases android-beta-vN. */
 object UpdatePolicy {
@@ -40,6 +41,22 @@ object UpdatePolicy {
             uri.path.removePrefix(DOWNLOAD_PREFIX).split('/').size == 2 &&
             versionFromTag(uri.path.removePrefix(DOWNLOAD_PREFIX).substringBefore('/')) != null
     } catch (_: Exception) { false }
+
+    /** GitHub distribuye releases mediante hosts de recursos bajo githubusercontent.com. */
+    fun isTrustedResponseUrl(url:String):Boolean = try{
+        val uri=URI(url)
+        uri.scheme=="https" && uri.userInfo==null && (uri.port==-1 || uri.port==443) &&
+            (uri.host=="github.com" || uri.host=="release-assets.githubusercontent.com" ||
+                uri.host=="objects.githubusercontent.com" || uri.host=="github-releases.githubusercontent.com")
+    }catch(_:Exception){false}
+
+    fun validContentRange(value:String?,offset:Long,size:Long):Boolean {
+        if(offset<=0 || offset>=size || value==null)return false
+        val match=Regex("""bytes (\d+)-(\d+)/(\d+)""").matchEntire(value)?:return false
+        return match.groupValues[1].toLongOrNull()==offset &&
+            match.groupValues[2].toLongOrNull()==size-1 &&
+            match.groupValues[3].toLongOrNull()==size
+    }
 
     fun latestCompatible(currentVersionCode: Long, entries: List<AppRelease>): AppRelease? =
         entries.filter { it.versionCode > currentVersionCode && it.sizeBytes in 1..104_857_600L &&
