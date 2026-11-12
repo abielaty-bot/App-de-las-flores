@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import pe.lasflores.controlinterno.data.IncidentActionEntity
 import pe.lasflores.controlinterno.data.IncidentEntity
 import pe.lasflores.controlinterno.data.IncidentTypeEntity
@@ -29,6 +30,7 @@ class IncidentViewModel(private val repo:OfflineIncidentRepository):ViewModel() 
         viewModelScope.launch {
             _message.value="Guardando…"
             try {_message.value=task()}
+            catch(e:CancellationException) {throw e}
             catch(e:Exception) {_message.value="Error: "+(e.message?:"No se guardó el cambio")}
         }
     }

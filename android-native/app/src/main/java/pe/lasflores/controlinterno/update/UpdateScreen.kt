@@ -141,7 +141,7 @@ fun UpdateScreen(vm:UpdateViewModel){
             }
         }
         item{
-            Text("Antes de instalar, exporta un respaldo en Respaldos. Las APK se verifican por SHA-256, paquete, versión y certificado. Android confirma la instalación. No desinstales Las Flores.",
+            Text("Antes de instalar, Las Flores crea y verifica una copia interna. Si falla, no abre el instalador. Conserva también copias externas. Las APK se verifican por SHA-256, paquete, versión y certificado. No desinstales Las Flores.",
                 style=MaterialTheme.typography.bodySmall)
         }
     }

@@ -1,6 +1,13 @@
 package pe.lasflores.controlinterno
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import pe.lasflores.controlinterno.data.AutomaticBackupStore
+import pe.lasflores.controlinterno.data.DailyBackupJob
 import androidx.room3.Room
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import pe.lasflores.controlinterno.data.LasFloresDatabase
@@ -29,7 +36,21 @@ import pe.lasflores.controlinterno.domain.UniformRepository
 
 class LasFloresApp : Application() {
     val journey by lazy { JourneyEngine(this,database) }
-    override fun onCreate(){super.onCreate();journey.start()}
+    private val backupScope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
+    val automaticBackups by lazy { AutomaticBackupStore(this,backupManager) }
+    fun checkDailyBackup(refreshToday:Boolean=false){
+        backupScope.launch {
+            try{automaticBackups.daily(refreshToday)}
+            catch(e:CancellationException){throw e}
+            catch(_:Exception){/* Status is exposed in Storage and security. */}
+        }
+    }
+    override fun onCreate(){
+        super.onCreate()
+        journey.start()
+        DailyBackupJob.configure(this)
+        checkDailyBackup()
+    }
     val database: LasFloresDatabase by lazy {
         Room.databaseBuilder<LasFloresDatabase>(applicationContext, "las_flores_control_interno.db")
             .setDriver(AndroidSQLiteDriver())

@@ -1,6 +1,7 @@
 package pe.lasflores.controlinterno.update
 
 import android.app.Application
+import pe.lasflores.controlinterno.LasFloresApp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -64,7 +65,16 @@ class UpdateViewModel(app:Application):AndroidViewModel(app){
         viewModelScope.launch{
             try{
                 val apk=repository.verifyReady(release)
-                UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.READY,status="APK verificada. Confirma la instalación en Android.",downloadedFile=apk)}
+                UpdateRuntime.change{it.copy(status="APK verificada. Creando copia de seguridad de tus registros…")}
+                try{
+                    (getApplication<Application>() as LasFloresApp).automaticBackups.beforeUpdate()
+                }catch(e:CancellationException){throw e}
+                catch(e:Exception){
+                    UpdateRuntime.change{it.copy(busy=false,error=true,phase=UpdatePhase.READY,downloadedFile=apk,
+                        status="No se pudo verificar el respaldo previo. No se instaló nada. Revisa Almacenamiento y seguridad y vuelve a intentar.")}
+                    return@launch
+                }
+                UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.READY,status="APK y respaldo verificados. Confirma la instalación en Android.",downloadedFile=apk)}
                 onReady(apk)
             }catch(e:CancellationException){
                 UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.READY,status="Comprobación interrumpida. Vuelve a pulsar Instalar.")}
