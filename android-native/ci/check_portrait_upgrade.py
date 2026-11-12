@@ -62,9 +62,16 @@ def install(*args):
         raise RuntimeError(result)
 
 
-def check_update_notification_switch():
-    open_menu_item("Actualizaciones")
+def open_updates():
+    # Use the same explicit deep link as the app's update notifications.
+    result=adb("shell","am","start","-W","-a","pe.lasflores.controlinterno.OPEN_UPDATES","-n",ACTIVITY)
+    if "Status: ok" not in result:
+        raise RuntimeError(result)
     find_text("Centro de actualizaciones")
+
+
+def check_update_notification_switch():
+    open_updates()
     def switch_node():
         for _ in range(7):
             adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
@@ -87,8 +94,7 @@ def check_update_notification_switch():
     launch()
     open_personal()
     find_text(TEST_NAME)
-    open_menu_item("Actualizaciones")
-    find_text("Centro de actualizaciones")
+    open_updates()
     node=switch_node()
     if node.get("checked")!="true":raise RuntimeError("No se conservó el ajuste de avisos")
     toggle(node)
