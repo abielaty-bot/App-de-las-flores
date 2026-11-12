@@ -143,7 +143,8 @@ fun LasFloresScreen(
                                 themeMode=selected
                                 store.write(selected)
                             },
-                            onOpenBackups={screen="backups"}
+                            onOpenBackups={screen="backups"},
+                            briefingVm=briefingVm
                         )
                         "updates"->UpdateScreen(updateVm)
                         else->DashboardScreen(people,vm,uniformVm,

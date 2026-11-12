@@ -66,7 +66,7 @@ object ReportBuilder {
         val i=snapshot.inspections.filter {
             select.includes(it.dateIso) && select.matches(it.staffId) && it.workflow=="FINALIZED"
         }
-        val b=snapshot.briefingAttendance.filter {
+        val b=pe.lasflores.controlinterno.domain.BriefingRules.activeRecords(snapshot.briefingAttendance,snapshot.briefingSessions).filter {
             select.includes(it.dateIso) && select.matches(it.staffId)
         }
         val f=snapshot.functions.filter {
@@ -119,19 +119,28 @@ object ReportBuilder {
                 checks.size,checks.count{it.status=="BAD"},checks.count{it.correctedAtMillis!=null},
                 uniformEvents[i.id].orEmpty().count{it.action=="RECTIFICAR"})
         }
-        val briefings=snapshot.briefingAttendance.filter{select.includes(it.dateIso)&&select.matches(it.staffId)}
+        val briefingIndex=snapshot.briefingSessions.associateBy{it.dateIso to it.groupHour}
+        val allBriefings=snapshot.briefingAttendance.filter{select.includes(it.dateIso)&&select.matches(it.staffId)}
             .sortedWith(compareBy({it.dateIso},{it.groupHour},{it.staffNameSnapshot}))
-        val briefRows=briefings.map{b->
-            listOf(b.dateIso,b.staffNameSnapshot,b.groupHour.toString()+":00",
-                when(b.presence){"ASISTIO"->"Asistió";"MESA"->"Atendiendo mesa";"FALTA"->"No asistió al briefing";else->b.presence},
-                if(b.presence=="ASISTIO")"Presencial"
-                    else if(b.informedAtMillis!=null)"Informado posteriormente"
-                    else if(b.presence=="MESA")"Pendiente de informar" else "No comunicado",
-                b.informedBy.orEmpty(),b.categorySnapshot)
+        val briefings=pe.lasflores.controlinterno.domain.BriefingRules.activeRecords(allBriefings,snapshot.briefingSessions)
+        val briefRows=allBriefings.map{b->
+            val session=briefingIndex[b.dateIso to b.groupHour]
+            listOf(b.dateIso,b.staffNameSnapshot,session?.let(pe.lasflores.controlinterno.domain.BriefingRules::timeLabel)
+                ?:pe.lasflores.controlinterno.domain.BriefingRules.legacyTime(b.groupHour),
+                pe.lasflores.controlinterno.domain.BriefingRules.label(b.presence),
+                pe.lasflores.controlinterno.domain.BriefingRules.communicationLabel(b),
+                b.communicationResponsible.ifBlank{b.informedBy.orEmpty()},b.categorySnapshot,
+                session?.let{pe.lasflores.controlinterno.domain.BriefingRules.stateLabel(it.status)}?:"Registro histórico",
+                session?.scheduledTime.orEmpty(),session?.actualTime.orEmpty(),b.communicationNote,
+                b.informedAtMillis?.let{java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().toString()}.orEmpty())
         }
         val topics= if(select.staffId==null) snapshot.briefingSessions.filter{select.includes(it.dateIso)}
-            .sortedWith(compareBy({it.dateIso},{it.groupHour})) else emptyList()
-        val topicRows=topics.map{listOf(it.dateIso,it.groupHour.toString()+":00",it.topics)}
+            .sortedWith(compareBy({it.dateIso},{it.scheduledTime},{it.groupHour})) else emptyList()
+        val topicRows=topics.map{listOf(it.dateIso,pe.lasflores.controlinterno.domain.BriefingRules.timeLabel(it),it.topics,
+            pe.lasflores.controlinterno.domain.BriefingRules.stateLabel(it.status),it.scheduledTime,it.actualTime.orEmpty(),
+            pe.lasflores.controlinterno.domain.BriefingRules.participants(it).size)}+
+            if(select.staffId==null)snapshot.activityDays.filter{it.module=="briefings"&&it.status=="NO_REALIZADA"&&select.includes(it.dateIso)}
+                .map{listOf(it.dateIso,"","","No se realizó briefing","","",0)} else emptyList()
         val functions=snapshot.functions.filter{select.includes(it.dateIso)&&select.matches(it.staffId)}
             .sortedWith(compareBy({it.dateIso},{it.areaSnapshot},{it.staffNameSnapshot}))
         val photos=snapshot.evidence.groupBy{it.checkId}
@@ -185,6 +194,10 @@ object ReportBuilder {
             listOf("Briefings: registros",metrics.briefingRegistered,"Sin registrar no significa inasistencia"),
             listOf("Briefings: asistencias presenciales",briefings.count{it.presence=="ASISTIO"},"Personal que participó presencialmente"),
             listOf("Briefings: por informar",metrics.briefingPendingInformation,"Atendiendo mesa sin comunicación posterior"),
+            listOf("Briefings: sesiones realizadas",topics.count{it.status=="REALIZADO"},"Solo sesiones con cierre confirmado"),
+            listOf("Briefings: sesiones históricas",topics.count{it.status=="HISTORICO"},"Registros previos, sin cierre u hora real inferidos"),
+            listOf("Briefings: participantes únicos",briefings.filter{it.presence=="ASISTIO"}.map{it.staffId}.distinct().size,"Cada trabajador cuenta una vez en el período"),
+            listOf("Briefings: días sin sesión",if(select.staffId==null)snapshot.activityDays.count{it.module=="briefings"&&it.status=="NO_REALIZADA"&&select.includes(it.dateIso)} else 0,"Solo días declarados sin briefing"),
             listOf("Funciones: asignadas vigentes",metrics.dutiesAssigned,"Excluye anuladas"),
             listOf("Funciones: evaluadas",metrics.dutiesEvaluated,"Cumplió + No cumplió"),
             listOf("Funciones: cumplimiento",workRate,"Cumplió / Evaluadas; las pendientes no cuentan"),
@@ -233,9 +246,9 @@ object ReportBuilder {
                 listOf("Fecha","Trabajador","Puesto","Revisión","Resultado inicial","Estado actual",
                     "Requisitos revisados","Incumplimientos marcados","Correcciones","Rectificaciones"),uniformRows),
             sheet("Briefings","Sin registrar no se trata como falta",
-                listOf("Fecha","Trabajador","Grupo","Asistencia","Comunicación","Informó","Categoría"),briefRows),
+                listOf("Fecha","Trabajador","Hora","Asistencia","Comunicación","Responsable","Categoría","Estado sesión","Hora programada","Hora real","Observación","Informado el"),briefRows),
             sheet("Temas briefing","Indicaciones registradas para el equipo",
-                listOf("Fecha","Grupo","Temas comunicados"),topicRows),
+                listOf("Fecha","Hora","Temas comunicados","Estado","Hora programada","Hora real","Convocados"),topicRows),
             sheet("Funciones","Pendientes y anulaciones excluidas del porcentaje",
                 listOf("Fecha","Trabajador","Área","Función","Frecuencia","Resultado","Corrigió",
                     "Observación","Detalle corrección","Fotos","Envío al grupo"),functionRows),

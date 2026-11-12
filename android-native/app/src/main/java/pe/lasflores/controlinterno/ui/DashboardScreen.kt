@@ -108,13 +108,14 @@ internal fun DashboardScreen(
     val overrides by staffVm.overrides.collectAsState()
     val inspections by uniformVm.history.collectAsState()
     val briefingDate by briefingVm.day.collectAsState()
-    val attendance by briefingVm.dayRecords.collectAsState()
+    val attendance by briefingVm.history.collectAsState()
+    val briefingSessions by briefingVm.sessions.collectAsState()
     val checks by functionVm.checks.collectAsState()
     val incidents by incidentVm.incidents.collectAsState()
     val today=LocalDate.now().toString()
-    val stats=remember(today,people,vacations,overrides,inspections,briefingDate,attendance,checks,incidents) {
+    val stats=remember(today,people,vacations,overrides,inspections,attendance,briefingSessions,checks,incidents) {
         DashboardStats.calculate(today,people,vacations,overrides,inspections,
-            briefingDate,attendance,checks,incidents)
+            today,pe.lasflores.controlinterno.domain.BriefingRules.activeRecords(attendance,briefingSessions),checks,incidents)
     }
     val label=LocalDate.parse(today).format(
         DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM",Locale("es","PE"))

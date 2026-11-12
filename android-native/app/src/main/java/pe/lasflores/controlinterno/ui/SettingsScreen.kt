@@ -33,7 +33,8 @@ internal fun SettingsScreen(
     mode: LasFloresThemeMode,
     darkTheme: Boolean,
     onModeChange: (LasFloresThemeMode) -> Unit,
-    onOpenBackups: () -> Unit
+    onOpenBackups: () -> Unit,
+    briefingVm: BriefingViewModel
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -117,6 +118,7 @@ internal fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        BriefingDefaultTimesCard(briefingVm)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
