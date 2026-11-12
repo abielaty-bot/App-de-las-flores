@@ -57,6 +57,8 @@ jobs:
           printf '%s' "$LF_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/las-flores-beta.jks"
           chmod 600 "$RUNNER_TEMP/las-flores-beta.jks"
           echo "LF_KEYSTORE_PATH=$RUNNER_TEMP/las-flores-beta.jks" >> "$GITHUB_ENV"
+      - name: Verificar migraciones SQL
+        run: python3 tools/test_briefing_migration.py
       - name: Pruebas y APK firmada
         env:
           LF_KEYSTORE_PASSWORD: ${{ secrets.LF_KEYSTORE_PASSWORD }}
@@ -75,14 +77,18 @@ jobs:
           cp "$APK" dist/las-flores-beta.apk
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
-      - name: Verificar el certificado de 4.0007
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+      - name: Verificar certificado de la versión anterior
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p dist/previous
-          gh release download android-beta-v40007 --dir dist/previous --pattern 'las-flores-beta.apk*'
+          PREVIOUS_TAG=android-beta-v40007
+          if [[ "$LF_RELEASE_TAG" == "android-beta-v40014" ]]; then
+            PREVIOUS_TAG=android-beta-v40013
+          fi
+          gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
           SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           certificate() {
@@ -128,11 +134,15 @@ jobs:
               dist/las-flores-beta.apk \
               dist/las-flores-beta.apk.sha256 --clobber
           else
+            NOTES="Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android."
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40014" ]]; then
+              NOTES=$(printf '%s\n' '## Personal, Uniformes y navegación' '- Menú lateral desplegable en todos los módulos; al cerrarlo se recupera toda la pantalla.' '- Personal: sábados, domingos, días personalizados, apoyo ocasional y perfil de uniforme.' '- Uniformes: No aplica automático por perfil, excepción manual justificada, búsqueda, filtros, calendario y siguiente trabajador.' '- Moñera: se configura para el perfil femenino por defecto; los perfiles existentes quedan sin definir hasta elegirlos.' '- Conservación de inspecciones anteriores, migración Room 8→9, respaldo JSON v7 y reportes Excel actualizados.' 'Antes de instalar: exporta un respaldo desde Respaldos. Actualiza sin desinstalar la aplicación.')
+            fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
               dist/las-flores-beta.apk \
               dist/las-flores-beta.apk.sha256 \
               --title "Las Flores ${DISPLAY_VERSION}" \
-              --notes "Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android." \
+              --notes "$NOTES" \
               --prerelease
           fi
