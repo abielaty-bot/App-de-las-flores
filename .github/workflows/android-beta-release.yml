@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023' || env.LF_RELEASE_TAG == 'android-beta-v40024'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -105,6 +105,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40021
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40023" ]]; then
             PREVIOUS_TAG=android-beta-v40022
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40024" ]]; then
+            PREVIOUS_TAG=android-beta-v40023
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -118,13 +120,13 @@ jobs:
           test "$PREVIOUS_CERT" = "$NEW_CERT"
           rm -f "$LF_KEYSTORE_PATH"
       - name: Habilitar KVM para la prueba de actualización
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Probar la actualización firmada en Android
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
@@ -182,6 +184,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40023" ]]; then
               NOTES=$(printf '%s\n' '## Eliminar requisitos de uniformes' '- Acción Eliminar con comprobación de historial, confirmación y protección de todos los puestos.' '- No elimina requisitos vinculados a inspecciones, respuestas o auditoría; permite desactivarlos.' '- Muestra requisitos activos por defecto; los inactivos siguen accesibles mediante filtros.' '- Conserva Room v11, datos históricos y respaldo automático.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40024" ]]; then
+              NOTES=$(printf '%s\n' '## Catálogo compacto y ficha integral' '- Requisitos agrupados, filtros por puesto y estado, contadores y menú de acciones con eliminación segura.' '- Ficha mensual individual: uniformes, briefings, celulares, funciones, incidentes asignados y materiales; historial por módulo y exportación Excel.' '- Indicadores sin convertir registros pendientes o no evaluados en incumplimientos. Conserva Room v11 y respaldo automático.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
