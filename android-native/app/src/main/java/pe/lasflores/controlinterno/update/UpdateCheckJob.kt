@@ -6,6 +6,7 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,13 +37,25 @@ class UpdateCheckJob:JobService(){
     override fun onDestroy(){scope.cancel();super.onDestroy()}
     companion object{
         private const val ID=4018
-        fun configure(context:Context,enabled:Boolean){
-            val scheduler=context.getSystemService(JobScheduler::class.java)
-            if(!enabled){scheduler.cancel(ID);return}
-            if(scheduler.getPendingJob(ID)!=null)return
-            scheduler.schedule(JobInfo.Builder(ID,ComponentName(context,UpdateCheckJob::class.java))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .setPeriodic(24L*60*60*1000).setPersisted(true).build())
+        /** Optional functionality must never prevent the application from opening. */
+        fun configure(context:Context,enabled:Boolean):Boolean{
+            return try{
+                val scheduler=context.getSystemService(JobScheduler::class.java)
+                    ?: return false
+                if(!enabled){
+                    scheduler.cancel(ID)
+                    true
+                }else if(scheduler.getPendingJob(ID)!=null){
+                    true
+                }else{
+                    scheduler.schedule(JobInfo.Builder(ID,ComponentName(context,UpdateCheckJob::class.java))
+                        .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                        .setPeriodic(24L*60*60*1000).setPersisted(true).build())==JobScheduler.RESULT_SUCCESS
+                }
+            }catch(e:Exception){
+                Log.w("LasFloresUpdates","No se pudo programar la consulta opcional",e)
+                false
+            }
         }
     }
 }

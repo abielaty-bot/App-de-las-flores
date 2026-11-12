@@ -92,6 +92,8 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
     val busy=message=="Guardando…"
     var editing by remember { mutableStateOf<UniformRequirementEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
+    var editorSaving by remember { mutableStateOf(false) }
+    var editorError by remember { mutableStateOf("") }
     var proposal by remember { mutableStateOf(false) }
     var viewRequirement by remember { mutableStateOf<UniformRequirementEntity?>(null) }
     var role by rememberSaveable { mutableStateOf("Mozo") }
@@ -190,9 +192,16 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
             },
             dismissButton={TextButton(onClick=vm::dismissRequirementDeletion){Text(if(deletion.blocker==null)"Cancelar" else "Cerrar")}})
     }
-    if(adding||editing!=null)RequirementDialog(editing,if(role=="all")"Mozo" else role,
-        onDismiss={adding=false;editing=null},
-        onSave={id,label,group,qty,roles,profiles->vm.saveRequirement(id,label,group,qty,roles,profiles);adding=false;editing=null})
+    if(adding||editing!=null)RequirementEditor(editing,if(role=="all")"Mozo" else role,
+        saving=editorSaving,error=editorError,
+        onDismiss={if(!editorSaving){adding=false;editing=null;editorError=""}},
+        onSave={id,label,group,qty,roles,profiles->
+            editorSaving=true
+            editorError=""
+            vm.saveRequirementFromEditor(id,label,group,qty,roles,profiles,
+                onSaved={editorSaving=false;adding=false;editing=null;editorError=""},
+                onFailure={reason->editorSaving=false;editorError=reason})
+        })
     if(proposal)AlertDialog(onDismissRequest={proposal=false},title={Text("Propuesta para "+UniformRoleRules.label(role))},
         text={Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             Text("Agrega o comparte únicamente estos requisitos. Revisa que correspondan al uniforme real del puesto.")
@@ -229,74 +238,6 @@ private fun CompactRequirementRow(req:UniformRequirementEntity,busy:Boolean,onVi
             }
         }
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RequirementDialog(
-    existing: UniformRequirementEntity?,
-    defaultRole:String,
-    onDismiss: () -> Unit,
-    onSave: (String?, String, String, Int, Set<String>,Set<String>) -> Unit
-) {
-    var label by remember(existing?.id) { mutableStateOf(existing?.label.orEmpty()) }
-    var category by remember(existing?.id) { mutableStateOf(existing?.category ?: "Implementos") }
-    var qty by remember(existing?.id) { mutableStateOf((existing?.minQty ?: 0).toString()) }
-    var roles by remember(existing?.id) {
-        mutableStateOf(STAFF_ROLES.filter {
-            existing?.rolesCsv?.contains("|" + it + "|") ?: (it == defaultRole)
-        }.toSet())
-    }
-    var profiles by remember(existing?.id){mutableStateOf(UniformRules.PROFILES.filter{existing?.profilesCsv?.contains("|"+it+"|")?:true}.toSet())}
-    val groups = listOf("Uniforme", "Presentación", "Implementos", "Otro")
-    val validQty = qty.toIntOrNull()
-    AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(if (existing == null) "Nuevo requisito" else "Editar requisito") },
-        text = {
-            Column(Modifier.heightIn(max = 490.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = label, onValueChange = { label = it.take(100) },
-                    label = { Text("Nombre del requisito") }, modifier = Modifier.fillMaxWidth())
-                Text("Grupo", fontWeight = FontWeight.Bold)
-                FlowRow(horizontalArrangement=Arrangement.spacedBy(7.dp)){
-                    groups.forEach { group ->
-                        FilterChip(selected = category == group, onClick = { category = group },label = { Text(group) })
-                    }
-                }
-                OutlinedTextField(value = qty, onValueChange = { qty = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Cantidad mínima (0 si no aplica)") }, modifier = Modifier.fillMaxWidth())
-                Text("Puestos a los que corresponde", fontWeight = FontWeight.Bold)
-                Row(verticalAlignment=Alignment.CenterVertically){
-                    Checkbox(checked=roles.size==STAFF_ROLES.size,onCheckedChange={roles=if(it)STAFF_ROLES.toSet() else emptySet()})
-                    Text("Todos los puestos")
-                }
-                STAFF_ROLES.forEach { role ->
-                    Row(verticalAlignment=Alignment.CenterVertically){
-                        Checkbox(checked=role in roles,onCheckedChange={checked->roles=if(checked)roles+role else roles-role})
-                        Text(UniformRoleRules.label(role))
-                    }
-                }
-                Text("Perfiles de uniforme",fontWeight=FontWeight.Bold)
-                UniformRules.PROFILES.forEach{profile->
-                    Row(verticalAlignment=Alignment.CenterVertically){
-                        Checkbox(checked=profile in profiles,onCheckedChange={checked->profiles=if(checked)profiles+profile else profiles-profile})
-                        Text(StaffScheduleRules.profileLabel(profile))
-                    }
-                }
-                Text("Sin definir: se mantiene el requisito aplicable hasta elegir un perfil.",style=MaterialTheme.typography.bodySmall)
-                Text("Los controles ya iniciados conservan su lista original de requisitos.",
-                    style = MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton = {
-            Button(enabled = label.trim().length in 3..100 &&
-                validQty != null && validQty in 0..100 && roles.isNotEmpty() && profiles.isNotEmpty(),
-                onClick = { onSave(existing?.id, label, category, validQty ?: 0, roles,profiles) }) {
-                Text("Guardar")
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
 }
 
 @Composable

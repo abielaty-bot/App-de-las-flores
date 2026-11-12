@@ -62,13 +62,66 @@ def install(*args):
         raise RuntimeError(result)
 
 
+def open_updates():
+    # Use the same explicit deep link as the app's update notifications.
+    result=adb("shell","am","start","-W","-a","pe.lasflores.controlinterno.OPEN_UPDATES","-n",ACTIVITY)
+    if "Status: ok" not in result:
+        raise RuntimeError(result)
+    find_text("Centro de actualizaciones")
+
+
+def check_update_notification_switch():
+    open_updates()
+    def switch_node():
+        for _ in range(12):
+            adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
+            xml=adb("shell","cat","/sdcard/las-flores-window.xml")
+            root=ET.fromstring(xml)
+            nodes=list(root.iter("node"))
+            parents={child:parent for parent in root.iter() for child in parent}
+            # Compose exposes the description on an inner non-checkable node;
+            # its enclosing clickable View owns the checked state (observed in API 35).
+            for n in nodes:
+                if "Avisos automáticos de actualización" not in n.get("content-desc",""):
+                    continue
+                while n is not None:
+                    if n.get("checkable")=="true" and n.get("clickable")=="true":
+                        return n
+                    n=parents.get(n)
+            switches=[n for n in nodes if n.get("checkable")=="true" and n.get("clickable")=="true"]
+            if len(switches)==1 and any(n.get("text")=="Avisar de nuevas versiones" for n in nodes):
+                return switches[0]
+            adb("shell","input","swipe","360","1150","360","850","500")
+        print("Jerarquía de pantalla al fallar: "+xml,flush=True)
+        print(adb("shell","dumpsys","activity","activities")[-5000:],flush=True)
+        raise RuntimeError("No se encontró el interruptor de avisos")
+    def toggle(node):
+        left,top,right,bottom=map(int,re.findall(r"\d+",node.attrib["bounds"]))
+        adb("shell","input","tap",str((left+right)//2),str((top+bottom)//2))
+        time.sleep(1)
+    node=switch_node()
+    if node.get("checked")!="true":toggle(node)
+    if switch_node().get("checked")!="true":
+        raise RuntimeError("No se activaron los avisos")
+    adb("shell","am","force-stop",PACKAGE)
+    launch()
+    open_personal()
+    find_text(TEST_NAME)
+    open_updates()
+    node=switch_node()
+    if node.get("checked")!="true":raise RuntimeError("No se conservó el ajuste de avisos")
+    toggle(node)
+    if switch_node().get("checked")!="false":raise RuntimeError("No se desactivaron los avisos")
+    print("Avisos activados, reinicio sin cierre y desactivación verificados.",flush=True)
+
+
 def main():
     adb("shell", "wm", "size", "720x1600")
     adb("shell", "wm", "density", "320")
     install("android-native/dist/previous/las-flores-beta.apk")
     launch()
-    code = 40024 if "android-beta-v40024" in sys.argv else (40022 if "android-beta-v40022" in sys.argv else (40021 if "android-beta-v40021" in sys.argv else 40008))
-    if code in (40021, 40022, 40024):
+    code = 40025 if "android-beta-v40025" in sys.argv else (40024 if "android-beta-v40024" in sys.argv else (40022 if "android-beta-v40022" in sys.argv else (40021 if "android-beta-v40021" in sys.argv else 40008)))
+    if code in (40021, 40022, 40024, 40025):
         open_personal()
     else:
         tap("Personal", last=True)
@@ -85,7 +138,7 @@ def main():
     if not re.search(rf"\bversionCode={code}\b", package_info):
         raise RuntimeError(f"Android no instaló {code}")
     launch()
-    if code in (40021, 40022, 40024):
+    if code in (40021, 40022, 40024, 40025):
         open_personal()
         find_text(TEST_NAME)
         adb("shell", "am", "force-stop", PACKAGE)
@@ -93,13 +146,24 @@ def main():
         open_personal()
         find_text(TEST_NAME)
         print("Registro conservado tras actualizar y reiniciar la app", flush=True)
-        if code == 40024:
+        if code in (40024, 40025):
             tap("Ver ficha integral", last=True)
             find_text("Ficha integral")
             find_text(TEST_NAME)
             tap("Volver a Personal")
             find_text(TEST_NAME)
             print("Ficha individual y navegación verificadas.", flush=True)
+        if code == 40025:
+            open_menu_item("Uniformes")
+            tap("Configurar requisitos")
+            tap("+ Agregar requisito")
+            find_text("Nuevo requisito")
+            find_text("1. Información del requisito")
+            find_text("Crear requisito")
+            tap("Cancelar")
+            find_text("Requisitos de uniformes")
+            print("Editor de requisitos y navegación verificados.", flush=True)
+            check_update_notification_switch()
         if code == 40022:
             open_menu_item("Incidentes")
             find_text("Resumen del mes")
