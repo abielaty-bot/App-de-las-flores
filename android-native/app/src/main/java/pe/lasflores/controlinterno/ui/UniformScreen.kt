@@ -79,6 +79,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
     var filter by rememberSaveable { mutableStateOf("all") }
     var roleFilter by rememberSaveable { mutableStateOf("all") }
     var hideExempt by rememberSaveable { mutableStateOf(false) }
+    var deletingInspection by remember(dateIso) { mutableStateOf<UniformInspectionEntity?>(null) }
     var dialog by remember(dateIso) { mutableStateOf("") }
     var dialogStaff by remember(dateIso) { mutableStateOf("") }
     var dialogRequirement by remember(dateIso) { mutableStateOf("") }
@@ -129,7 +130,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             onCorrect={req->dialogStaff=row.staff.id;dialogRequirement=req.id;verifier="";reason="";dialog="CORRECT"},
             onRectify={req->dialogStaff=row.staff.id;dialogRequirement=req.id;verifier="";reason="";dialog="RECTIFY"},
             onFinalize={dialogStaff=row.staff.id;dialog="FINALIZE"},
-            onNext={selectNext(row)},onClose={expandedId=""})
+            onNext={selectNext(row)},onClose={expandedId=""},onDelete={deletingInspection=row.inspection})
     }
     val controls:@Composable ()->Unit = {
         Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
@@ -193,6 +194,11 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 if(visible.isEmpty())item{Text("No hay trabajadores con este filtro.")}
             }
         }
+    }
+    deletingInspection?.let{record->
+        UniformDeleteDialog(record,people.firstOrNull{it.id==record.staffId}?.fullName?:record.staffId,
+            onDismiss={deletingInspection=null},
+            onConfirm={vm.deleteMistakenInspection(record);deletingInspection=null;expandedId=""})
     }
     if (dialog.isNotEmpty()) {
         val action = dialog
@@ -288,7 +294,7 @@ private fun WorkerSummary(row:WorkerInspection,selected:Boolean,enabled:Boolean,
 @Composable
 private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolean,
     onAnswer:(UniformRequirement,String)->Unit,onCorrect:(UniformRequirement)->Unit,
-    onRectify:(UniformRequirement)->Unit,onFinalize:()->Unit,onNext:()->Unit,onClose:()->Unit){
+    onRectify:(UniformRequirement)->Unit,onFinalize:()->Unit,onNext:()->Unit,onClose:()->Unit,onDelete:()->Unit){
     val finalized=row.inspection?.workflow=="FINALIZED"
     Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
         Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -327,6 +333,9 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             if(finalized)Text("Resultado inicial cerrado; se conserva al corregir o rectificar.",style=MaterialTheme.typography.bodySmall)
             else Text("Toca de nuevo una respuesta para desmarcarla. Guardado automático.",style=MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick=onNext,modifier=Modifier.fillMaxWidth()){Text("Siguiente trabajador")}
+            if(row.inspection!=null)TextButton(onClick=onDelete,enabled=!busy,modifier=Modifier.fillMaxWidth()){
+                Text("Eliminar revisión errónea",color=MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

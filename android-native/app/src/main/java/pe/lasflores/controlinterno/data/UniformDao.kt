@@ -77,6 +77,12 @@ interface UniformDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertInspection(item: UniformInspectionEntity)
 
+    @Query("DELETE FROM uniform_answers WHERE inspectionId=:id")
+    suspend fun deleteAnswersForInspection(id:String)
+
+    @Query("DELETE FROM uniform_events WHERE inspectionId=:id")
+    suspend fun deleteEventsForInspection(id:String)
+
     @Query("DELETE FROM uniform_inspections WHERE id = :id")
     suspend fun deleteInspection(id: String)
 

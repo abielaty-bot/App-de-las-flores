@@ -72,6 +72,9 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         perform { materials.create(staffId, dateIso, material, quantity, reason, actor) }
     fun closeDelivery(id: String, action: String, note: String) =
         perform { materials.close(id, action, note) }
+    fun deleteMistakenInspection(record:UniformInspectionEntity)=perform{
+        repository.deleteMistakenInspection(record.dateIso,record.staffId,record.id,record.updatedAtMillis)
+    }
     fun finalize(staffId:String) {val date=_dateIso.value;perform{repository.finalize(date,staffId)}}
     fun correct(staffId:String,requirementId:String,verifier:String) {
         val date=_dateIso.value;perform{repository.correct(date,staffId,requirementId,verifier)}

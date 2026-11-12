@@ -13,6 +13,7 @@ import pe.lasflores.controlinterno.domain.STAFF_ROLES
 import pe.lasflores.controlinterno.domain.UniformRoleRules
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,11 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.lasflores.controlinterno.data.StaffEntity
 
-/** Consulta del historial sin alterar ni eliminar el resultado inicial. */
+/** Consulta del historial; el borrado explícito se reserva para revisiones creadas por error. */
 @Composable
 fun UniformHistoryAdmin(people: List<StaffEntity>, vm: UniformViewModel) {
     val history by vm.history.collectAsState()
     val audit by vm.auditHistory.collectAsState()
+    val saved by vm.saveStatus.collectAsState()
+    var deleting by remember{mutableStateOf<pe.lasflores.controlinterno.data.UniformInspectionEntity?>(null)}
     var nameFilter by rememberSaveable { mutableStateOf("") }
     var dateFilter by rememberSaveable { mutableStateOf("") }
     var roleFilter by rememberSaveable { mutableStateOf("all") }
@@ -88,6 +91,9 @@ fun UniformHistoryAdmin(people: List<StaffEntity>, vm: UniformViewModel) {
                     Text("Resultado inicial: " + (record.initialResult ?: "Borrador"))
                     Text(if (record.workflow == "FINALIZED") "Finalizada" else "En revisión",
                         color = MaterialTheme.colorScheme.primary)
+                    TextButton(enabled=saved!="Guardando…",onClick={deleting=record}){
+                        Text("Eliminar revisión errónea",color=MaterialTheme.colorScheme.error)
+                    }
                     if (showAudits) {
                         events.forEach { event ->
                             val action = when (event.action) {
@@ -107,4 +113,6 @@ fun UniformHistoryAdmin(people: List<StaffEntity>, vm: UniformViewModel) {
         }
         if (visible.isEmpty()) item { Text("No hay inspecciones para esos filtros.") }
     }
+    deleting?.let{record->UniformDeleteDialog(record,names[record.staffId]?:record.staffId,
+        onDismiss={deleting=null},onConfirm={vm.deleteMistakenInspection(record);deleting=null})}
 }
