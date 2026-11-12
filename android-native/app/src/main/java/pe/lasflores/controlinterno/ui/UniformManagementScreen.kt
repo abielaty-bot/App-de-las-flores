@@ -1,6 +1,11 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import pe.lasflores.controlinterno.domain.UniformRoleRules
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -68,60 +73,95 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RequirementsAdmin(vm: UniformViewModel) {
     val catalog by vm.catalog.collectAsState()
+    val message by vm.saveStatus.collectAsState()
+    val busy=message=="Guardando…"
     var editing by remember { mutableStateOf<UniformRequirementEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
-    LazyColumn(
-        Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        item {
-            Text("Configurar requisitos", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-            Text("Los cambios se aplican a inspecciones nuevas. Los requisitos y resultados anteriores se conservan.",
-                style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = { adding = true }) { Text("+ Nuevo requisito") }
+    var proposal by remember { mutableStateOf(false) }
+    var role by rememberSaveable { mutableStateOf("Mozo") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var status by rememberSaveable { mutableStateOf("all") }
+    val roleRows=catalog.filter{role=="all"||UniformRoleRules.assigned(it,role)}
+    val visible=roleRows.filter{it.label.contains(query,true)&&(status=="all"||(status=="active")==it.isActive)}
+    val groups=listOf("Uniforme","Presentación","Implementos","Otro")
+    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
+        item{
+            Text("Requisitos de uniformes",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+            Text("Un catálogo compartido por puestos. Los controles ya iniciados conservan sus requisitos originales.",style=MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(6.dp))
+            SectionControls(listOf("all" to "Todos")+STAFF_ROLES.map{it to UniformRoleRules.label(it)},role,{role=it;query="";status="all"})
         }
-        items(catalog, key = { it.id }) { req ->
-            Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(req.label, fontWeight = FontWeight.Bold)
-                    Text(req.category + (if (req.minQty > 0) " · Mínimo: " + req.minQty else ""),
-                        style = MaterialTheme.typography.bodySmall)
-                    Text(STAFF_ROLES.filter { req.rolesCsv.contains("|" + it + "|") }.joinToString(", "),
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("Perfiles: "+UniformRules.PROFILES.filter{req.profilesCsv.contains("|"+it+"|")}.joinToString(", "){StaffScheduleRules.profileLabel(it)},
-                        style=MaterialTheme.typography.bodySmall)
-                    Text(if (req.isActive) "Activo" else "Desactivado",
-                        color = if (req.isActive) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.error)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { editing = req }) { Text("Editar") }
-                        OutlinedButton(onClick = { vm.setRequirementActive(req.id, !req.isActive) }) {
-                            Text(if (req.isActive) "Desactivar" else "Activar")
+        item{
+            Card(Modifier.fillMaxWidth()){
+                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                    Text(if(role=="all")"CATÁLOGO GENERAL" else UniformRoleRules.label(role).uppercase(),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.tertiary)
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+                        Column{
+                            Text(roleRows.count{it.isActive}.toString(),style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold)
+                            Text("Requisitos activos",style=MaterialTheme.typography.bodySmall)
+                        }
+                        Text(roleRows.count{!it.isActive}.toString()+" desactivados",style=MaterialTheme.typography.labelMedium)
+                    }
+                    Text(message,style=MaterialTheme.typography.labelSmall,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    Button(onClick={adding=true},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("+ Agregar requisito")}
+                    if(role in UniformRoleRules.PROPOSAL_ROLES)OutlinedButton(onClick={proposal=true},enabled=!busy&&catalog.isNotEmpty(),modifier=Modifier.fillMaxWidth()){Text("Aplicar propuesta de "+UniformRoleRules.label(role))}
+                    if(roleRows.none{it.isActive})Text("Este puesto no tiene requisitos activos. Configúralos antes de revisar.",color=semanticForeground("warning"),style=MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item{
+            OutlinedTextField(query,{query=it.take(100)},label={Text("Buscar requisito")},singleLine=true,modifier=Modifier.fillMaxWidth())
+            FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                listOf("all" to "Todos","active" to "Activos","inactive" to "Desactivados").forEach{(v,l)->FilterChip(selected=status==v,onClick={status=v},label={Text(l)})}
+            }
+        }
+        groups.forEach{group->
+            val rows=visible.filter{it.category==group}
+            if(rows.isNotEmpty()){
+                item{Text(group.uppercase(),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.tertiary)}
+                items(rows,key={it.id}){req->
+                    Card(Modifier.fillMaxWidth()){
+                        Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+                                Text(req.label,modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold)
+                                Surface(color=semanticBackground(if(req.isActive)"success" else "neutral"),shape=MaterialTheme.shapes.small){
+                                    Text(if(req.isActive)"Activo" else "Inactivo",modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp),style=MaterialTheme.typography.labelSmall,color=semanticForeground(if(req.isActive)"success" else "neutral"))
+                                }
+                            }
+                            if(req.minQty>0)Text("Cantidad mínima: "+req.minQty,style=MaterialTheme.typography.bodySmall)
+                            Text("Puestos: "+STAFF_ROLES.filter{UniformRoleRules.assigned(req,it)}.joinToString(" · "){UniformRoleRules.label(it)},style=MaterialTheme.typography.bodySmall)
+                            Text("Perfiles: "+UniformRules.PROFILES.filter{req.profilesCsv.contains("|"+it+"|")}.joinToString(", "){StaffScheduleRules.profileLabel(it)},style=MaterialTheme.typography.bodySmall)
+                            FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                OutlinedButton(onClick={editing=req},enabled=!busy){Text("Editar")}
+                                TextButton(onClick={vm.setRequirementActive(req.id,!req.isActive)},enabled=!busy){Text(if(req.isActive)"Desactivar" else "Activar")}
+                            }
                         }
                     }
                 }
             }
         }
+        if(visible.isEmpty())item{Text("No hay requisitos con estos filtros.")}
     }
-    if (adding || editing != null) {
-        RequirementDialog(editing,
-            onDismiss = { adding = false; editing = null },
-            onSave = { id, label, group, qty, roles,profiles ->
-                vm.saveRequirement(id, label, group, qty, roles,profiles)
-                adding = false
-                editing = null
-            })
-    }
+    if(adding||editing!=null)RequirementDialog(editing,if(role=="all")"Mozo" else role,
+        onDismiss={adding=false;editing=null},
+        onSave={id,label,group,qty,roles,profiles->vm.saveRequirement(id,label,group,qty,roles,profiles);adding=false;editing=null})
+    if(proposal)AlertDialog(onDismissRequest={proposal=false},title={Text("Propuesta para "+UniformRoleRules.label(role))},
+        text={Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
+            Text("Agrega o comparte únicamente estos requisitos. Revisa que correspondan al uniforme real del puesto.")
+            UniformRoleRules.suggestions(role).forEach{Text("• "+it.label)}
+            Text("Se mantienen las personalizaciones, cantidades y estados existentes. Las variantes desactivadas o con perfiles/cantidades especiales se configuran manualmente. No modifica revisiones anteriores.",style=MaterialTheme.typography.bodySmall)
+        }},confirmButton={Button(onClick={vm.applyRoleProposal(role);proposal=false}){Text("Aplicar propuesta")}},
+        dismissButton={TextButton(onClick={proposal=false}){Text("Cancelar")}})
 }
 
 @Composable
 private fun RequirementDialog(
     existing: UniformRequirementEntity?,
+    defaultRole:String,
     onDismiss: () -> Unit,
     onSave: (String?, String, String, Int, Set<String>,Set<String>) -> Unit
 ) {
@@ -130,7 +170,7 @@ private fun RequirementDialog(
     var qty by remember(existing?.id) { mutableStateOf((existing?.minQty ?: 0).toString()) }
     var roles by remember(existing?.id) {
         mutableStateOf(STAFF_ROLES.filter {
-            existing?.rolesCsv?.contains("|" + it + "|") ?: (it == "Mozo")
+            existing?.rolesCsv?.contains("|" + it + "|") ?: (it == defaultRole)
         }.toSet())
     }
     var profiles by remember(existing?.id){mutableStateOf(UniformRules.PROFILES.filter{existing?.profilesCsv?.contains("|"+it+"|")?:true}.toSet())}
@@ -151,10 +191,15 @@ private fun RequirementDialog(
                 OutlinedTextField(value = qty, onValueChange = { qty = it.filter(Char::isDigit).take(3) },
                     label = { Text("Cantidad mínima (0 si no aplica)") }, modifier = Modifier.fillMaxWidth())
                 Text("Puestos a los que corresponde", fontWeight = FontWeight.Bold)
+                Row(verticalAlignment=Alignment.CenterVertically){
+                    Checkbox(checked=roles.size==STAFF_ROLES.size,onCheckedChange={roles=if(it)STAFF_ROLES.toSet() else emptySet()})
+                    Text("Todos los puestos")
+                }
                 STAFF_ROLES.forEach { role ->
-                    FilterChip(selected = role in roles, onClick = {
-                        roles = if (role in roles) roles - role else roles + role
-                    }, label = { Text(role) })
+                    Row(verticalAlignment=Alignment.CenterVertically){
+                        Checkbox(checked=role in roles,onCheckedChange={checked->roles=if(checked)roles+role else roles-role})
+                        Text(UniformRoleRules.label(role))
+                    }
                 }
                 Text("Perfiles de uniforme",fontWeight=FontWeight.Bold)
                 UniformRules.PROFILES.forEach{profile->

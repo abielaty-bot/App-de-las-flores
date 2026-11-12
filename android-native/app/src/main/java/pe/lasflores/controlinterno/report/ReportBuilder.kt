@@ -275,6 +275,11 @@ object ReportBuilder {
             sheet("Acciones incidentes","Historial vinculado a casos del período seleccionado",
                 listOf("Código","Fecha incidente","Acción","Ejecutó","Estado anterior",
                     "Estado posterior","Descripción","Origen verificado"),actions)
-        ) + ReportExtras.build(snapshot,select) + PhoneReports.build(snapshot.phoneChecks,snapshot.activityDays,select,includeEmpty=false)
+        ) + ReportExtras.build(snapshot,select) + PhoneReports.build(snapshot.phoneChecks,snapshot.activityDays,select,includeEmpty=false) +
+            (if(inspections.isEmpty())emptyList() else listOf(sheet("Uniformes por puesto","Conformidad inicial; borradores y correcciones posteriores no cambian el porcentaje",
+                listOf("Puesto","Finalizadas","Conformes iniciales","Observadas iniciales","Borradores","% conformes"),
+                pe.lasflores.controlinterno.domain.UniformRoleRules.stats(inspections).map{s->
+                    listOf(s.role,s.finalized,s.conforming,s.observed,s.drafts,s.percent?.let{it.toString()+"%"}?:"Sin evaluación")
+                })))
     }
 }

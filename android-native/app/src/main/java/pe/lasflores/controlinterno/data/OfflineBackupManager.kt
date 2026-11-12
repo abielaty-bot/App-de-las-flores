@@ -36,7 +36,7 @@ data class BackupPreview(
     val incidentTypes: Int = 0,
     val incidents: Int = 0,
     val incidentActions: Int = 0,
-    val formatVersion: Int = 9,
+    val formatVersion: Int = 10,
     val reminders: Int = 0,
     val journeyOccurrences: Int = 0,
     val journeyNotifications: Int = 0,
@@ -158,7 +158,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 9,
+            "app" to "lasflores-android", "formatVersion" to 10,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         // Conserva el JSON Web sin modificar para poder auditar campos históricos
@@ -355,6 +355,7 @@ class OfflineBackupManager(
             normalizeOldUniformProfiles(originalBase)
             normalizeOldJourney(originalBase)
             normalizeOldPhones(originalBase)
+            normalizeOldRoles(originalBase)
             originalBase.remove("exportedAtMillis")
             currentBase.remove("exportedAtMillis")
             require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
@@ -511,6 +512,10 @@ class OfflineBackupManager(
         root.put("formatVersion",9)
     }
 
+    private fun normalizeOldRoles(root:JSONObject){
+        if(root.optInt("formatVersion",0)==9)root.put("formatVersion",10)
+    }
+
     private fun decode(text: String): Payload {
         require(text.toByteArray(Charsets.UTF_8).size <= 30 * 1024 * 1024) {
             "El archivo supera 30 MB."
@@ -532,13 +537,14 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..9) {
+        require(version in 1..10) {
             "Formato de respaldo Android incompatible."
         }
         normalizeOldBriefings(root)
         normalizeOldUniformProfiles(root)
         normalizeOldJourney(root)
         normalizeOldPhones(root)
+        normalizeOldRoles(root)
 
         val data = Payload(
             staff = rows(root, "staff") { x -> StaffEntity(

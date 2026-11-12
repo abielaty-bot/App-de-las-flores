@@ -71,6 +71,14 @@ class OfflineUniformRepository(
         }
     }
 
+    override suspend fun applyRoleProposal(role:String) {
+        database.withWriteTransaction {
+            if(catalogDao.allRequirements().isEmpty())defaultRequirements().forEach{catalogDao.upsertRequirement(it)}
+            val plan=pe.lasflores.controlinterno.domain.UniformRoleRules.proposal(role,catalogDao.allRequirements(),System.currentTimeMillis()){UUID.randomUUID().toString()}
+            plan.forEach{catalogDao.upsertRequirement(it)}
+        }
+    }
+
     override suspend fun setRequirementActive(id: String, active: Boolean) {
         database.withWriteTransaction {
             val prev = catalogDao.getRequirement(id) ?: error("Requisito no encontrado.")

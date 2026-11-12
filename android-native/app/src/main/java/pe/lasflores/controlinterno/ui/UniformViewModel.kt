@@ -65,6 +65,7 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
     }
     fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>) =
         perform { repository.saveRequirement(id, label, category, minQty, roles,profiles) }
+    fun applyRoleProposal(role:String)=perform{repository.applyRoleProposal(role)}
     fun setRequirementActive(id: String, active: Boolean) =
         perform { repository.setRequirementActive(id, active) }
     fun deliver(staffId: String, dateIso: String, material: String, quantity: Int, reason: String, actor: String) =

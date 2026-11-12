@@ -5,4 +5,4 @@ object StaffName {
     fun isValid(raw: String): Boolean = normalize(raw).length in 2..120
 }
 
-val STAFF_ROLES = listOf("Mozo", "Caja", "Recepción", "Lavavasos", "Apoyo", "Otro")
+val STAFF_ROLES = listOf("Mozo", "Caja", "Runner", "Recepción", "Lavavasos", "Apoyo", "Otro")
