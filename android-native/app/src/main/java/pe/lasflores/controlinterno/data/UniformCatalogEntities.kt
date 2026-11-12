@@ -1,6 +1,7 @@
 package pe.lasflores.controlinterno.data
 
 import androidx.room3.Entity
+import androidx.room3.ColumnInfo
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
 
@@ -13,9 +14,11 @@ data class UniformRequirementEntity(
     val rolesCsv: String,
     val isActive: Boolean,
     val sortOrder: Int,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    @ColumnInfo(defaultValue = "'|MASCULINO|FEMENINO|GENERAL|'") val profilesCsv: String = "|MASCULINO|FEMENINO|GENERAL|"
 ) {
     fun appliesTo(role: String) = isActive && rolesCsv.contains("|$role|")
+    fun appliesToProfile(profile:String) = profile=="SIN_DEFINIR" || profilesCsv.contains("|$profile|")
 }
 
 @Entity(tableName = "inspection_requirements", primaryKeys = ["inspectionId","requirementId"],
@@ -25,7 +28,8 @@ data class InspectionRequirementEntity(
     val requirementId: String,
     val labelSnapshot: String,
     val categorySnapshot: String,
-    val minQtySnapshot: Int
+    val minQtySnapshot: Int,
+    @ColumnInfo(defaultValue = "1") val applicable: Boolean = true
 )
 
 @Entity(tableName = "material_deliveries",

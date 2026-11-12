@@ -29,6 +29,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.app.DatePickerDialog
+import androidx.compose.ui.platform.LocalContext
+import java.time.LocalDate
 
 internal object LasFloresPalette {
     val Burgundy = Color(0xFF672638)
@@ -177,7 +180,9 @@ internal val LasFloresTypography = Typography(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DayControls(date: String, onPrevious: () -> Unit, onNext: () -> Unit, onToday: () -> Unit) {
+internal fun DayControls(date: String, onPrevious: () -> Unit, onNext: () -> Unit, onToday: () -> Unit,
+    onPickDate:((String)->Unit)?=null) {
+    val context=LocalContext.current
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,7 +191,12 @@ internal fun DayControls(date: String, onPrevious: () -> Unit, onNext: () -> Uni
         OutlinedButton(onClick = onPrevious, modifier = Modifier.semantics { contentDescription = "Día anterior" }) {
             Text("‹")
         }
-        Text(date, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
+        if(onPickDate!=null)OutlinedButton(onClick={
+            val d=LocalDate.parse(date)
+            DatePickerDialog(context,{_,year,month,day->onPickDate(LocalDate.of(year,month+1,day).toString())},
+                d.year,d.monthValue-1,d.dayOfMonth).show()
+        },modifier=Modifier.semantics{contentDescription="Elegir fecha"}){Text(date)}
+        else Text(date, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
         OutlinedButton(onClick = onNext, modifier = Modifier.semantics { contentDescription = "Día siguiente" }) {
             Text("›")
         }

@@ -15,5 +15,8 @@ data class StaffEntity(
     @ColumnInfo(defaultValue = "0") val restDaysMask: Int = 0,
     val isActive: Boolean,
     val createdAtMillis: Long,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    @ColumnInfo(defaultValue = "65") val weekendDaysMask: Int = 65,
+    @ColumnInfo(defaultValue = "'SIN_DEFINIR'") val uniformProfile: String = "SIN_DEFINIR",
+    @ColumnInfo(defaultValue = "''") val scheduleHistory: String = ""
 )

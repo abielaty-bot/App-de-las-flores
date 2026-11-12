@@ -39,5 +39,31 @@ class BriefingMigrationTest(unittest.TestCase):
             db.execute("INSERT INTO briefing_attendance(id,dateIso,staffId,staffNameSnapshot,categorySnapshot,groupHour,presence,createdAtMillis,updatedAtMillis) VALUES (?,?,?,?,?,?,?,?,?)",("e","2026-11-10","worker-a","Prueba A",3,12,"ASISTIO",121,121))
         db.close()
 
+
+    def test_personal_and_uniform_profiles_preserve_v8_rows(self):
+        db=sqlite3.connect(":memory:")
+        db.execute("""CREATE TABLE staff (id TEXT PRIMARY KEY,fullName TEXT,role TEXT,category INTEGER,briefingGroup INTEGER,scheduleMode TEXT,restDaysMask INTEGER,isActive INTEGER,createdAtMillis INTEGER,updatedAtMillis INTEGER)""")
+        db.execute("INSERT INTO staff VALUES (?,?,?,?,?,?,?,?,?,?)",("p","Prueba","Mozo",3,11,"weekend",4,1,1,2))
+        db.execute("""CREATE TABLE uniform_requirements (id TEXT PRIMARY KEY,label TEXT,category TEXT,minQty INTEGER,rolesCsv TEXT,isActive INTEGER,sortOrder INTEGER,updatedAtMillis INTEGER)""")
+        db.execute("INSERT INTO uniform_requirements VALUES (?,?,?,?,?,?,?,?)",("m","Moñera","Implementos",1,"|Mozo|",1,0,1))
+        db.execute("INSERT INTO uniform_requirements VALUES (?,?,?,?,?,?,?,?)",("u","Mandil","Uniforme",0,"|Mozo|",1,1,1))
+        db.execute("""CREATE TABLE inspection_requirements (inspectionId TEXT,requirementId TEXT,labelSnapshot TEXT,categorySnapshot TEXT,minQtySnapshot INTEGER,PRIMARY KEY(inspectionId,requirementId))""")
+        db.execute("INSERT INTO inspection_requirements VALUES (?,?,?,?,?)",("i","m","Moñera","Implementos",1))
+        db.execute("""CREATE TABLE uniform_inspections (id TEXT PRIMARY KEY,dateIso TEXT,staffId TEXT,roleSnapshot TEXT,workflow TEXT,initialResult TEXT,createdAtMillis INTEGER,updatedAtMillis INTEGER)""")
+        db.execute("INSERT INTO uniform_inspections VALUES (?,?,?,?,?,?,?,?)",("i","2026-11-10","p","Mozo","FINALIZED","OBSERVADO",1,2))
+        db.execute("""CREATE TABLE uniform_answers (inspectionId TEXT,requirementId TEXT,status TEXT)""")
+        db.execute("INSERT INTO uniform_answers VALUES (?,?,?)",("i","m","BAD"))
+        for sql in sql_for("MIGRATION_8_9"):
+            db.execute(sql)
+        self.assertEqual(db.execute("SELECT scheduleMode,restDaysMask,weekendDaysMask,uniformProfile,scheduleHistory FROM staff").fetchone(),("weekend",4,65,"SIN_DEFINIR",""))
+        self.assertEqual(db.execute("SELECT profilesCsv FROM uniform_requirements WHERE id='m'").fetchone()[0],"|FEMENINO|")
+        self.assertEqual(db.execute("SELECT profilesCsv FROM uniform_requirements WHERE id='u'").fetchone()[0],"|MASCULINO|FEMENINO|GENERAL|")
+        self.assertEqual(db.execute("SELECT applicable FROM inspection_requirements").fetchone()[0],1)
+        self.assertEqual(db.execute("SELECT initialResult,uniformProfileSnapshot FROM uniform_inspections").fetchone(),("OBSERVADO","SIN_DEFINIR"))
+        self.assertEqual(db.execute("SELECT * FROM uniform_answers").fetchall(),[("i","m","BAD")])
+        db.execute("UPDATE staff SET uniformProfile='MASCULINO', weekendDaysMask=64")
+        self.assertEqual(db.execute("SELECT applicable FROM inspection_requirements").fetchone()[0],1)
+        db.close()
+
 if __name__=="__main__":
     unittest.main()

@@ -68,4 +68,29 @@ class ReportBuilderTest {
             ReportPeriod.MONTH,LocalDate.parse("2026-11-11")
         )).dutiesPercent)
     }
+
+    @Test fun uniformReportExcludesAutomaticAndManualExemptionsFromPercentage(){
+        val day="2026-11-11"
+        val i=UniformInspectionEntity("i",day,"p","Mozo","FINALIZED","OBSERVADO",1,2,"MASCULINO")
+        val snapshots=listOf(
+            InspectionRequirementEntity("i","m","Moñera","Implementos",1,false),
+            InspectionRequirementEntity("i","a","Mandil","Uniforme",0),
+            InspectionRequirementEntity("i","b","Trapo","Implementos",0),
+            InspectionRequirementEntity("i","c","Encendedor","Implementos",0))
+        val answers=listOf(
+            UniformAnswerEntity("i","a","Mandil","Uniforme","OK",null,null),
+            UniformAnswerEntity("i","b","Trapo","Implementos","BAD",null,null),
+            UniformAnswerEntity("i","c","Encendedor","Implementos","NA",null,null))
+        val snapshot=ReportSnapshot(staff=emptyList(),inspections=listOf(i),uniformAnswers=answers,
+            uniformEvents=emptyList(),activityDays=emptyList(),briefingAttendance=emptyList(),briefingSessions=emptyList(),
+            functions=emptyList(),evidence=emptyList(),incidents=emptyList(),incidentActions=emptyList(),
+            inspectionSnapshots=snapshots)
+        val book=ReportBuilder.build(snapshot,ReportSelection(ReportPeriod.DAY,LocalDate.parse(day)))
+        val row=book.single{it.name=="Uniformes"}.rows.single()
+        assertEquals(2,row[6])
+        assertEquals(1,row[7])
+        assertEquals(2,row[10])
+        assertEquals(2,row[12])
+        assertEquals("50%",row[13])
+    }
 }

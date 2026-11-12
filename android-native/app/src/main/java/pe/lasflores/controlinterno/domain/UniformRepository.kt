@@ -18,7 +18,7 @@ data class UniformDaySnapshot(
 ) {
     fun requirementsFor(id: String): List<UniformRequirement> =
         requirements.filter { it.inspectionId == id }.map {
-            UniformRequirement(it.requirementId, it.labelSnapshot, it.categorySnapshot, it.minQtySnapshot)
+            UniformRequirement(it.requirementId, it.labelSnapshot, it.categorySnapshot, it.minQtySnapshot,it.applicable)
         }
 
     fun inspectionFor(id: String): UniformInspectionEntity? = inspections.firstOrNull { it.staffId == id }
@@ -48,8 +48,8 @@ interface UniformRepository {
     val auditHistory: Flow<List<UniformEventEntity>>
     val catalog: Flow<List<UniformRequirementEntity>>
     fun observeDay(dateIso: String): Flow<UniformDaySnapshot>
-    suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int? = null)
-    suspend fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>)
+    suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String = "")
+    suspend fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String> = UniformRules.PROFILES.toSet())
     suspend fun setRequirementActive(id: String, active: Boolean)
     suspend fun finalize(dateIso: String, staffId: String)
     suspend fun correct(dateIso: String, staffId: String, requirementId: String, verifier: String)

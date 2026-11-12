@@ -1,21 +1,34 @@
 package pe.lasflores.controlinterno.domain
 
 /** Reglas puras: no dependen de Android ni de la base de datos. */
-data class UniformRequirement(val id: String, val label: String, val group: String, val minQty: Int = 0)
+data class UniformRequirement(val id: String, val label: String, val group: String, val minQty: Int = 0, val applicable: Boolean = true)
 
 object UniformRules {
     const val OK = "OK"
     const val BAD = "BAD"
+    const val NA = "NA"
+    val PROFILES = listOf("MASCULINO","FEMENINO","GENERAL")
+    fun profilesCsv(profiles:Set<String>):String {
+        require(profiles.isNotEmpty() && profiles.all{it in PROFILES})
+        return "|" + PROFILES.filter{it in profiles}.joinToString("|") + "|"
+    }
+    fun validProfiles(csv:String):Boolean = runCatching {
+        csv==profilesCsv(PROFILES.filter{csv.contains("|"+it+"|")}.toSet())
+    }.getOrDefault(false)
+    fun defaultProfiles(label:String):String =
+        if(label.trim().lowercase(java.util.Locale.ROOT)=="moñera")"|FEMENINO|" else "|MASCULINO|FEMENINO|GENERAL|"
+    fun evaluated(status:String?) = status==OK || status==BAD
     const val CONFORME = "CONFORME"
     const val OBSERVADO = "OBSERVADO"
 
     fun toggle(current: String?, tapped: String): String? {
-        require(tapped == OK || tapped == BAD)
+        require(tapped == OK || tapped == BAD || tapped == NA)
         return if (current == tapped) null else tapped
     }
 
     fun result(statuses: Collection<String?>): String {
-        require(statuses.isNotEmpty() && statuses.none { it == null })
+        require(statuses.isNotEmpty() && statuses.all { it in setOf(OK,BAD,NA) })
+        require(statuses.any { evaluated(it) }) { "No hay requisitos aplicables evaluados." }
         return if (statuses.any { it == BAD }) OBSERVADO else CONFORME
     }
 

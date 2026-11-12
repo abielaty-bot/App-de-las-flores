@@ -29,9 +29,57 @@ object StaffScheduleRules {
         if (manual != null) return manual.status
         if (vacations.any { it.staffId == person.id && dateIso >= it.startDateIso && dateIso <= it.endDateIso })
             return "vacation"
-        if (person.scheduleMode == "weekend")
-            return if (day.dayOfWeek.value >= 6) "support" else "rest"
-        return if (isRestDay(person.restDaysMask, day)) "rest" else "working"
+        val prior = history(person.scheduleHistory).firstOrNull { dateIso < it.changedOn }
+        val mode = prior?.mode ?: person.scheduleMode
+        val rest = prior?.rest ?: person.restDaysMask
+        val weekend = prior?.weekend ?: person.weekendDaysMask
+        return when (mode) {
+            "weekend" -> if (isRestDay(weekend, day)) "support" else if(day.dayOfWeek.value<6)"rest" else "off"
+            "occasional" -> "off"
+            "custom" -> if (isRestDay(rest, day)) "off" else "working"
+            else -> if (isRestDay(rest, day)) "rest" else "working"
+        }
+    }
+
+    val MODES = setOf("regular","weekend","custom","occasional")
+    val PROFILES = setOf("SIN_DEFINIR","MASCULINO","FEMENINO","GENERAL")
+    data class PreviousSchedule(val changedOn:String,val mode:String,val rest:Int,val weekend:Int)
+    fun history(raw:String):List<PreviousSchedule> = if(raw.isBlank()) emptyList() else raw.split('\n').map {
+        val fields=it.split('|')
+        require(fields.size==4)
+        PreviousSchedule(fields[0],fields[1],fields[2].toInt(),fields[3].toInt()).also { p ->
+            parseDate(p.changedOn)
+            require(validSchedule(p.mode,p.rest,p.weekend))
+        }
+    }.also { entries ->
+        require(entries.zipWithNext().all{(a,b)->a.changedOn<b.changedOn})
+    }
+    fun validSchedule(mode:String,rest:Int,weekend:Int):Boolean =
+        mode in MODES && rest in 0..127 && weekend in setOf(1,64,65) &&
+            (mode!="custom" || rest!=127)
+    fun preserveSchedule(person:StaffEntity,mode:String,rest:Int,weekend:Int,effectiveDate:String):String {
+        parseDate(effectiveDate)
+        if(person.scheduleMode==mode && person.restDaysMask==rest && person.weekendDaysMask==weekend)
+            return person.scheduleHistory
+        val entries=history(person.scheduleHistory)
+        require(entries.lastOrNull()?.changedOn?.let{it<=effectiveDate}!=false) {
+            "La fecha del dispositivo es anterior al último cambio de horario."
+        }
+        if(entries.lastOrNull()?.changedOn==effectiveDate)return person.scheduleHistory
+        return (entries+PreviousSchedule(effectiveDate,person.scheduleMode,person.restDaysMask,person.weekendDaysMask))
+            .joinToString("\n"){listOf(it.changedOn,it.mode,it.rest,it.weekend).joinToString("|")}
+    }
+    fun profileLabel(profile:String):String = when(profile) {
+        "MASCULINO" -> "Masculino"
+        "FEMENINO" -> "Femenino"
+        "GENERAL" -> "General"
+        else -> "Sin definir"
+    }
+    fun scheduleLabel(person:StaffEntity):String = when(person.scheduleMode) {
+        "weekend" -> when(person.weekendDaysMask){64->"Solo sábados";1->"Solo domingos";else->"Sábados y domingos"}
+        "custom" -> "Días personalizados"
+        "occasional" -> "Apoyo ocasional"
+        else -> "Regular"
     }
 
     fun isScheduled(status: String): Boolean = status == "working" || status == "support"

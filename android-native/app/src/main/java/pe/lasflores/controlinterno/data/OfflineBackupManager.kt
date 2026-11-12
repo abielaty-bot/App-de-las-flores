@@ -34,7 +34,7 @@ data class BackupPreview(
     val incidentTypes: Int = 0,
     val incidents: Int = 0,
     val incidentActions: Int = 0,
-    val formatVersion: Int = 6
+    val formatVersion: Int = 7
 )
 
 /**
@@ -147,7 +147,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 6,
+            "app" to "lasflores-android", "formatVersion" to 7,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         // Conserva el JSON Web sin modificar para poder auditar campos históricos
@@ -157,6 +157,7 @@ class OfflineBackupManager(
             "id" to x.id, "fullName" to x.fullName, "role" to x.role,
             "category" to x.category, "briefingGroup" to x.briefingGroup,
             "scheduleMode" to x.scheduleMode, "restDaysMask" to x.restDaysMask,
+            "weekendDaysMask" to x.weekendDaysMask, "uniformProfile" to x.uniformProfile, "scheduleHistory" to x.scheduleHistory,
             "isActive" to x.isActive, "createdAtMillis" to x.createdAtMillis,
             "updatedAtMillis" to x.updatedAtMillis
         ) })
@@ -172,6 +173,7 @@ class OfflineBackupManager(
         root.put("inspections", arr(uniformDao.allInspections()) { x -> obj(
             "id" to x.id, "dateIso" to x.dateIso, "staffId" to x.staffId,
             "roleSnapshot" to x.roleSnapshot, "workflow" to x.workflow,
+            "uniformProfileSnapshot" to x.uniformProfileSnapshot,
             "initialResult" to x.initialResult, "createdAtMillis" to x.createdAtMillis,
             "updatedAtMillis" to x.updatedAtMillis
         ) })
@@ -192,14 +194,14 @@ class OfflineBackupManager(
         ) })
         root.put("requirements", arr(catalogDao.allRequirements()) { x -> obj(
             "id" to x.id, "label" to x.label, "category" to x.category,
-            "minQty" to x.minQty, "rolesCsv" to x.rolesCsv,
+            "minQty" to x.minQty, "rolesCsv" to x.rolesCsv, "profilesCsv" to x.profilesCsv,
             "isActive" to x.isActive, "sortOrder" to x.sortOrder,
             "updatedAtMillis" to x.updatedAtMillis
         ) })
         root.put("snapshots", arr(catalogDao.allSnapshots()) { x -> obj(
             "inspectionId" to x.inspectionId, "requirementId" to x.requirementId,
             "labelSnapshot" to x.labelSnapshot, "categorySnapshot" to x.categorySnapshot,
-            "minQtySnapshot" to x.minQtySnapshot
+            "minQtySnapshot" to x.minQtySnapshot, "applicable" to x.applicable
         ) })
         root.put("deliveries", arr(materialsDao.allDeliveries()) { x -> obj(
             "id" to x.id, "staffId" to x.staffId,
@@ -318,6 +320,7 @@ class OfflineBackupManager(
                 ?: error("La fusión no contiene la copia Android de referencia.")
             val currentBase = JSONObject(previous)
             normalizeOldBriefings(originalBase)
+            normalizeOldUniformProfiles(originalBase)
             originalBase.remove("exportedAtMillis")
             currentBase.remove("exportedAtMillis")
             require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
@@ -442,6 +445,17 @@ class OfflineBackupManager(
         root.put("formatVersion",6)
     }
 
+    /** La misma transformación se aplica al respaldo previo para comparar fusiones sin perder cambios. */
+    private fun normalizeOldUniformProfiles(root:JSONObject) {
+        val version=root.optInt("formatVersion",0)
+        if(version!=6)return
+        rows(root,"staff"){it}.forEach{it.put("weekendDaysMask",65);it.put("uniformProfile","SIN_DEFINIR");it.put("scheduleHistory","")}
+        rows(root,"inspections"){it}.forEach{it.put("uniformProfileSnapshot","SIN_DEFINIR")}
+        rows(root,"requirements"){it}.forEach{it.put("profilesCsv",UniformRules.defaultProfiles(it.getString("label")))}
+        rows(root,"snapshots"){it}.forEach{it.put("applicable",true)}
+        root.put("formatVersion",7)
+    }
+
     private fun decode(text: String): Payload {
         require(text.toByteArray(Charsets.UTF_8).size <= 30 * 1024 * 1024) {
             "El archivo supera 30 MB."
@@ -463,10 +477,11 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..6) {
+        require(version in 1..7) {
             "Formato de respaldo Android incompatible."
         }
         normalizeOldBriefings(root)
+        normalizeOldUniformProfiles(root)
 
         val data = Payload(
             staff = rows(root, "staff") { x -> StaffEntity(
@@ -475,7 +490,10 @@ class OfflineBackupManager(
                 briefingGroup = x.getInt("briefingGroup"), scheduleMode = x.getString("scheduleMode"),
                 restDaysMask = x.getInt("restDaysMask"), isActive = x.getBoolean("isActive"),
                 createdAtMillis = x.getLong("createdAtMillis"),
-                updatedAtMillis = x.getLong("updatedAtMillis")
+                updatedAtMillis = x.getLong("updatedAtMillis"),
+                weekendDaysMask=if(version>=3)x.getInt("weekendDaysMask") else 65,
+                uniformProfile=if(version>=3)x.getString("uniformProfile") else "SIN_DEFINIR",
+                scheduleHistory=if(version>=3)x.getString("scheduleHistory") else ""
             ) },
             vacations = rows(root, "vacations") { x -> StaffVacationEntity(
                 x.getString("id"), x.getString("staffId"), x.getString("startDateIso"),
@@ -489,7 +507,8 @@ class OfflineBackupManager(
                 x.getString("id"), x.getString("dateIso"), x.getString("staffId"),
                 x.getString("roleSnapshot"), x.getString("workflow"),
                 nullableString(x, "initialResult"), x.getLong("createdAtMillis"),
-                x.getLong("updatedAtMillis")
+                x.getLong("updatedAtMillis"),
+                if(version>=3)x.getString("uniformProfileSnapshot") else "SIN_DEFINIR"
             ) },
             answers = rows(root, "answers") { x -> UniformAnswerEntity(
                 x.getString("inspectionId"), x.getString("requirementId"),
@@ -511,12 +530,13 @@ class OfflineBackupManager(
             requirements = if (version >= 2) rows(root, "requirements") { x ->
                 UniformRequirementEntity(x.getString("id"), x.getString("label"),
                     x.getString("category"), x.getInt("minQty"), x.getString("rolesCsv"),
-                    x.getBoolean("isActive"), x.getInt("sortOrder"), x.getLong("updatedAtMillis"))
+                    x.getBoolean("isActive"), x.getInt("sortOrder"), x.getLong("updatedAtMillis"),
+                     if(version>=3)x.getString("profilesCsv") else UniformRules.defaultProfiles(x.getString("label")))
             } else defaultsFromOldApp(),
             snapshots = if (version >= 2) rows(root, "snapshots") { x ->
                 InspectionRequirementEntity(x.getString("inspectionId"),
                     x.getString("requirementId"), x.getString("labelSnapshot"),
-                    x.getString("categorySnapshot"), x.getInt("minQtySnapshot"))
+                    x.getString("categorySnapshot"), x.getInt("minQtySnapshot"),if(version>=3)x.getBoolean("applicable") else true)
             } else {
                 rows(root, "inspections") { x ->
                     val id = x.getString("id")
@@ -704,7 +724,9 @@ class OfflineBackupManager(
         require(data.staff.all {
             it.id.isNotBlank() && StaffName.isValid(it.fullName) && it.role in STAFF_ROLES &&
                 it.category in 0..4 && it.briefingGroup in listOf(0, 11, 12) &&
-                it.scheduleMode in listOf("regular", "weekend") && it.restDaysMask in 0..127
+                StaffScheduleRules.validSchedule(it.scheduleMode,it.restDaysMask,it.weekendDaysMask) &&
+                it.uniformProfile in StaffScheduleRules.PROFILES &&
+                runCatching{StaffScheduleRules.history(it.scheduleHistory)}.isSuccess
         }) { "Fichas de personal inválidas." }
         require(data.staff.map { StaffName.normalize(it.fullName).lowercase() }.toSet().size == data.staff.size) {
             "El respaldo tiene nombres duplicados."
@@ -718,15 +740,17 @@ class OfflineBackupManager(
             it.staffId in staffIds &&
                 it.status in listOf("working", "rest", "vacation", "absent", "leave", "support", "off")
         }) { "Situación diaria incompatible." }
-        require(data.inspections.all { it.staffId in staffIds }) {
+        require(data.inspections.all { it.staffId in staffIds && it.uniformProfileSnapshot in StaffScheduleRules.PROFILES }) {
             "Una inspección referencia un trabajador desconocido."
         }
-        require(data.answers.all { it.inspectionId in inspectionIds }) {
+        require(data.answers.all { it.inspectionId in inspectionIds &&
+            (it.status!=UniformRules.NA || (it.quantity==null && it.correctedAtMillis==null && it.correctedBy==null)) }) {
             "Una respuesta de uniforme no tiene inspección."
         }
         require(data.requirements.all {
             it.id.isNotBlank() && it.label.length in 3..100 && it.minQty in 0..100 &&
-                STAFF_ROLES.any { role -> it.rolesCsv.contains("|" + role + "|") }
+                STAFF_ROLES.any { role -> it.rolesCsv.contains("|" + role + "|") } &&
+                UniformRules.validProfiles(it.profilesCsv)
         }) { "Catálogo de requisitos inválido." }
         require(data.snapshots.all {
             it.inspectionId in inspectionIds && it.requirementId.isNotBlank() &&
@@ -735,6 +759,15 @@ class OfflineBackupManager(
         require(data.inspections.all { inspection ->
             data.snapshots.any { it.inspectionId == inspection.id }
         }) { "Una inspección no tiene requisitos congelados." }
+        val frozen=data.snapshots.associateBy{it.inspectionId to it.requirementId}
+        require(data.answers.filter{it.status==UniformRules.NA}.all{a->
+            frozen[a.inspectionId to a.requirementId]?.applicable==true &&
+            data.events.any{e->e.inspectionId==a.inspectionId && e.requirementId==a.requirementId &&
+                e.action=="NO_APLICA" && e.note.trim().length in 5..500}
+        }) { "Excepciones de uniforme sin justificación." }
+        require(data.answers.none{frozen[it.inspectionId to it.requirementId]?.applicable==false}) {
+            "Un requisito no aplicable automáticamente contiene una respuesta."
+        }
         require(data.deliveries.all {
             it.staffId in staffIds && it.quantity in 1..100 &&
                 it.status in listOf("ENTREGADA","DEVUELTA","ANULADA") &&

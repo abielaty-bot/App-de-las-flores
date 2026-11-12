@@ -22,4 +22,24 @@ class UniformRulesTest {
         assertTrue(UniformRules.forRole("Mozo").size > UniformRules.forRole("Caja").size)
         assertTrue(UniformRules.forRole("Lavavasos").none { it.id == "sacacorchos" })
     }
+
+    @Test fun notApplicableIsNeitherComplianceNorFailure() {
+        assertEquals(UniformRules.CONFORME,UniformRules.result(listOf("OK","NA")))
+        assertEquals(UniformRules.OBSERVADO,UniformRules.result(listOf("BAD","NA")))
+        assertTrue(!UniformRules.evaluated(UniformRules.NA))
+        assertNull(UniformRules.toggle("NA","NA"))
+    }
+    @Test(expected=IllegalArgumentException::class)
+    fun allExemptCannotBeDeclaredConforming(){UniformRules.result(listOf("NA","NA"))}
+
+    @Test fun moñeraProfileRuleAndFrozenSnapshot(){
+        val req=pe.lasflores.controlinterno.data.UniformRequirementEntity("m","Moñera","Implementos",1,"|Mozo|",true,0,0,UniformRules.defaultProfiles("Moñera"))
+        assertTrue(!req.appliesToProfile("MASCULINO"))
+        assertTrue(req.appliesToProfile("FEMENINO"))
+        assertTrue(req.appliesToProfile("SIN_DEFINIR"))
+        val frozen=pe.lasflores.controlinterno.data.InspectionRequirementEntity("i","m","Moñera","Implementos",1,false)
+        assertTrue(!frozen.applicable)
+        assertTrue(req.copy(profilesCsv=UniformRules.profilesCsv(UniformRules.PROFILES.toSet())).appliesToProfile("MASCULINO"))
+        assertTrue(!frozen.applicable)
+    }
 }
