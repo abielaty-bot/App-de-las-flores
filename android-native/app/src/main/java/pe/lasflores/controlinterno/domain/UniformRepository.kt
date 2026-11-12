@@ -52,6 +52,8 @@ interface UniformRepository {
     suspend fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String> = UniformRules.PROFILES.toSet())
     suspend fun applyRoleProposal(role:String)
     suspend fun setRequirementActive(id: String, active: Boolean)
+    suspend fun requirementDeletionBlocker(id:String):String?
+    suspend fun deleteUnusedRequirement(id:String,expectedUpdatedAt:Long)
     suspend fun deleteMistakenInspection(dateIso:String,staffId:String,inspectionId:String,expectedUpdatedAt:Long)
     suspend fun finalize(dateIso: String, staffId: String)
     suspend fun correct(dateIso: String, staffId: String, requirementId: String, verifier: String)

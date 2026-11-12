@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import pe.lasflores.controlinterno.domain.UniformDaySnapshot
 import pe.lasflores.controlinterno.domain.UniformRepository
 import pe.lasflores.controlinterno.data.OfflineMaterialRepository
@@ -18,6 +19,12 @@ import pe.lasflores.controlinterno.data.UniformRequirementEntity
 import pe.lasflores.controlinterno.data.MaterialDeliveryEntity
 import pe.lasflores.controlinterno.data.UniformInspectionEntity
 import pe.lasflores.controlinterno.data.UniformEventEntity
+
+data class RequirementDeletionState(
+    val requirement:UniformRequirementEntity?=null,
+    val checking:Boolean=false,
+    val blocker:String?=null
+)
 
 class UniformViewModel(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModel() {
     val history: StateFlow<List<UniformInspectionEntity>> =
@@ -68,6 +75,32 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
     fun applyRoleProposal(role:String)=perform{repository.applyRoleProposal(role)}
     fun setRequirementActive(id: String, active: Boolean) =
         perform { repository.setRequirementActive(id, active) }
+    private val _requirementDeletion=MutableStateFlow(RequirementDeletionState())
+    val requirementDeletion=_requirementDeletion.asStateFlow()
+
+    fun inspectRequirementDeletion(requirement:UniformRequirementEntity){
+        _requirementDeletion.value=RequirementDeletionState(requirement,checking=true)
+        viewModelScope.launch {
+            try{
+                val blocker=repository.requirementDeletionBlocker(requirement.id)
+                if(_requirementDeletion.value.requirement?.id==requirement.id)
+                    _requirementDeletion.value=RequirementDeletionState(requirement,blocker=blocker)
+            }catch(e:CancellationException){throw e}
+            catch(e:Exception){
+                if(_requirementDeletion.value.requirement?.id==requirement.id)
+                    _requirementDeletion.value=RequirementDeletionState(requirement,blocker="No se pudo verificar el historial.")
+            }
+        }
+    }
+    fun dismissRequirementDeletion(){_requirementDeletion.value=RequirementDeletionState()}
+    fun confirmRequirementDeletion(){
+        val state=_requirementDeletion.value
+        val requirement=state.requirement ?: return
+        if(state.checking || state.blocker!=null)return
+        _requirementDeletion.value=RequirementDeletionState()
+        perform("Requisito eliminado"){repository.deleteUnusedRequirement(requirement.id,requirement.updatedAtMillis)}
+    }
+
     fun deliver(staffId: String, dateIso: String, material: String, quantity: Int, reason: String, actor: String) =
         perform { materials.create(staffId, dateIso, material, quantity, reason, actor) }
     fun closeDelivery(id: String, action: String, note: String) =

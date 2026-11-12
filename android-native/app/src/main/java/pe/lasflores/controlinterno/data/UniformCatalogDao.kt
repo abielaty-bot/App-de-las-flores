@@ -14,6 +14,14 @@ interface UniformCatalogDao {
     @Query("SELECT * FROM uniform_requirements WHERE id=:id LIMIT 1")
     suspend fun getRequirement(id: String): UniformRequirementEntity?
     @Upsert suspend fun upsertRequirement(item: UniformRequirementEntity)
+    @Query("""SELECT (SELECT COUNT(*) FROM inspection_requirements WHERE requirementId=:id)
+        + (SELECT COUNT(*) FROM uniform_answers WHERE requirementId=:id)
+        + (SELECT COUNT(*) FROM uniform_events WHERE requirementId=:id)""")
+    suspend fun countRequirementReferences(id:String):Int
+    @Query("SELECT COUNT(*) FROM uniform_requirements")
+    suspend fun countRequirements():Int
+    @Query("DELETE FROM uniform_requirements WHERE id=:id")
+    suspend fun deleteRequirement(id:String):Int
     @Query("DELETE FROM uniform_requirements")
     suspend fun clearRequirements()
     @Query("""SELECT r.* FROM inspection_requirements r
