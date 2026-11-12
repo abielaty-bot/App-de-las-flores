@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import pe.lasflores.controlinterno.data.BriefingAttendanceEntity
 import pe.lasflores.controlinterno.data.OfflineBriefingRepository
 
@@ -41,6 +42,7 @@ class BriefingViewModel(private val repository: OfflineBriefingRepository) : Vie
         viewModelScope.launch {
             _message.value="Guardando…"
             try { block(); _message.value="Guardado automáticamente" }
+            catch(e:CancellationException) { throw e }
             catch(e:Exception) { _message.value="Error: " + (e.message ?: "No se guardaron los cambios") }
         }
     }

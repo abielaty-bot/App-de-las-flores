@@ -1,5 +1,6 @@
 """Smoke test against the signed APKs on a disposable portrait emulator."""
 import re
+import sys
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -30,6 +31,21 @@ def tap(text, last=False):
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
 
+def open_personal():
+    for _ in range(8):
+        adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
+        xml = adb("shell", "cat", "/sdcard/las-flores-window.xml")
+        nodes = list(ET.fromstring(xml).iter("node"))
+        menu = next((n for n in nodes if n.get("content-desc") == "Abrir menú de navegación"), None)
+        if menu is not None:
+            left, top, right, bottom = map(int, re.findall(r"\d+", menu.attrib["bounds"]))
+            adb("shell", "input", "tap", str((left+right)//2), str((top+bottom)//2))
+            tap("Personal", last=True)
+            return
+        time.sleep(1)
+    tap("Personal", last=True)
+
+
 def launch():
     result = adb("shell", "am", "start", "-W", "-n", ACTIVITY)
     if "Status: ok" not in result:
@@ -47,20 +63,33 @@ def main():
     adb("shell", "wm", "density", "320")
     install("android-native/dist/previous/las-flores-beta.apk")
     launch()
-    tap("Personal", last=True)
+    code = 40021 if "android-beta-v40021" in sys.argv else 40008
+    if code == 40021:
+        open_personal()
+    else:
+        tap("Personal", last=True)
     tap("+ Agregar trabajador")
     tap("Nombre completo")
     adb("shell", "input", "text", TEST_NAME.replace(" ", "%s"))
     adb("shell", "input", "keyevent", "4")
     tap("Guardar")
     find_text(TEST_NAME)
-    print("Registro de prueba creado en 4.0007", flush=True)
+    print("Registro de prueba creado antes de actualizar", flush=True)
 
     install("-r", "android-native/dist/las-flores-beta.apk")
     package_info = adb("shell", "dumpsys", "package", PACKAGE)
-    if not re.search(r"\bversionCode=40008\b", package_info):
-        raise RuntimeError("Android no instaló 4.0008")
+    if not re.search(rf"\bversionCode={code}\b", package_info):
+        raise RuntimeError(f"Android no instaló {code}")
     launch()
+    if code == 40021:
+        open_personal()
+        find_text(TEST_NAME)
+        adb("shell", "am", "force-stop", PACKAGE)
+        launch()
+        open_personal()
+        find_text(TEST_NAME)
+        print("Registro conservado tras actualizar y reiniciar la app", flush=True)
+        return
     find_text("Gestión de Personal")
     tap("Personal", last=True)
     find_text(TEST_NAME)

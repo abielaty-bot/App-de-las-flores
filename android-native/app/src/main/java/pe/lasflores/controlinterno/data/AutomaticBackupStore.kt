@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-data class RecoveryCopy(val name:String,val timestamp:Long,val size:Long){
+data class RecoveryCopy(val name:String,val timestamp:Long,val size:Long, val records:Int?=null){
     val beforeUpdate:Boolean get()=name=="before-update.json"
 }
 data class RecoveryStatus(val copies:List<RecoveryCopy> = emptyList(),val busy:Boolean=false,val error:Boolean=false,val message:String="Preparando protección local…")
@@ -27,8 +27,12 @@ class AutomaticBackupStore(context:Context,private val manager:OfflineBackupMana
         it.isFile && (it.name=="before-update.json" || BackupRetention.isDaily(it.name))
     }?.sortedByDescending{it.lastModified()} ?: emptyList()
     private fun copies()=files().map{RecoveryCopy(it.name,it.lastModified(),it.length())}
+    private fun count(p:BackupPreview)=p.people+p.inspections+p.briefings+p.functionChecks+p.incidents+p.deliveries+p.phoneChecks
+    private fun rememberVerified(copy:RecoveryCopy):List<RecoveryCopy> = copies().map{
+        if(it.name==copy.name)copy else _state.value.copies.firstOrNull{old->old.name==it.name && old.timestamp==it.timestamp && old.size==it.size} ?: it
+    }
     suspend fun refresh()=withContext(Dispatchers.IO){mutex.withLock{
-        _state.value=_state.value.copy(copies=copies())
+        _state.value=_state.value.copy(copies=copies().map{copy->_state.value.copies.firstOrNull{it.name==copy.name && it.timestamp==copy.timestamp && it.size==copy.size} ?: copy})
     }}
     suspend fun daily(refreshToday:Boolean=false)=save("daily-"+LocalDate.now()+".json",refreshToday)
     suspend fun beforeUpdate()=save("before-update.json",true)
@@ -40,12 +44,13 @@ class AutomaticBackupStore(context:Context,private val manager:OfflineBackupMana
                 val path=File(directory,name)
                 val atomic=AtomicFile(path)
                 if(!replace && path.isFile){
-                    val valid=runCatching{
+                    val validated=runCatching{
                         manager.preview(atomic.openRead().use{it.readBytes().toString(Charsets.UTF_8)})
-                    }.isSuccess
-                    if(valid){
-                        _state.value=RecoveryStatus(copies(),message="Copia diaria disponible")
-                        return@withLock RecoveryCopy(name,path.lastModified(),path.length())
+                    }.getOrNull()
+                    if(validated!=null){
+                        val copy=RecoveryCopy(name,path.lastModified(),path.length(),count(validated))
+                        _state.value=RecoveryStatus(rememberVerified(copy),message="Copia diaria disponible")
+                        return@withLock copy
                     }
                 }
                 val json=manager.exportJson()
@@ -61,10 +66,11 @@ class AutomaticBackupStore(context:Context,private val manager:OfflineBackupMana
                 }
                 val saved=atomic.openRead().use{it.readBytes()}
                 check(saved.contentEquals(bytes)){"La copia no coincide con los datos guardados"}
-                manager.preview(saved.toString(Charsets.UTF_8))
+                val verified=manager.preview(saved.toString(Charsets.UTF_8))
                 BackupRetention.expired(files().map{it.name}).forEach{AtomicFile(File(directory,it)).delete()}
-                _state.value=RecoveryStatus(copies(),message="Copia verificada y guardada")
-                RecoveryCopy(name,path.lastModified(),path.length())
+                val copy=RecoveryCopy(name,path.lastModified(),path.length(),count(verified))
+                _state.value=RecoveryStatus(rememberVerified(copy),message="Copia verificada y guardada")
+                copy
             }catch(e:CancellationException){
                 _state.value=RecoveryStatus(copies(),message="Copia interrumpida; se reintentará")
                 throw e

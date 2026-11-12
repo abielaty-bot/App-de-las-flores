@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -99,6 +99,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40018
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40020" ]]; then
             PREVIOUS_TAG=android-beta-v40019
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40021" ]]; then
+            PREVIOUS_TAG=android-beta-v40020
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -112,20 +114,20 @@ jobs:
           test "$PREVIOUS_CERT" = "$NEW_CERT"
           rm -f "$LF_KEYSTORE_PATH"
       - name: Habilitar KVM para la prueba de actualización
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Probar la actualización firmada en Android
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: python3 android-native/ci/check_portrait_upgrade.py
+          script: python3 android-native/ci/check_portrait_upgrade.py "$LF_RELEASE_TAG"
       - name: Publicar en GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
@@ -167,6 +169,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40020" ]]; then
               NOTES=$(printf '%s\n' '## Eliminar una revisión de uniformes creada por error' '- Desde Inspecciones o Historial, incluso revisiones finalizadas: Eliminar revisión errónea.' '- Confirma nombre, fecha, puesto y resultado. Solo elimina esa inspección, sus respuestas, requisitos congelados y eventos; otros días permanecen intactos.' '- Los resultados y las estadísticas dejan de incluir la revisión borrada.' '- Después puedes eliminar la ficha en Personal si no tiene otros registros vinculados (protección de 4.0019).' '- Room v11 y respaldo JSON v10 sin cambios. Incluye todas las mejoras anteriores.' 'Antes de actualizar o eliminar, exporta una copia desde Respaldos. No desinstales la aplicación.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40021" ]]; then
+              NOTES=$(printf '%s\n' '## Persistencia y seguridad' '- Room guarda los registros sin exportar JSON; indicadores de guardado y errores para Personal, Uniformes, Briefings, Celulares, Funciones e Incidentes.' '- Copias internas diarias, siete fechas y una copia independiente verificada antes de futuras actualizaciones.' '- Centro de almacenamiento y recuperación con confirmación. Conserva el respaldo externo.' '- Room v11, JSON v10 sin cambio de esquema. Antes de instalar esta primera versión, exporta una copia y actualiza sin desinstalar.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

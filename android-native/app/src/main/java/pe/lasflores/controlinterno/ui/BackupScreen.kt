@@ -161,7 +161,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                             .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
                         Text((if(copy.beforeUpdate)"Antes de actualizar" else "Copia diaria") + " · " + date,
                             fontWeight=FontWeight.SemiBold)
-                        Text("Tamaño: "+(copy.size/1024)+" KB",style=MaterialTheme.typography.bodySmall)
+                        Text("Tamaño: "+(copy.size/1024)+" KB"+(copy.records?.let{" · "+it+" registros principales"}?:""),style=MaterialTheme.typography.bodySmall)
                         OutlinedButton(enabled=!working && !protection.busy,modifier=Modifier.fillMaxWidth(),onClick={
                             scope.launch{
                                 working=true
