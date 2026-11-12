@@ -34,7 +34,8 @@ internal fun SettingsScreen(
     darkTheme: Boolean,
     onModeChange: (LasFloresThemeMode) -> Unit,
     onOpenBackups: () -> Unit,
-    briefingVm: BriefingViewModel
+    briefingVm: BriefingViewModel,
+    onOpenNotifications:()->Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -119,6 +120,13 @@ internal fun SettingsScreen(
             }
         }
         BriefingDefaultTimesCard(briefingVm)
+        Card(Modifier.fillMaxWidth()){
+            Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                Text("Jornada y notificaciones",style=MaterialTheme.typography.titleMedium)
+                Text("Horarios, recordatorios, descanso, avisos y permisos Android.")
+                OutlinedButton(onClick=onOpenNotifications,modifier=Modifier.fillMaxWidth()){Text("Configurar recordatorios")}
+            }
+        }
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {

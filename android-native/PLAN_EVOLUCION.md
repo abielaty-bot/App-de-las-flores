@@ -17,13 +17,14 @@ Base publicada: 4.0014 (Personal, Uniformes y menú). No desinstalar la aplicaci
 - [x] Migración Room v8→v9, respaldo v7, reportes y pruebas de regresión.
 - [x] CI y publicación de APK firmada; prueba visual/funcional en tablet pendiente.
 
-## Entrega 4 — Recordatorios y notificaciones
-- [ ] Jornada, descanso, horario silencioso; recordatorios personalizados, recurrentes y únicos.
-- [ ] Permisos, canales, alarmas, reinicio, cambios de sesión, posponer, abrir módulo/fecha, aviso de prueba, respaldo.
-
-## Entrega 5 — Mi jornada
-- [ ] Próxima actividad, progreso, pendientes inteligentes, historial de avisos.
-- [ ] Integrar Uniformes, Funciones, Briefings, Incidentes y tareas manuales. Descartar notificación no completa tarea.
+## Entregas 4–5 — Recordatorios y Mi jornada (4.0016, candidata)
+- [x] Jornada, descanso, horario silencioso; recordatorios personalizados, recurrentes, únicos y plantillas editables.
+- [x] Permisos, canales, alarmas exactas si autorizadas, aproximadas en caso contrario; reinicio, cambios de sesión, posponer, abrir módulo/fecha/sesión y aviso de prueba.
+- [x] Mi jornada: próxima actividad, progreso, pendientes, vencidos, completados, campana, historial de avisos.
+- [x] Integración con Uniformes, Funciones, Briefings, Incidentes y tareas manuales. Descartar notificación no completa tarea.
+- [x] Room 9→10, respaldo JSON v8, reportes de actividades persistidas y avisos.
+- [ ] Compilación, pruebas de permisos y reinicio en tablet, publicación firmada.
+- Las alarmas se activan explícitamente en Ajustes. Los avisos antiguos no se envían en masa; los pendientes permanecen en Mi jornada. Las tareas de ventas y abastecimiento siguen siendo manuales hasta tener sus propios módulos.
 
 ## Entrega 6 — Actualizaciones (adelantada a 4.0015, candidata)
 - [x] Bytes reales, porcentaje, velocidad suavizada, tiempo transcurrido/estimado, tamaño y fecha de publicación.
@@ -35,5 +36,5 @@ Base publicada: 4.0014 (Personal, Uniformes y menú). No desinstalar la aplicaci
 
 ## Compatibilidad
 - No reescribir inspecciones ni asistencias anteriores. La aplicabilidad histórica anterior a v9 permanece como originalmente registrada.
-- El formato JSON v7 se restaura en Android compatible; las versiones antiguas no pueden leerlo. El convertidor Web todavía no admite v6/v7 y debe bloquear fusiones incompatibles hasta actualizarse.
+- El formato JSON v8 se restaura en Android compatible; las versiones antiguas no pueden leerlo. El convertidor Web todavía no admite v6/v7/v8 y debe bloquear fusiones incompatibles hasta actualizarse.
 - Probar con datos sintéticos, restauración y actualización firmada antes de publicar. No publicar información privada de trabajadores.

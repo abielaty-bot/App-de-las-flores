@@ -12,6 +12,7 @@ import pe.lasflores.controlinterno.domain.UniformRules
 import pe.lasflores.controlinterno.domain.BriefingRules
 import pe.lasflores.controlinterno.domain.FunctionRules
 import pe.lasflores.controlinterno.domain.IncidentRules
+import pe.lasflores.controlinterno.domain.JourneyRules
 import android.util.Base64
 import java.io.File
 
@@ -34,7 +35,10 @@ data class BackupPreview(
     val incidentTypes: Int = 0,
     val incidents: Int = 0,
     val incidentActions: Int = 0,
-    val formatVersion: Int = 7
+    val formatVersion: Int = 8,
+    val reminders: Int = 0,
+    val journeyOccurrences: Int = 0,
+    val journeyNotifications: Int = 0
 )
 
 /**
@@ -74,6 +78,10 @@ class OfflineBackupManager(
         val incidentTypes: List<IncidentTypeEntity>,
         val incidents: List<IncidentEntity>,
         val incidentActions: List<IncidentActionEntity>,
+        val journeyPreferences: List<JourneyPreferencesEntity>,
+        val journeyReminders: List<JourneyReminderEntity>,
+        val journeyOccurrences: List<JourneyOccurrenceEntity>,
+        val journeyNotifications: List<JourneyNotificationEntity>,
         val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
@@ -82,7 +90,7 @@ class OfflineBackupManager(
             briefingAttendance.size, briefingSessions.size, briefingEvents.size,
             functionTasks.size, functionChecks.size, functionEvidence.size, functionEvents.size,
             incidentTypes.size, incidents.size, incidentActions.size,
-            formatVersion
+            formatVersion,journeyReminders.size,journeyOccurrences.size,journeyNotifications.size
         )
     }
 
@@ -147,7 +155,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 7,
+            "app" to "lasflores-android", "formatVersion" to 8,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         // Conserva el JSON Web sin modificar para poder auditar campos históricos
@@ -291,6 +299,24 @@ class OfflineBackupManager(
             "statusAfter" to x.statusAfter,"confirmedOrigin" to x.confirmedOrigin,
             "assignedStaffId" to x.assignedStaffId
         ) })
+        val journey=database.journeyDao()
+        root.put("journeyPreferences",arr(journey.allPreferences()){x->obj(
+            "id" to x.id,"enabled" to x.enabled,"startTime" to x.startTime,"endTime" to x.endTime,
+            "workingDaysMask" to x.workingDaysMask,"briefingLead" to x.briefingLead,
+            "uniformsTime" to x.uniformsTime,"informTime" to x.informTime,"functionsTime" to x.functionsTime,
+            "summaryTime" to x.summaryTime,"quietEnabled" to x.quietEnabled,"quietStart" to x.quietStart,"quietEnd" to x.quietEnd,
+            "briefingAlerts" to x.briefingAlerts,"uniformAlerts" to x.uniformAlerts,"functionAlerts" to x.functionAlerts,
+            "summaryAlerts" to x.summaryAlerts,"incidentAlerts" to x.incidentAlerts)})
+        root.put("journeyReminders",arr(journey.allReminders()){x->obj(
+            "id" to x.id,"title" to x.title,"startDateIso" to x.startDateIso,"time" to x.time,"recurrence" to x.recurrence,
+            "daysMask" to x.daysMask,"leadMinutes" to x.leadMinutes,"workdaysOnly" to x.workdaysOnly,"priority" to x.priority,
+            "module" to x.module,"enabled" to x.enabled,"updatedAtMillis" to x.updatedAtMillis)})
+        root.put("journeyOccurrences",arr(journey.allOccurrences()){x->obj(
+            "taskKey" to x.taskKey,"dateIso" to x.dateIso,"dueAtMillis" to x.dueAtMillis,"completedAtMillis" to x.completedAtMillis,
+            "snoozedUntilMillis" to x.snoozedUntilMillis,"lastNotifiedAtMillis" to x.lastNotifiedAtMillis,"notificationCount" to x.notificationCount)})
+        root.put("journeyNotifications",arr(journey.allNotifications()){x->obj(
+            "id" to x.id,"taskKey" to x.taskKey,"dateIso" to x.dateIso,"title" to x.title,"body" to x.body,
+            "module" to x.module,"sessionSlot" to x.sessionSlot,"atMillis" to x.atMillis,"readAtMillis" to x.readAtMillis)})
         root.toString(2)
     }
 
@@ -321,6 +347,7 @@ class OfflineBackupManager(
             val currentBase = JSONObject(previous)
             normalizeOldBriefings(originalBase)
             normalizeOldUniformProfiles(originalBase)
+            normalizeOldJourney(originalBase)
             originalBase.remove("exportedAtMillis")
             currentBase.remove("exportedAtMillis")
             require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
@@ -345,6 +372,8 @@ class OfflineBackupManager(
         try {
             archiveWrite(archive)
             database.withWriteTransaction<Unit> {
+            val journey=database.journeyDao()
+            journey.clearNotifications();journey.clearOccurrences();journey.clearReminders();journey.clearPreferences()
             incidentDao.clearActions()
             incidentDao.clearIncidents()
             incidentDao.clearTypes()
@@ -387,6 +416,10 @@ class OfflineBackupManager(
             payload.incidentTypes.forEach { incidentDao.upsertType(it) }
             payload.incidents.forEach { incidentDao.upsertIncident(it) }
             payload.incidentActions.forEach { incidentDao.upsertAction(it) }
+            payload.journeyPreferences.forEach{journey.savePreferences(it)}
+            payload.journeyReminders.forEach{journey.saveReminder(it)}
+            payload.journeyOccurrences.forEach{journey.saveOccurrence(it)}
+            payload.journeyNotifications.forEach{journey.saveNotification(it)}
             }
         } catch (error: Exception) {
             runCatching { archiveWrite(formerArchive) }
@@ -456,6 +489,12 @@ class OfflineBackupManager(
         root.put("formatVersion",7)
     }
 
+    private fun normalizeOldJourney(root:JSONObject){
+        if(root.optInt("formatVersion",0)!=7)return
+        listOf("journeyPreferences","journeyReminders","journeyOccurrences","journeyNotifications").forEach{root.put(it,JSONArray())}
+        root.put("formatVersion",8)
+    }
+
     private fun decode(text: String): Payload {
         require(text.toByteArray(Charsets.UTF_8).size <= 30 * 1024 * 1024) {
             "El archivo supera 30 MB."
@@ -477,11 +516,12 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..7) {
+        require(version in 1..8) {
             "Formato de respaldo Android incompatible."
         }
         normalizeOldBriefings(root)
         normalizeOldUniformProfiles(root)
+        normalizeOldJourney(root)
 
         val data = Payload(
             staff = rows(root, "staff") { x -> StaffEntity(
@@ -658,6 +698,22 @@ class OfflineBackupManager(
                     assignedStaffId=x.getString("assignedStaffId")
                 )
             } else emptyList(),
+            journeyPreferences=if(version>=3)rows(root,"journeyPreferences"){x->JourneyPreferencesEntity(
+                x.getInt("id"),x.getBoolean("enabled"),x.getString("startTime"),x.getString("endTime"),
+                x.getInt("workingDaysMask"),x.getInt("briefingLead"),x.getString("uniformsTime"),x.getString("informTime"),
+                x.getString("functionsTime"),x.getString("summaryTime"),x.getBoolean("quietEnabled"),x.getString("quietStart"),
+                x.getString("quietEnd"),x.getBoolean("briefingAlerts"),x.getBoolean("uniformAlerts"),x.getBoolean("functionAlerts"),
+                x.getBoolean("summaryAlerts"),x.getBoolean("incidentAlerts"))}else emptyList(),
+            journeyReminders=if(version>=3)rows(root,"journeyReminders"){x->JourneyReminderEntity(
+                x.getString("id"),x.getString("title"),x.getString("startDateIso"),x.getString("time"),x.getString("recurrence"),
+                x.getInt("daysMask"),x.getInt("leadMinutes"),x.getBoolean("workdaysOnly"),x.getString("priority"),
+                x.getString("module"),x.getBoolean("enabled"),x.getLong("updatedAtMillis"))}else emptyList(),
+            journeyOccurrences=if(version>=3)rows(root,"journeyOccurrences"){x->JourneyOccurrenceEntity(
+                x.getString("taskKey"),x.getString("dateIso"),x.getLong("dueAtMillis"),nullableLong(x,"completedAtMillis"),
+                nullableLong(x,"snoozedUntilMillis"),nullableLong(x,"lastNotifiedAtMillis"),x.getInt("notificationCount"))}else emptyList(),
+            journeyNotifications=if(version>=3)rows(root,"journeyNotifications"){x->JourneyNotificationEntity(
+                x.getString("id"),x.getString("taskKey"),x.getString("dateIso"),x.getString("title"),x.getString("body"),
+                x.getString("module"),if(x.isNull("sessionSlot"))null else x.getInt("sessionSlot"),x.getLong("atMillis"),nullableLong(x,"readAtMillis"))}else emptyList(),
             formatVersion = version
         )
         validate(data)
@@ -695,6 +751,21 @@ class OfflineBackupManager(
     }
 
     private fun validate(data: Payload) {
+        unique(data.journeyPreferences,"preferencias de jornada"){it.id}
+        unique(data.journeyReminders,"recordatorios"){it.id}
+        unique(data.journeyOccurrences,"actividades de jornada"){it.taskKey}
+        unique(data.journeyNotifications,"avisos de jornada"){it.id}
+        require(data.journeyPreferences.size<=1&&data.journeyPreferences.all(JourneyRules::validPreferences)){"Preferencias de jornada inválidas."}
+        require(data.journeyReminders.size<=500&&data.journeyReminders.all(JourneyRules::validReminder)){"Recordatorios inválidos."}
+        require(data.journeyOccurrences.all{
+            it.taskKey.isNotBlank()&&it.taskKey.length<=250&&StaffScheduleRules.parseDate(it.dateIso).toString()==it.dateIso&&
+                it.dueAtMillis>0&&it.notificationCount in 0..1000
+        }){"Actividades de jornada inválidas."}
+        require(data.journeyNotifications.all{
+            it.id.isNotBlank()&&it.taskKey.isNotBlank()&&it.taskKey.length<=250&&it.title.length in 1..200&&it.body.length<=1000&&
+                it.module in JourneyRules.MODULES&&StaffScheduleRules.parseDate(it.dateIso).toString()==it.dateIso&&
+                (it.sessionSlot==null||BriefingRules.validSlot(it.sessionSlot))&&it.atMillis>0
+        }){"Historial de notificaciones inválido."}
         unique(data.staff, "personal") { it.id }
         unique(data.vacations, "vacaciones") { it.id }
         unique(data.overrides, "programación diaria") { it.dateIso to it.staffId }

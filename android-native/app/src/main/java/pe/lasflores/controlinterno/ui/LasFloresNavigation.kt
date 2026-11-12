@@ -56,6 +56,7 @@ private val destinations=listOf(
     AppDestination("funciones","Funciones",R.drawable.ic_lf_funciones),
     AppDestination("incidentes","Incidentes",R.drawable.ic_lf_incidentes),
     AppDestination("reportes","Reportes",R.drawable.ic_lf_reportes),
+    AppDestination("notifications","Notificaciones",R.drawable.ic_lf_bell),
     AppDestination("backups","Respaldos",R.drawable.ic_lf_backups),
     AppDestination("settings","Configuración",R.drawable.ic_lf_settings),
     AppDestination("updates","Actualizaciones",R.drawable.ic_lf_updates)
@@ -64,7 +65,7 @@ private val destinations=listOf(
 /** Cajón modal: cerrado no ocupa anchura; el contenido no se desmonta al abrirlo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,content:@Composable ()->Unit) {
+internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNotifications:Int=0,content:@Composable ()->Unit) {
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     val title=destinations.firstOrNull{it.id==screen}?.title?:"Las Flores"
@@ -111,6 +112,11 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,content:@
                                 drawLine(ink,Offset(w*0.12f,h*0.82f),Offset(w*0.88f,h*0.82f),strokeWidth=2.dp.toPx())
                             }
                         }
+                    },actions={
+                        IconButton(onClick={onNavigate("notifications")},modifier=Modifier.semantics{contentDescription="Notificaciones: "+unreadNotifications+" sin leer"}){
+                            Icon(painterResource(R.drawable.ic_lf_bell),contentDescription=null,tint=MaterialTheme.colorScheme.tertiary)
+                        }
+                        if(unreadNotifications>0)Text(unreadNotifications.coerceAtMost(99).toString(),style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(end=8.dp))
                     },colors=TopAppBarDefaults.topAppBarColors(
                         containerColor=MaterialTheme.colorScheme.surface,titleContentColor=MaterialTheme.colorScheme.onSurface))
                 }) { padding ->

@@ -14,7 +14,12 @@ import kotlinx.coroutines.launch
 import pe.lasflores.controlinterno.data.BriefingAttendanceEntity
 import pe.lasflores.controlinterno.data.OfflineBriefingRepository
 
+data class BriefingOpenRequest(val date:String,val slot:Int?,val pending:Boolean)
 class BriefingViewModel(private val repository: OfflineBriefingRepository) : ViewModel() {
+    private val _openRequest=MutableStateFlow<BriefingOpenRequest?>(null)
+    val openRequest=_openRequest.asStateFlow()
+    fun openFromJourney(date:String,slot:Int?,pending:Boolean){setDay(date);_openRequest.value=BriefingOpenRequest(date,slot,pending)}
+    fun consumeOpenRequest(){_openRequest.value=null}
     private val _day=MutableStateFlow(LocalDate.now().toString())
     val day:StateFlow<String> = _day.asStateFlow()
     val dayRecords:StateFlow<List<BriefingAttendanceEntity>> = day.flatMapLatest(repository::observeDay)
