@@ -41,6 +41,8 @@ import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.data.StaffVacationEntity
 import pe.lasflores.controlinterno.data.UniformInspectionEntity
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
+import pe.lasflores.controlinterno.journey.JourneyEngine
+import pe.lasflores.controlinterno.journey.JourneyNavigation
 
 /** Los indicadores nunca deducen faltas a partir de registros ausentes. */
 internal data class DashboardStats(
@@ -102,6 +104,8 @@ internal fun DashboardScreen(
     briefingVm:BriefingViewModel,
     functionVm:FunctionViewModel,
     incidentVm:IncidentViewModel,
+    journey:JourneyEngine,
+    onJourneyOpen:(JourneyNavigation)->Unit,
     onOpen:(String)->Unit
 ) {
     val vacations by staffVm.vacations.collectAsState()
@@ -153,6 +157,7 @@ internal fun DashboardScreen(
                 }
             }
         }
+        item { JourneyDashboardCard(journey,onJourneyOpen,{onOpen("notifications")}) }
         item {
             Text("Resumen operativo",
                 style=MaterialTheme.typography.titleLarge)

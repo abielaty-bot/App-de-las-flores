@@ -28,6 +28,8 @@ import pe.lasflores.controlinterno.data.OfflineBackupManager
 import pe.lasflores.controlinterno.report.ReportRepository
 import pe.lasflores.controlinterno.update.UpdateScreen
 import pe.lasflores.controlinterno.update.UpdateViewModel
+import pe.lasflores.controlinterno.journey.JourneyEngine
+import pe.lasflores.controlinterno.journey.JourneyNavigation
 
 /** Raíz visual: no modifica ningún repositorio, función de negocio ni base de datos. */
 @Composable
@@ -40,10 +42,25 @@ fun LasFloresScreen(
     updateVm:UpdateViewModel,
     backupManager:OfflineBackupManager,
     reportRepository:ReportRepository,
-    openUpdates:Int=0
+    openUpdates:Int=0,
+    journey:JourneyEngine,
+    journeyRoute:JourneyNavigation?=null
 ) {
     var screen by rememberSaveable{mutableStateOf("inicio")}
     LaunchedEffect(openUpdates){if(openUpdates>0)screen="updates"}
+    val journeyState by journey.state.collectAsState()
+    var requestedDate by remember{mutableStateOf<JourneyNavigation?>(null)}
+    val openJourney:(JourneyNavigation)->Unit={route->
+        when(route.module){
+            "briefings"->briefingVm.openFromJourney(route.dateIso,route.sessionSlot,route.taskKey.startsWith("inform:"))
+            "uniformes"->uniformVm.setDate(route.dateIso)
+            "funciones"->functionVm.setDate(route.dateIso)
+            "personal","reportes"->requestedDate=route
+        }
+        if(route.notificationId.isNotBlank())journey.read(route.notificationId)
+        screen=route.module
+    }
+    LaunchedEffect(journeyRoute?.nonce){journeyRoute?.let(openJourney)}
     val holder=rememberSaveableStateHolder()
     val people by vm.staff.collectAsState()
     val personalStatus by vm.saveState.collectAsState()
@@ -106,7 +123,7 @@ fun LasFloresScreen(
         typography=LasFloresTypography,
         shapes=LasFloresShapes
     ) {
-        LasFloresAppShell(screen=screen,onNavigate={screen=it}) {
+        LasFloresAppShell(screen=screen,onNavigate={screen=it},unreadNotifications=journeyState.notifications.count{it.readAtMillis==null}) {
             val message=when(screen) {
                 "personal"->personalStatus
                 "uniformes"->uniformStatus
@@ -131,13 +148,14 @@ fun LasFloresScreen(
                 }
                 holder.SaveableStateProvider(screen) {
                     when(screen) {
-                        "personal"->StaffManagementScreen(people,vm)
+                        "personal"->StaffManagementScreen(people,vm,requestedDate?.takeIf{it.module=="personal"}?.dateIso,{requestedDate=null})
                         "uniformes"->UniformScreen(people,uniformVm,vm)
                         "briefings"->BriefingScreen(briefingVm,vm)
                         "funciones"->FunctionScreen(functionVm,vm)
                         "incidentes"->IncidentScreen(incidentVm,vm)
-                        "reportes"->ReportScreen(reportRepository,vm)
+                        "reportes"->ReportScreen(reportRepository,vm,requestedDate?.takeIf{it.module=="reportes"}?.dateIso,{requestedDate=null})
                         "backups"->BackupScreen(backupManager)
+                        "notifications"->JourneyScreen(journey,openJourney,{screen="updates"})
                         "settings"->SettingsScreen(
                             mode=themeMode,
                             darkTheme=darkTheme,
@@ -146,11 +164,12 @@ fun LasFloresScreen(
                                 store.write(selected)
                             },
                             onOpenBackups={screen="backups"},
-                            briefingVm=briefingVm
+                            briefingVm=briefingVm,
+                            onOpenNotifications={screen="notifications"}
                         )
                         "updates"->UpdateScreen(updateVm)
                         else->DashboardScreen(people,vm,uniformVm,
-                            briefingVm,functionVm,incidentVm){screen=it}
+                            briefingVm,functionVm,incidentVm,journey,openJourney){screen=it}
                     }
                 }
             }

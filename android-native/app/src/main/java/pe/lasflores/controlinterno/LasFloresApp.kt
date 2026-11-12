@@ -12,6 +12,8 @@ import pe.lasflores.controlinterno.data.MIGRATION_5_6
 import pe.lasflores.controlinterno.data.MIGRATION_6_7
 import pe.lasflores.controlinterno.data.MIGRATION_7_8
 import pe.lasflores.controlinterno.data.MIGRATION_8_9
+import pe.lasflores.controlinterno.data.MIGRATION_9_10
+import pe.lasflores.controlinterno.journey.JourneyEngine
 import pe.lasflores.controlinterno.data.OfflineIncidentRepository
 import pe.lasflores.controlinterno.report.ReportRepository
 import pe.lasflores.controlinterno.data.OfflineFunctionRepository
@@ -24,10 +26,12 @@ import pe.lasflores.controlinterno.domain.StaffRepository
 import pe.lasflores.controlinterno.domain.UniformRepository
 
 class LasFloresApp : Application() {
+    val journey by lazy { JourneyEngine(this,database) }
+    override fun onCreate(){super.onCreate();journey.start()}
     val database: LasFloresDatabase by lazy {
         Room.databaseBuilder<LasFloresDatabase>(applicationContext, "las_flores_control_interno.db")
             .setDriver(AndroidSQLiteDriver())
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .build()
     }
     val backupManager: OfflineBackupManager by lazy {

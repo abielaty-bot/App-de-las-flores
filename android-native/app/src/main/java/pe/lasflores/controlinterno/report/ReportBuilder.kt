@@ -46,7 +46,10 @@ data class ReportSnapshot(
     val deliveries: List<MaterialDeliveryEntity> = emptyList(),
     val vacations: List<StaffVacationEntity> = emptyList(),
     val overrides: List<StaffDayOverrideEntity> = emptyList(),
-    val inspectionSnapshots: List<InspectionRequirementEntity> = emptyList()
+    val inspectionSnapshots: List<InspectionRequirementEntity> = emptyList(),
+    val journeyReminders:List<JourneyReminderEntity> = emptyList(),
+    val journeyOccurrences:List<JourneyOccurrenceEntity> = emptyList(),
+    val journeyNotifications:List<JourneyNotificationEntity> = emptyList()
 )
 
 data class ReportCounts(

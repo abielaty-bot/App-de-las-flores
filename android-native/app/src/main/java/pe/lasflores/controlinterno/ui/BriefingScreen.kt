@@ -65,6 +65,7 @@ fun BriefingScreen(vm:BriefingViewModel, staffVm:StaffViewModel) {
     val history by vm.history.collectAsState()
     val events by vm.events.collectAsState()
     val message by vm.message.collectAsState()
+    val request by vm.openRequest.collectAsState()
     var section by rememberSaveable { mutableStateOf("registro") }
     var selected by rememberSaveable(date) { mutableStateOf<Int?>(null) }
     val daily=sessions.filter{it.dateIso==date}.sortedWith(compareBy({it.scheduledTime},{it.groupHour}))
@@ -77,6 +78,16 @@ fun BriefingScreen(vm:BriefingViewModel, staffVm:StaffViewModel) {
     LaunchedEffect(date,daily.map{it.groupHour}) {
         if(selected==null || daily.none{it.groupHour==selected})
             selected=daily.firstOrNull{it.status!="CANCELADO"}?.groupHour ?: daily.firstOrNull()?.groupHour
+    }
+    LaunchedEffect(request,date,daily.map{it.groupHour}){
+        val r=request
+        if(r!=null&&r.date==date){
+            section=if(r.pending)"pendientes" else "registro"
+            if(r.slot==null||daily.any{it.groupHour==r.slot}){
+                if(r.slot!=null)selected=r.slot
+                vm.consumeOpenRequest()
+            }
+        }
     }
     Column(Modifier.fillMaxSize()) {
         SectionControls(listOf("registro" to "Registro","pendientes" to "Por informar",

@@ -47,12 +47,13 @@ import pe.lasflores.controlinterno.ui.ErrorReportText
 import pe.lasflores.controlinterno.ui.LocalErrorReporter
 
 @Composable
-fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel) {
+fun ReportScreen(repository:ReportRepository,staffVm:StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={}) {
     val people by staffVm.staff.collectAsState()
     val scope=rememberCoroutineScope()
     val context=LocalContext.current
     var periodName by rememberSaveable {mutableStateOf(ReportPeriod.WEEK.name)}
     var dateText by rememberSaveable {mutableStateOf(LocalDate.now().toString())}
+    LaunchedEffect(openDate){if(openDate!=null){dateText=openDate;onDateOpened()}}
     var workerId by rememberSaveable {mutableStateOf<String?>(null)}
     var preview by remember {mutableStateOf<ReportCounts?>(null)}
     var message by remember {mutableStateOf("Selecciona período y trabajador para preparar el reporte.")}

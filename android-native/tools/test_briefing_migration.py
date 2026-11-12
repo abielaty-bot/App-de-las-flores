@@ -65,5 +65,22 @@ class BriefingMigrationTest(unittest.TestCase):
         self.assertEqual(db.execute("SELECT applicable FROM inspection_requirements").fetchone()[0],1)
         db.close()
 
+    def test_journey_migration_only_adds_new_tables(self):
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE staff (id TEXT PRIMARY KEY, fullName TEXT)")
+        db.execute("INSERT INTO staff VALUES ('p','Prueba')")
+        db.execute("CREATE TABLE uniform_inspections (id TEXT PRIMARY KEY, initialResult TEXT)")
+        db.execute("INSERT INTO uniform_inspections VALUES ('i','OBSERVADO')")
+        for sql in sql_for("MIGRATION_9_10"):
+            db.execute(sql)
+        self.assertEqual(db.execute("SELECT * FROM staff").fetchall(),[("p","Prueba")])
+        self.assertEqual(db.execute("SELECT * FROM uniform_inspections").fetchall(),[("i","OBSERVADO")])
+        for table in ("journey_preferences","journey_reminders","journey_occurrences","journey_notifications"):
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM "+table).fetchone()[0],0)
+        db.execute("INSERT INTO journey_occurrences VALUES ('manual-x:2026-11-12','2026-11-12',10,NULL,NULL,NULL,0)")
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO journey_occurrences VALUES ('manual-x:2026-11-12','2026-11-12',10,NULL,NULL,NULL,0)")
+        db.close()
+
 if __name__=="__main__":
     unittest.main()

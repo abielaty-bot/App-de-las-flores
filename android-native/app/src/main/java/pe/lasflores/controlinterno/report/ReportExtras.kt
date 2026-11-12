@@ -185,6 +185,24 @@ object ReportExtras {
                 .thenBy{it[0].toString()})
         }
 
+        val journeySheets=if(sel.staffId==null){
+            val logs=snapshot.journeyNotifications.filter{sel.includes(it.dateIso)}.sortedBy{it.atMillis}
+            val occurrences=snapshot.journeyOccurrences.filter{sel.includes(it.dateIso)}
+            val titles=snapshot.journeyReminders.associateBy{it.id}
+            val output=mutableListOf<ExcelSheet>()
+            if(logs.isNotEmpty())output.add(sheet("Avisos jornada","Avisos emitidos; leer no equivale a cumplir",
+                listOf("Fecha actividad","Actividad","Módulo","Detalle","Emitido","Leído"),
+                logs.map{listOf(it.dateIso,it.title,it.module,it.body,timestamp(it.atMillis),timestamp(it.readAtMillis))}))
+            if(occurrences.isNotEmpty())output.add(sheet("Actividades jornada","Estados persistidos; los módulos automáticos se verifican en sus hojas",
+                listOf("Fecha","Actividad","Clave","Aviso previsto","Compleción manual","Pospuesto","Último aviso","Avisos"),
+                occurrences.map{r->
+                    val id=r.taskKey.removePrefix("manual-").substringBeforeLast(':')
+                    val title=logs.lastOrNull{it.taskKey==r.taskKey}?.title?:titles[id]?.title?:r.taskKey
+                    listOf(r.dateIso,title,r.taskKey,timestamp(r.dueAtMillis),timestamp(r.completedAtMillis),
+                        timestamp(r.snoozedUntilMillis),timestamp(r.lastNotifiedAtMillis),r.notificationCount)
+                }))
+            output
+        }else emptyList()
         return listOf(
             sheet("Implementos","Requisitos evaluados y correcciones individuales",
                 listOf("Fecha","Trabajador","Puesto","Requisito","Grupo","Cantidad mínima",
@@ -222,6 +240,6 @@ object ReportExtras {
                 listOf("Tipo","Casos","Alimentos/bebidas","Operativos",
                     "Abiertos","Cerrados","Alta/crítica pendiente"),
                 groupIncidents{it.typeLabelSnapshot})
-        )
+        ) + journeySheets
     }
 }

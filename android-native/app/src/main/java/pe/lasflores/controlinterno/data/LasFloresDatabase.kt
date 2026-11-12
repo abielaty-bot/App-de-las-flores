@@ -15,8 +15,9 @@ import androidx.sqlite.execSQL
         BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class,
         BriefingPreferencesEntity::class,
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
-        IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class],
-    version = 9,
+        IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class,
+        JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class],
+    version = 10,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -27,6 +28,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun briefingDao(): BriefingDao
     abstract fun functionDao(): FunctionDao
     abstract fun incidentDao(): IncidentDao
+    abstract fun journeyDao(): JourneyDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -344,4 +346,34 @@ val MIGRATION_8_9 = Migration(8, 9) { connection ->
     connection.execSQL("UPDATE uniform_requirements SET profilesCsv='|FEMENINO|' WHERE lower(replace(trim(label),'Ñ','ñ'))='moñera'")
     connection.execSQL("ALTER TABLE inspection_requirements ADD COLUMN applicable INTEGER NOT NULL DEFAULT 1")
     connection.execSQL("ALTER TABLE uniform_inspections ADD COLUMN uniformProfileSnapshot TEXT NOT NULL DEFAULT 'SIN_DEFINIR'")
+}
+
+
+/** v10: recordatorios y bandeja de avisos, sin alterar las tablas operativas anteriores. */
+val MIGRATION_9_10 = Migration(9, 10) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS journey_preferences (
+        id INTEGER NOT NULL PRIMARY KEY, enabled INTEGER NOT NULL,
+        startTime TEXT NOT NULL, endTime TEXT NOT NULL, workingDaysMask INTEGER NOT NULL,
+        briefingLead INTEGER NOT NULL, uniformsTime TEXT NOT NULL, informTime TEXT NOT NULL,
+        functionsTime TEXT NOT NULL, summaryTime TEXT NOT NULL, quietEnabled INTEGER NOT NULL,
+        quietStart TEXT NOT NULL, quietEnd TEXT NOT NULL, briefingAlerts INTEGER NOT NULL,
+        uniformAlerts INTEGER NOT NULL, functionAlerts INTEGER NOT NULL, summaryAlerts INTEGER NOT NULL,
+        incidentAlerts INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS journey_reminders (
+        id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, startDateIso TEXT NOT NULL,
+        time TEXT NOT NULL, recurrence TEXT NOT NULL, daysMask INTEGER NOT NULL, leadMinutes INTEGER NOT NULL,
+        workdaysOnly INTEGER NOT NULL, priority TEXT NOT NULL, module TEXT NOT NULL, enabled INTEGER NOT NULL,
+        updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS journey_occurrences (
+        taskKey TEXT NOT NULL PRIMARY KEY, dateIso TEXT NOT NULL, dueAtMillis INTEGER NOT NULL,
+        completedAtMillis INTEGER, snoozedUntilMillis INTEGER, lastNotifiedAtMillis INTEGER, notificationCount INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_journey_occurrences_dateIso ON journey_occurrences(dateIso)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS journey_notifications (
+        id TEXT NOT NULL PRIMARY KEY, taskKey TEXT NOT NULL, dateIso TEXT NOT NULL, title TEXT NOT NULL,
+        body TEXT NOT NULL, module TEXT NOT NULL, sessionSlot INTEGER, atMillis INTEGER NOT NULL, readAtMillis INTEGER
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_journey_notifications_atMillis ON journey_notifications(atMillis)")
 }
