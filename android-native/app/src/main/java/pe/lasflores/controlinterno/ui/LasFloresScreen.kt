@@ -49,11 +49,13 @@ fun LasFloresScreen(
     var screen by rememberSaveable{mutableStateOf("inicio")}
     LaunchedEffect(openUpdates){if(openUpdates>0)screen="updates"}
     val journeyState by journey.state.collectAsState()
+    var requestedDate by remember{mutableStateOf<JourneyNavigation?>(null)}
     val openJourney:(JourneyNavigation)->Unit={route->
         when(route.module){
             "briefings"->briefingVm.openFromJourney(route.dateIso,route.sessionSlot,route.taskKey.startsWith("inform:"))
             "uniformes"->uniformVm.setDate(route.dateIso)
             "funciones"->functionVm.setDate(route.dateIso)
+            "personal","reportes"->requestedDate=route
         }
         if(route.notificationId.isNotBlank())journey.read(route.notificationId)
         screen=route.module
@@ -146,12 +148,12 @@ fun LasFloresScreen(
                 }
                 holder.SaveableStateProvider(screen) {
                     when(screen) {
-                        "personal"->StaffManagementScreen(people,vm)
+                        "personal"->StaffManagementScreen(people,vm,requestedDate?.takeIf{it.module=="personal"}?.dateIso,{requestedDate=null})
                         "uniformes"->UniformScreen(people,uniformVm,vm)
                         "briefings"->BriefingScreen(briefingVm,vm)
                         "funciones"->FunctionScreen(functionVm,vm)
                         "incidentes"->IncidentScreen(incidentVm,vm)
-                        "reportes"->ReportScreen(reportRepository,vm)
+                        "reportes"->ReportScreen(reportRepository,vm,requestedDate?.takeIf{it.module=="reportes"}?.dateIso,{requestedDate=null})
                         "backups"->BackupScreen(backupManager)
                         "notifications"->JourneyScreen(journey,openJourney,{screen="updates"})
                         "settings"->SettingsScreen(

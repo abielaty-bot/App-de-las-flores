@@ -1,6 +1,6 @@
 # Plan de evolución Las Flores Android
 
-Base publicada: 4.0014 (Personal, Uniformes y menú). No desinstalar la aplicación para actualizar.
+Base publicada: 4.0015 (Centro de actualizaciones). No desinstalar la aplicación para actualizar.
 
 ## Entrega 1 — Briefings y datos (4.0013, publicada)
 - [x] Calendario, sesiones flexibles, horas, convocados y seguimiento presencial.
@@ -26,12 +26,13 @@ Base publicada: 4.0014 (Personal, Uniformes y menú). No desinstalar la aplicaci
 - [ ] Compilación, pruebas de permisos y reinicio en tablet, publicación firmada.
 - Las alarmas se activan explícitamente en Ajustes. Los avisos antiguos no se envían en masa; los pendientes permanecen en Mi jornada. Las tareas de ventas y abastecimiento siguen siendo manuales hasta tener sus propios módulos.
 
-## Entrega 6 — Actualizaciones (adelantada a 4.0015, candidata)
+## Entrega 6 — Actualizaciones (adelantada a 4.0015, publicada)
 - [x] Bytes reales, porcentaje, velocidad suavizada, tiempo transcurrido/estimado, tamaño y fecha de publicación.
 - [x] Servicio de descarga en primer plano, notificación de progreso, abrir módulo desde aviso, cancelación explícita, reintento con HTTP Range validado, reinicio si no se acepta.
 - [x] Espacio disponible, SHA-256, paquete, firma y versión antes de preparar y antes de instalar; historial de versiones detectadas, novedades, diagnóstico.
 - [x] Comprobaciones periódicas opcionales, con conexión, aproximadamente diarias y sin descargar automáticamente.
-- [ ] Compilación CI, pruebas de dispositivo y publicación firmada.
+- [x] Compilación, pruebas unitarias y publicación firmada.
+- [ ] Verificar progreso y recuperación de descarga en tablet.
 - Limitaciones: Android puede detener el servicio; la parte se conserva para reintentar. No se puede garantizar ETA exacta ni avisos con permisos desactivados. El historial comienza al incorporar esta versión y no inventa instalaciones antiguas.
 
 ## Compatibilidad

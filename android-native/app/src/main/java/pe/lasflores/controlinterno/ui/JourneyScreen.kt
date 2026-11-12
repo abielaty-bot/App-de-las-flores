@@ -187,7 +187,7 @@ private fun TaskCard(task:JourneyTask,occurrence:JourneyOccurrenceEntity?,now:Lo
         Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
             val status=when{
                 task.completed->"Completada"
-                occurrence?.snoozedUntilMillis?.let{it>now}==true->"Pospuesta hasta "+timeLabel(occurrence.snoozedUntilMillis!!)
+                occurrence?.snoozedUntilMillis?.let{it>now}==true->"Pospuesta hasta "+occurrence?.snoozedUntilMillis?.let(::timeLabel).orEmpty()
                 task.dueAtMillis<now->"Vencida"
                 else->"Próxima"
             }

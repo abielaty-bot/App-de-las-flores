@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,10 +51,11 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 
 /** Ficha única de personal: programación diaria, descansos, apoyos y vacaciones. */
 @Composable
-fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
+fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={}) {
     val vacations by vm.vacations.collectAsState()
     val overrides by vm.overrides.collectAsState()
     var dateIso by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
+    LaunchedEffect(openDate){if(openDate!=null){dateIso=openDate;onDateOpened()}}
     var query by rememberSaveable { mutableStateOf("") }
     var editing by remember { mutableStateOf<StaffEntity?>(null) }
     var adding by remember { mutableStateOf(false) }

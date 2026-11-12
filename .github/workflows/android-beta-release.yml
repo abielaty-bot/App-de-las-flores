@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -89,6 +89,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40013
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40015" ]]; then
             PREVIOUS_TAG=android-beta-v40014
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40016" ]]; then
+            PREVIOUS_TAG=android-beta-v40015
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -142,6 +144,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40015" ]]; then
               NOTES=$(printf '%s\n' '## Nuevo centro de actualizaciones' '- Porcentaje y bytes reales, velocidad, tiempo transcurrido y restante estimado.' '- Descarga en segundo plano con notificación, cancelación y reintento; reanudación segura cuando el servidor la acepta.' '- Verificación de espacio, SHA-256, paquete, versión y firma; nueva comprobación antes de instalar.' '- Historial de versiones detectadas, notas, fecha de publicación y avisos opcionales de nuevas versiones.' '- No cambia Room ni el respaldo JSON v7. Se conservan las mejoras de Briefings, Personal, Uniformes y navegación.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40016" ]]; then
+              NOTES=$(printf '%s\n' '## Mi jornada y recordatorios operativos' '- Mi jornada en Inicio: progreso, actividades pendientes y accesos directos.' '- Centro de notificaciones: campana, historial, posponer y completar actividades manuales.' '- Recordatorios personalizados y plantillas; días de trabajo, horarios y período silencioso.' '- Avisos de briefings, comunicación presencial, uniformes, funciones, incidentes prioritarios y resumen de jornada.' '- Alarmas vinculadas a las sesiones y reprogramación al cambiar horarios o reiniciar. Activa los avisos en Notificaciones > Ajustes y concede los permisos de Android.' '- Room 9→10, respaldo JSON v8 y exportación de avisos y actividades persistidas.' '- Incluye el nuevo gestor de descargas de 4.0015 y todas las funciones anteriores.' 'Antes de instalar, crea un respaldo y no desinstales la versión anterior.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
