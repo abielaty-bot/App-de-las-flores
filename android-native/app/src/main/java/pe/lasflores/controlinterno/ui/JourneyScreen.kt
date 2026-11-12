@@ -236,7 +236,7 @@ private fun ReminderDialog(existing:JourneyReminderEntity?,onDismiss:()->Unit,on
         "12:00","ONCE",123,0,true,"NORMAL","inicio",true,0))}
     val repeats=listOf("ONCE" to "Una sola vez","DAILY" to "Todos los días","WEEKLY" to "Días específicos","MONTHLY" to "Cada mes")
     val modules=listOf("inicio" to "Inicio","personal" to "Personal","briefings" to "Briefings","uniformes" to "Uniformes",
-        "funciones" to "Funciones","incidentes" to "Incidentes","reportes" to "Reportes","backups" to "Respaldos","notifications" to "Notificaciones")
+        "celulares" to "Celulares","funciones" to "Funciones","incidentes" to "Incidentes","reportes" to "Reportes","backups" to "Respaldos","notifications" to "Notificaciones")
     AlertDialog(onDismissRequest=onDismiss,title={Text(if(existing==null)"Nuevo recordatorio" else "Editar recordatorio")},
         text={Column(Modifier.heightIn(max=520.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             OutlinedTextField(item.title,{item=item.copy(title=it.take(140))},label={Text("Actividad")},modifier=Modifier.fillMaxWidth())
@@ -321,6 +321,8 @@ private fun JourneyPreferencesEditor(engine:JourneyEngine,saved:JourneyPreferenc
                 BriefingTimeButton("Revisar por informar",p.informTime,{p=p.copy(informTime=it)})
                 Toggle("Control de uniformes",p.uniformAlerts){p=p.copy(uniformAlerts=it)}
                 BriefingTimeButton("Hora de revisión",p.uniformsTime,{p=p.copy(uniformsTime=it)})
+                Toggle("Control de celulares",p.phoneAlerts){p=p.copy(phoneAlerts=it)}
+                BriefingTimeButton("Hora de celulares",p.phoneTime,{p=p.copy(phoneTime=it)})
                 Toggle("Verificar funciones pendientes",p.functionAlerts){p=p.copy(functionAlerts=it)}
                 BriefingTimeButton("Hora de funciones",p.functionsTime,{p=p.copy(functionsTime=it)})
                 Toggle("Incidentes prioritarios",p.incidentAlerts){p=p.copy(incidentAlerts=it)}

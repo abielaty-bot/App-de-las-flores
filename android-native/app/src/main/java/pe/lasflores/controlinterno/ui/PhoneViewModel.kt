@@ -24,6 +24,7 @@ class PhoneViewModel(private val repo:OfflinePhoneRepository):ViewModel(){
         catch(e:Exception){_message.value="Error: "+(e.message?:"No se pudo guardar")}
     }}
     fun mark(id:String,status:String,reason:String="",note:String=""){val d=_date.value;save{repo.mark(d,id,status,reason,note)}}
+    fun saveNote(id:String,note:String){val d=_date.value;save{repo.saveNote(d,id,note)}}
     fun sync(){val d=_date.value;save{repo.sync(d)}}
     fun noReview(reason:String){val d=_date.value;save{repo.noReview(d,reason)}}
     fun reopen(){val d=_date.value;save{repo.reopen(d)}}

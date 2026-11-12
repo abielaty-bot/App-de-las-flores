@@ -53,6 +53,7 @@ private val destinations=listOf(
     AppDestination("personal","Personal",R.drawable.ic_lf_personal),
     AppDestination("briefings","Briefings",R.drawable.ic_lf_briefings),
     AppDestination("uniformes","Uniformes",R.drawable.ic_lf_uniformes),
+    AppDestination("celulares","Celulares",R.drawable.ic_lf_phone),
     AppDestination("funciones","Funciones",R.drawable.ic_lf_funciones),
     AppDestination("incidentes","Incidentes",R.drawable.ic_lf_incidentes),
     AppDestination("reportes","Reportes",R.drawable.ic_lf_reportes),

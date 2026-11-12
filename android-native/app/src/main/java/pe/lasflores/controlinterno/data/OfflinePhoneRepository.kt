@@ -28,6 +28,11 @@ class OfflinePhoneRepository(private val db:LasFloresDatabase){
         saveRoster(date,rows)
         dao.save(PhoneRules.toggle(current,status,reason,note,System.currentTimeMillis()))
     }
+    suspend fun saveNote(date:String,id:String,note:String)=db.withWriteTransaction{
+        validDay(date);require(dao.dayStatus(date)==null);require(note.trim().length<=500)
+        val row=dao.dayChecks(date).firstOrNull{it.staffId==id&&it.status!=PhoneRules.PENDING}?:error("No hay una respuesta registrada.")
+        dao.save(row.copy(note=note.trim(),updatedAtMillis=System.currentTimeMillis()))
+    }
     suspend fun sync(date:String)=db.withWriteTransaction{
         validDay(date)
         require(dao.dayStatus(date)==null){"Reabre la jornada antes de sincronizar."}
