@@ -1,6 +1,22 @@
 package pe.lasflores.controlinterno.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Icon
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import pe.lasflores.controlinterno.R
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -53,9 +69,11 @@ fun IncidentScreen(vm:IncidentViewModel,staffVm:StaffViewModel) {
     val message by vm.message.collectAsState()
     var tab by rememberSaveable {mutableStateOf("registro")}
     var newDialog by remember {mutableStateOf(false)}
-    var detailsId by remember {mutableStateOf<String?>(null)}
+    var detailsId by rememberSaveable {mutableStateOf<String?>(null)}
     var followupId by remember {mutableStateOf<String?>(null)}
     var voidId by remember {mutableStateOf<String?>(null)}
+    val selected=incidents.firstOrNull{it.id==detailsId}
+    BackHandler(enabled=detailsId!=null && !newDialog && followupId==null && voidId==null){detailsId=null}
     Column(Modifier.fillMaxSize()) {
         LazyRow(contentPadding=PaddingValues(horizontal=12.dp,vertical=4.dp),
             horizontalArrangement=Arrangement.spacedBy(7.dp)) {
@@ -63,36 +81,39 @@ fun IncidentScreen(vm:IncidentViewModel,staffVm:StaffViewModel) {
                 "registro" to "Registro","seguimiento" to "Seguimiento",
                 "analisis" to "Análisis","tipos" to "Tipos"
             )){(id,title)->
-                FilterChip(selected=tab==id,onClick={tab=id},label={Text(title)})
+                FilterChip(selected=tab==id,onClick={tab=id;detailsId=null},label={Text(title,fontWeight=FontWeight.SemiBold)},leadingIcon={
+                    Icon(painterResource(when(id){
+                        "registro"->R.drawable.ic_lf_incidentes
+                        "seguimiento"->R.drawable.ic_lf_updates
+                        "analisis"->R.drawable.ic_lf_reportes
+                        else->R.drawable.ic_lf_funciones
+                    }),null,modifier=Modifier.size(19.dp))
+                },colors=FilterChipDefaults.filterChipColors(selectedContainerColor=LasFloresPalette.Burgundy,
+                    selectedLabelColor=Color.White,selectedLeadingIconColor=Color.White),shape=RoundedCornerShape(13.dp))
             }
         }
-        Text(if (ErrorReportText.isError(message)) ErrorReportText.compact(message) else message,modifier=Modifier.padding(horizontal=16.dp,vertical=4.dp),
+        if(message!="Guardado automático activo")Text(if (ErrorReportText.isError(message)) ErrorReportText.compact(message) else message,modifier=Modifier.padding(horizontal=16.dp,vertical=4.dp),
             color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
             style=MaterialTheme.typography.labelSmall)
         when(tab) {
-            "seguimiento"->IncidentHistoryPanel(incidents,
+            "seguimiento"->if(selected==null) IncidentHistoryPanel(incidents,
                 onNew={newDialog=true},onDetails={detailsId=it})
+            else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp)){
+                IncidentDetailCard(selected,actions.filter{it.incidentId==selected.id},
+                    onDismiss={detailsId=null},onFollowup={followupId=selected.id},onVoid={voidId=selected.id})
+            }
             "analisis"->IncidentAnalysisPanel(incidents)
             "tipos"->IncidentCatalogPanel(vm,types)
-            else->IncidentDashboard(incidents,
-                onNew={newDialog=true},
-                onOpen={detailsId=it},
-                onHistory={tab="seguimiento"})
+            else->IncidentDesignedDashboard(incidents,selected,actions.filter{it.incidentId==detailsId},
+                onNew={newDialog=true},onOpen={detailsId=it},onHistory={tab="seguimiento";detailsId=null},
+                onClose={detailsId=null},onFollowup={followupId=detailsId},onVoid={voidId=detailsId})
         }
     }
     if(newDialog) IncidentNewDialog(types,people,
         onDismiss={newDialog=false},
         onSubmit={vm.create(it);newDialog=false})
 
-    detailsId?.let { id ->
-        val record=incidents.firstOrNull {it.id==id}
-        if(record!=null) IncidentDetailsDialog(
-            record,actions.filter {it.incidentId==id},
-            onDismiss={detailsId=null},
-            onFollowup={followupId=id; detailsId=null},
-            onVoid={voidId=id;detailsId=null})
-    }
     followupId?.let {id ->
         val record=incidents.firstOrNull{it.id==id}
         if(record!=null) IncidentFollowupDialog(
@@ -120,77 +141,46 @@ fun IncidentChoiceRow(label:String,options:List<Pair<String,String>>,
 }
 
 @Composable
-private fun IncidentDashboard(
-    incidents:List<IncidentEntity>,onNew:()->Unit,
-    onOpen:(String)->Unit,onHistory:()->Unit
-) {
-    val month=LocalDate.now().toString().take(7)
-    val current=incidents.filter{it.occurredDate.startsWith(month)}
-    val stats=IncidentRules.stats(current)
-    val allOpen=incidents.filter(IncidentRules::isOpen)
-        .sortedWith(compareByDescending<IncidentEntity>{it.priority=="critica"}
-            .thenByDescending{it.priority=="alta"}
-            .thenByDescending{it.occurredDate})
-    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),
-        verticalArrangement=Arrangement.spacedBy(11.dp)) {
-        item {
-            Text("Registro de incidentes",style=MaterialTheme.typography.headlineSmall,
-                fontWeight=FontWeight.Bold)
-            Text("Problemas de alimentos, bebidas y servicio: acciones, responsables y seguimiento.",
-                style=MaterialTheme.typography.bodySmall)
-        }
-        item {
-            Card {
-                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                    Text("Resumen · "+month,fontWeight=FontWeight.Bold)
-                    Text("Incidentes este mes: "+stats.total+" · Cerrados: "+stats.closed)
-                    Text("Pendientes (todas las fechas): "+allOpen.size)
-                    Text("Prioridad alta o crítica pendiente: "+allOpen.count{
-                        it.priority in setOf("alta","critica") },
-                        color=MaterialTheme.colorScheme.error)
-                    Text("Los anulados se conservan en el historial.",
-                        style=MaterialTheme.typography.bodySmall)
+fun IncidentListCard(case:IncidentEntity,onOpen:(String)->Unit){
+    IncidentDesignedListCard(case,onOpen)
+}
+
+@Composable
+private fun IncidentForm(title:String,subtitle:String,valid:Boolean,onDismiss:()->Unit,onSubmit:()->Unit,
+    submitLabel:String,content:@Composable androidx.compose.foundation.layout.ColumnScope.()->Unit){
+    Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false)){
+        Surface(Modifier.fillMaxSize().systemBarsPadding().imePadding(),color=MaterialTheme.colorScheme.background){
+            Column(Modifier.fillMaxSize()){
+                Surface(color=MaterialTheme.colorScheme.surface,shadowElevation=2.dp){
+                    Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
+                        TextButton(onClick=onDismiss){Text("‹ Volver")}
+                        Column(Modifier.weight(1f)){
+                            Text(title,style=MaterialTheme.typography.titleLarge)
+                            Text(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(11.dp),content=content)
+                Surface(color=MaterialTheme.colorScheme.surface,shadowElevation=5.dp){
+                    Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
+                        OutlinedButton(onClick=onDismiss){Text("Cancelar")}
+                        Button(enabled=valid,onClick=onSubmit,modifier=Modifier.weight(1f).heightIn(min=48.dp)){
+                            Text(submitLabel,fontWeight=FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
-        item {
-            Button(onClick=onNew,modifier=Modifier.fillMaxWidth()) {
-                Text("+ Registrar incidente")
-            }
-            OutlinedButton(onClick=onHistory,modifier=Modifier.fillMaxWidth()) {
-                Text("Ver seguimiento e historial")
-            }
-        }
-        item {
-            Text("Casos pendientes",fontWeight=FontWeight.Bold,
-                style=MaterialTheme.typography.titleMedium)
-            Text("Detectar un problema en un área no demuestra que esa área lo originó.",
-                style=MaterialTheme.typography.bodySmall)
-        }
-        items(allOpen.take(12),key={it.id}) {case ->
-            IncidentListCard(case,onOpen)
-        }
-        if(allOpen.isEmpty())item {Text("No hay incidentes pendientes registrados.")}
     }
 }
 
 @Composable
-fun IncidentListCard(case:IncidentEntity,onOpen:(String)->Unit) {
-    Card {
-        Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            Text(case.code+" · "+case.productOrProcess,fontWeight=FontWeight.Bold)
-            Text(case.occurredDate+" "+case.occurredTime+" · "+
-                IncidentRules.categoryName(case.category),
-                style=MaterialTheme.typography.bodySmall)
-            Text(case.typeLabelSnapshot+" · Detectado en "+case.detectedArea,
-                style=MaterialTheme.typography.bodySmall)
-            Text(IncidentRules.statusName(case.status)+" · "+
-                IncidentRules.priorityName(case.priority),
-                color=if(case.priority in setOf("alta","critica") &&
-                    IncidentRules.isOpen(case))MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.primary)
-            OutlinedButton(onClick={onOpen(case.id)}) {Text("Ver y dar seguimiento")}
-        }
+private fun IncidentFormSection(title:String,description:String){
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer,RoundedCornerShape(10.dp)).padding(12.dp),
+        verticalArrangement=Arrangement.spacedBy(3.dp)){
+        Text(title,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.titleMedium)
+        Text(description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -218,15 +208,14 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
         immediate.trim().length in 5..850 && reporter.trim().length in 2..90 &&
         (typeId.isNotBlank()&&available.any{it.id==typeId} ||
             typeId.isBlank()&&otherType.trim().length in 3..120)
-    AlertDialog(onDismissRequest=onDismiss,
-        title={Text("Nuevo incidente")},
-        text={
-            Column(Modifier.heightIn(max=560.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(9.dp)) {
+    IncidentForm("Nuevo incidente","Completa los campos obligatorios (*)",valid,onDismiss,
+        onSubmit={onSubmit(OfflineIncidentRepository.NewIncident(date,time,category,detected,probable,product,typeId,otherType,
+            description,priority,reporter,impact,immediate,staffId))},submitLabel="Registrar incidente") {
                 Text("Ante un riesgo sanitario, retén el producto y comunica el problema " +
                     "de inmediato. El registro no reemplaza el procedimiento de seguridad.",
                     style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.error)
+                IncidentFormSection("1. ¿Qué ocurrió?","Identifica el problema y cuándo ocurrió.")
                 OutlinedTextField(date,{date=it.take(10)},label={Text("Fecha · AAAA-MM-DD")},
                     modifier=Modifier.fillMaxWidth())
                 OutlinedTextField(time,{time=it.take(5)},label={Text("Hora · HH:mm")},
@@ -235,11 +224,6 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
                     IncidentRules.PRODUCTO to "Alimentos y bebidas",
                     IncidentRules.OPERATIVO to "Operaciones y servicio"
                 ),category,{category=it;typeId="";otherType=""})
-                IncidentChoiceRow("Detectado en",IncidentRules.AREAS.map{it to it},
-                    detected,{detected=it})
-                IncidentChoiceRow("Origen probable (no confirmado)",
-                    listOf("" to "Sin determinar")+IncidentRules.AREAS.map{it to it},
-                    probable,{probable=it})
                 OutlinedTextField(product,{product=it.take(140)},
                     label={Text("Producto o proceso afectado *")},
                     modifier=Modifier.fillMaxWidth())
@@ -252,14 +236,17 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
                 OutlinedTextField(description,{description=it.take(1500)},
                     label={Text("Hechos observados, sin atribuir culpas *")},
                     minLines=3,modifier=Modifier.fillMaxWidth())
+                IncidentFormSection("2. Impacto y detección","Dónde se detectó y cómo afectó al cliente.")
+                IncidentChoiceRow("Detectado en",IncidentRules.AREAS.map{it to it},detected,{detected=it})
+                IncidentChoiceRow("Origen probable (no confirmado)",listOf("" to "Sin determinar")+IncidentRules.AREAS.map{it to it},probable,{probable=it})
                 IncidentChoiceRow("Prioridad",listOf(
                     "baja" to "Baja","media" to "Media",
                     "alta" to "Alta","critica" to "Crítica"
                 ),priority,{priority=it})
-                OutlinedTextField(reporter,{reporter=it.take(90)},
-                    label={Text("Registrado por *")},modifier=Modifier.fillMaxWidth())
                 IncidentChoiceRow("Impacto",IncidentRules.IMPACTS.map{it to it},
                     impact,{impact=it})
+                IncidentFormSection("3. Acción inmediata y responsable","Registra lo que hiciste y quién dará seguimiento.")
+                OutlinedTextField(reporter,{reporter=it.take(90)},label={Text("Registrado por *")},modifier=Modifier.fillMaxWidth())
                 OutlinedTextField(immediate,{immediate=it.take(850)},
                     label={Text("Medida inmediata adoptada *")},
                     minLines=2,modifier=Modifier.fillMaxWidth())
@@ -269,90 +256,7 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
                     staffId,{staffId=it})
                 Text("El origen definitivo solo se atribuye después de verificarlo.",
                     style=MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton={
-            Button(enabled=valid,onClick={
-                onSubmit(OfflineIncidentRepository.NewIncident(
-                    date,time,category,detected,probable,product,typeId,otherType,
-                    description,priority,reporter,impact,immediate,staffId
-                ))
-            }) {Text("Registrar incidente")}
-        },
-        dismissButton={TextButton(onClick=onDismiss){Text("Cancelar")}}
-    )
-}
-
-@Composable
-private fun IncidentDetailsDialog(case:IncidentEntity,actions:List<IncidentActionEntity>,
-    onDismiss:()->Unit,onFollowup:()->Unit,onVoid:()->Unit) {
-    AlertDialog(onDismissRequest=onDismiss,
-        title={Text(case.code+" · Detalle")},
-        text={
-            Column(Modifier.heightIn(max=560.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                Text(case.productOrProcess,fontWeight=FontWeight.Bold,
-                    style=MaterialTheme.typography.titleMedium)
-                Text(IncidentRules.statusName(case.status)+" · "+
-                    IncidentRules.priorityName(case.priority),
-                    color=if(case.priority in setOf("alta","critica"))
-                        MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.primary)
-                Text("Fecha: "+case.occurredDate+" · "+case.occurredTime)
-                Text("Categoría: "+IncidentRules.categoryName(case.category))
-                Text("Tipo: "+case.typeLabelSnapshot)
-                Text("Área de detección: "+case.detectedArea)
-                Text("Origen probable: "+(case.originArea.ifBlank{"Sin determinar"}))
-                Text("Origen confirmado: "+(case.confirmedOrigin.ifBlank{"No verificado"}))
-                Text("Descripción: "+case.description)
-                Text("Impacto: "+case.impact)
-                Text("Reportado por: "+case.reporter)
-                Text("Medida inmediata: "+case.immediateAction)
-                Text("Seguimiento: "+case.assignedStaffNameSnapshot.ifBlank{"Sin asignar"})
-                if(case.status==IncidentRules.CERRADO)
-                    Text("Cerrado por: "+case.closedBy)
-                if(case.status==IncidentRules.ANULADO)
-                    Text("Motivo de anulación: "+case.voidReason,
-                        color=MaterialTheme.colorScheme.error)
-                Text("Historial de acciones ("+actions.size+")",
-                    fontWeight=FontWeight.Bold)
-                actions.sortedByDescending{it.atMillis}.forEach{a->
-                    Card {
-                        Column(Modifier.padding(10.dp),
-                            verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                            Text(IncidentRules.actionName(a.kind),
-                                fontWeight=FontWeight.Bold)
-                            Text(Instant.ofEpochMilli(a.atMillis)
-                                .atZone(ZoneId.systemDefault())
-                                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
-                                style=MaterialTheme.typography.bodySmall)
-                            Text(a.description,style=MaterialTheme.typography.bodySmall)
-                            Text("Por "+a.actor+" · "+
-                                IncidentRules.statusName(a.statusBefore)+" → "+
-                                IncidentRules.statusName(a.statusAfter),
-                                style=MaterialTheme.typography.bodySmall)
-                            if(a.confirmedOrigin.isNotBlank())
-                                Text("Origen verificado: "+a.confirmedOrigin,
-                                    style=MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton={
-            Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
-                if(case.status!=IncidentRules.ANULADO) {
-                    Button(onClick=onFollowup) {
-                        Text(if(case.status==IncidentRules.CERRADO)
-                            "Reabrir caso" else "Registrar seguimiento")
-                    }
-                    if(IncidentRules.isOpen(case))
-                        TextButton(onClick=onVoid){Text("Anular")}
-                }
-            }
-        },
-        dismissButton={TextButton(onClick=onDismiss){Text("Cerrar")}}
-    )
+    }
 }
 
 @Composable
@@ -380,19 +284,19 @@ private fun IncidentFollowupDialog(
     val data=OfflineIncidentRepository.FollowUp(
         case.id,status,kind,description,actor,confirmed,assignee
     )
-    AlertDialog(onDismissRequest=onDismiss,
-        title={Text(if(case.status==IncidentRules.CERRADO)
-            "Reabrir "+case.code else "Seguimiento "+case.code)},
-        text={
-            Column(Modifier.heightIn(max=540.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement=Arrangement.spacedBy(9.dp)) {
+    IncidentForm(if(case.status==IncidentRules.CERRADO)"Reabrir "+case.code else "Seguimiento "+case.code,
+        case.productOrProcess,valid,onDismiss,
+        onSubmit={if(status==IncidentRules.CERRADO)confirmClose=true else onSubmit(data)},
+        submitLabel=if(status==IncidentRules.CERRADO)"Verificar y cerrar" else "Guardar acción") {
                 Text(case.productOrProcess+" · "+IncidentRules.statusName(case.status))
+                IncidentFormSection("1. Estado y acción","Selecciona el siguiente paso del caso.")
                 IncidentChoiceRow("Nuevo estado",choices.map{
                     it to IncidentRules.statusName(it)
                 },status,{status=it;if(status==IncidentRules.CERRADO)kind="verificacion"})
                 IncidentChoiceRow("Tipo de acción",IncidentRules.ACTIONS.map{
                     it to IncidentRules.actionName(it)
                 },kind,{kind=it;if(kind!="verificacion")confirmed=""})
+                IncidentFormSection("2. Resultado y responsable","Describe lo que se hizo y quién lo verificó.")
                 OutlinedTextField(description,{description=it.take(1500)},
                     label={Text("Medida, resultado o verificación *")},
                     modifier=Modifier.fillMaxWidth(),minLines=3)
@@ -416,16 +320,7 @@ private fun IncidentFollowupDialog(
                 if(case.status==IncidentRules.CERRADO)
                     Text("La reapertura quedará registrada sin borrar el cierre anterior.",
                         style=MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton={
-            Button(enabled=valid,onClick={
-                if(status==IncidentRules.CERRADO) confirmClose=true
-                else onSubmit(data)
-            }){Text(if(status==IncidentRules.CERRADO)"Verificar y cerrar" else "Guardar acción")}
-        },
-        dismissButton={TextButton(onClick=onDismiss){Text("Cancelar")}}
-    )
+    }
     if(confirmClose) AlertDialog(onDismissRequest={confirmClose=false},
         title={Text("Confirmar cierre verificado")},
         text={Text("¿Confirmas que la solución fue verificada y que "+actor.trim()+

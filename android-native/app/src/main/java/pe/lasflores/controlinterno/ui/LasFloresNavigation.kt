@@ -3,6 +3,9 @@ package pe.lasflores.controlinterno.ui
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -101,7 +104,14 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
                 }
             }) {
             Scaffold(containerColor=MaterialTheme.colorScheme.background,
-                topBar={TopAppBar(title={Text(if(screen=="inicio")"LAS FLORES" else title,fontWeight=FontWeight.Bold)},
+                topBar={Column{
+                    if(screen=="incidentes")Row(Modifier.fillMaxWidth().background(LasFloresPalette.Burgundy)
+                        .padding(horizontal=16.dp,vertical=7.dp),verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                        Image(painterResource(R.drawable.las_flores_tulip),contentDescription=null,modifier=Modifier.size(29.dp),contentScale=ContentScale.Fit)
+                        Text("Las Flores",color=Color.White,style=MaterialTheme.typography.titleLarge)
+                    }
+                    TopAppBar(title={Text(if(screen=="inicio")"LAS FLORES" else title,fontWeight=FontWeight.Bold)},
                     navigationIcon={
                         IconButton(onClick={scope.launch{if(drawer.isOpen)drawer.close() else drawer.open()}},
                             modifier=Modifier.semantics{contentDescription="Abrir menú de navegación"}){
@@ -120,6 +130,7 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
                         if(unreadNotifications>0)Text(unreadNotifications.coerceAtMost(99).toString(),style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(end=8.dp))
                     },colors=TopAppBarDefaults.topAppBarColors(
                         containerColor=MaterialTheme.colorScheme.surface,titleContentColor=MaterialTheme.colorScheme.onSurface))
+                    }
                 }) { padding ->
                 Column(Modifier.fillMaxSize().padding(padding)){content()}
             }
