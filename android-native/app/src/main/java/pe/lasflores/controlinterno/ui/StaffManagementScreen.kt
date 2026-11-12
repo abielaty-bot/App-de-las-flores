@@ -1,6 +1,10 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
@@ -70,7 +74,8 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
                 date = dateIso,
                 onPrevious = { dateIso = LocalDate.parse(dateIso).minusDays(1).toString() },
                 onNext = { dateIso = LocalDate.parse(dateIso).plusDays(1).toString() },
-                onToday = { dateIso = LocalDate.now().toString() }
+                onToday = { dateIso = LocalDate.now().toString() },
+                onPickDate = {dateIso=it}
             )
             Text("Activos: " + people.count { it.isActive } +
                 " · Programados y apoyos: " + working,
@@ -95,6 +100,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
                         (if (person.category > 0) " · Categoría " + person.category else "") +
                         (if (person.briefingGroup > 0) " · Grupo de briefing " + (person.briefingGroup-10) else ""),
                         style = MaterialTheme.typography.bodySmall)
+                    Text(StaffScheduleRules.scheduleLabel(person)+" · Uniforme: "+StaffScheduleRules.profileLabel(person.uniformProfile),style=MaterialTheme.typography.bodySmall)
                     Text("Situación: " + StaffScheduleRules.label(status),
                         color = if (StaffScheduleRules.isScheduled(status))
                             MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -118,10 +124,10 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
     if (adding || editing != null) {
         StaffProfileDialog(editing, people,
             onDismiss = { adding = false; editing = null },
-            onSave = { name, role, category, group, mode, rest ->
+            onSave = { name, role, category, group, mode, rest, weekend, profile ->
                 val selected = editing
-                if (selected == null) vm.addDetailed(name, role, category, group, mode, rest)
-                else vm.updateDetails(selected.id, name, role, category, group, mode, rest)
+                if (selected == null) vm.addDetailed(name, role, category, group, mode, rest,weekend,profile)
+                else vm.updateDetails(selected.id, name, role, category, group, mode, rest,weekend,profile)
                 adding = false
                 editing = null
             })
@@ -145,7 +151,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
 private fun StaffProfileDialog(
     person: StaffEntity?, existing: List<StaffEntity>,
     onDismiss: () -> Unit,
-    onSave: (String, String, Int, Int, String, Int) -> Unit
+    onSave: (String, String, Int, Int, String, Int,Int,String) -> Unit
 ) {
     var name by remember(person?.id) { mutableStateOf(person?.fullName.orEmpty()) }
     var role by remember(person?.id) { mutableStateOf(person?.role ?: "Mozo") }
@@ -153,6 +159,8 @@ private fun StaffProfileDialog(
     var group by remember(person?.id) { mutableStateOf(person?.briefingGroup ?: 0) }
     var mode by remember(person?.id) { mutableStateOf(person?.scheduleMode ?: "regular") }
     var rest by remember(person?.id) { mutableStateOf(person?.restDaysMask ?: 0) }
+    var weekend by remember(person?.id){mutableStateOf(person?.weekendDaysMask?:65)}
+    var profile by remember(person?.id){mutableStateOf(person?.uniformProfile?:"SIN_DEFINIR")}
     val duplicate = existing.any {
         it.id != person?.id && StaffName.normalize(it.fullName).equals(StaffName.normalize(name), true)
     }
@@ -166,11 +174,10 @@ private fun StaffProfileDialog(
                     label = { Text("Nombre completo") }, modifier = Modifier.fillMaxWidth())
                 if (duplicate) Text("Este nombre ya está registrado.",
                     color = MaterialTheme.colorScheme.error)
-                Text("Puesto", fontWeight = FontWeight.SemiBold)
-                STAFF_ROLES.forEach { option ->
-                    FilterChip(selected = role == option, onClick = { role = option },
-                        label = { Text(option) })
-                }
+                CompactChoice("Puesto",role,STAFF_ROLES.map{it to it},{role=it})
+                CompactChoice("Perfil de uniforme",StaffScheduleRules.profileLabel(profile),
+                    StaffScheduleRules.PROFILES.map{it to StaffScheduleRules.profileLabel(it)},{profile=it})
+                if(profile=="SIN_DEFINIR")Text("Sin definir: no se excluirán requisitos automáticamente.",style=MaterialTheme.typography.bodySmall)
                 Text("Categoría", fontWeight = FontWeight.SemiBold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     (0..4).forEach { value ->
@@ -185,32 +192,56 @@ private fun StaffProfileDialog(
                             label = { Text(if (value == 0) "Sin grupo" else "Grupo " + (value-10)) })
                     }
                 }
-                Text("Programación habitual")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = mode == "regular", onClick = { mode = "regular" },
-                        label = { Text("Regular") })
-                    FilterChip(selected = mode == "weekend", onClick = { mode = "weekend" },
-                        label = { Text("Apoyo fin de semana") })
-                }
-                if (mode == "regular") {
-                    Text("Días de descanso")
-                    listOf(1 to "Lunes", 2 to "Martes", 3 to "Miércoles", 4 to "Jueves",
-                        5 to "Viernes", 6 to "Sábado", 0 to "Domingo").forEach { (day, label) ->
-                        FilterChip(selected = rest and (1 shl day) != 0,
-                            onClick = { rest = rest xor (1 shl day) },
-                            label = { Text(label) })
+                val modes=listOf("regular" to "Trabajador regular","weekend" to "Apoyo de fin de semana",
+                    "custom" to "Días personalizados","occasional" to "Apoyo ocasional")
+                CompactChoice("Programación habitual",modes.firstOrNull{it.first==mode}?.second.orEmpty(),modes,{mode=it})
+                if(mode=="weekend"){
+                    Text("¿Qué días trabaja?")
+                    listOf(6 to "Sábado",0 to "Domingo").forEach{(day,label)->
+                        Row(verticalAlignment=Alignment.CenterVertically){
+                            Checkbox(checked=weekend and (1 shl day)!=0,onCheckedChange={weekend=weekend xor (1 shl day)})
+                            Text(label)
+                        }
                     }
-                }
-                Text("Los cambios habituales se reflejan en la programación. Las inspecciones ya realizadas no se borran.",
+                    if(weekend==0)Text("Selecciona al menos un día.",color=MaterialTheme.colorScheme.error)
+                }else if(mode=="regular"||mode=="custom"){
+                    Text(if(mode=="regular")"Días de descanso" else "Días de trabajo")
+                    FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                        listOf(1 to "L",2 to "M",3 to "X",4 to "J",5 to "V",6 to "S",0 to "D").forEach{(day,label)->
+                            val restDay=rest and (1 shl day)!=0
+                            FilterChip(selected=if(mode=="regular")restDay else !restDay,
+                                onClick={rest=rest xor (1 shl day)},label={Text(label)})
+                        }
+                    }
+                    Text("Lunes a domingo. Selecciona los días correspondientes.",style=MaterialTheme.typography.bodySmall)
+                }else Text("Solo aparecerá programado cuando le asignes una fecha desde Situación.",style=MaterialTheme.typography.bodySmall)
+                Text("El nuevo horario habitual se aplica desde hoy. Los horarios anteriores y los registros existentes se conservan.",
                     style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
-            Button(enabled = StaffName.isValid(name) && !duplicate,
-                onClick = { onSave(name, role, category, group, mode, rest) }) { Text("Guardar") }
+            Button(enabled = StaffName.isValid(name) && !duplicate &&
+                StaffScheduleRules.validSchedule(mode,rest,if(mode=="weekend")weekend else weekend.takeIf{it!=0}?:65),
+                onClick = { onSave(name, role, category, group, mode, rest,weekend.takeIf{it!=0}?:65,profile) }) { Text("Guardar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
+}
+
+@Composable
+internal fun CompactChoice(label:String,selected:String,options:List<Pair<String,String>>,onSelect:(String)->Unit){
+    var expanded by remember{mutableStateOf(false)}
+    Column(verticalArrangement=Arrangement.spacedBy(3.dp)){
+        Text(label,fontWeight=FontWeight.SemiBold)
+        Box{
+            OutlinedButton(onClick={expanded=true},modifier=Modifier.fillMaxWidth()){
+                Text(selected+"  ▾")
+            }
+            DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}){
+                options.forEach{(key,text)->DropdownMenuItem(text={Text(text)},onClick={onSelect(key);expanded=false})}
+            }
+        }
+    }
 }
 
 @Composable
@@ -276,7 +307,7 @@ private fun DayStatusDialog(
     var selected by remember(name, dateIso) { mutableStateOf(current ?: "auto") }
     val options = listOf("auto" to "Según horario", "working" to "Trabaja",
         "rest" to "Descanso", "vacation" to "Vacaciones",
-        "absent" to "Falta", "leave" to "Permiso", "support" to "Apoyo")
+        "absent" to "Falta", "leave" to "Permiso", "support" to "Apoyo por este día","off" to "No programado")
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text("Situación · " + name) },
         text = {

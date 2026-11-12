@@ -18,6 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.Alignment
+import pe.lasflores.controlinterno.domain.UniformRules
+import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -89,6 +93,8 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
                         style = MaterialTheme.typography.bodySmall)
                     Text(STAFF_ROLES.filter { req.rolesCsv.contains("|" + it + "|") }.joinToString(", "),
                         style = MaterialTheme.typography.bodySmall)
+                    Text("Perfiles: "+UniformRules.PROFILES.filter{req.profilesCsv.contains("|"+it+"|")}.joinToString(", "){StaffScheduleRules.profileLabel(it)},
+                        style=MaterialTheme.typography.bodySmall)
                     Text(if (req.isActive) "Activo" else "Desactivado",
                         color = if (req.isActive) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error)
@@ -105,8 +111,8 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
     if (adding || editing != null) {
         RequirementDialog(editing,
             onDismiss = { adding = false; editing = null },
-            onSave = { id, label, group, qty, roles ->
-                vm.saveRequirement(id, label, group, qty, roles)
+            onSave = { id, label, group, qty, roles,profiles ->
+                vm.saveRequirement(id, label, group, qty, roles,profiles)
                 adding = false
                 editing = null
             })
@@ -117,7 +123,7 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
 private fun RequirementDialog(
     existing: UniformRequirementEntity?,
     onDismiss: () -> Unit,
-    onSave: (String?, String, String, Int, Set<String>) -> Unit
+    onSave: (String?, String, String, Int, Set<String>,Set<String>) -> Unit
 ) {
     var label by remember(existing?.id) { mutableStateOf(existing?.label.orEmpty()) }
     var category by remember(existing?.id) { mutableStateOf(existing?.category ?: "Implementos") }
@@ -127,6 +133,7 @@ private fun RequirementDialog(
             existing?.rolesCsv?.contains("|" + it + "|") ?: (it == "Mozo")
         }.toSet())
     }
+    var profiles by remember(existing?.id){mutableStateOf(UniformRules.PROFILES.filter{existing?.profilesCsv?.contains("|"+it+"|")?:true}.toSet())}
     val groups = listOf("Uniforme", "Presentación", "Implementos", "Otro")
     val validQty = qty.toIntOrNull()
     AlertDialog(onDismissRequest = onDismiss,
@@ -149,14 +156,22 @@ private fun RequirementDialog(
                         roles = if (role in roles) roles - role else roles + role
                     }, label = { Text(role) })
                 }
+                Text("Perfiles de uniforme",fontWeight=FontWeight.Bold)
+                UniformRules.PROFILES.forEach{profile->
+                    Row(verticalAlignment=Alignment.CenterVertically){
+                        Checkbox(checked=profile in profiles,onCheckedChange={checked->profiles=if(checked)profiles+profile else profiles-profile})
+                        Text(StaffScheduleRules.profileLabel(profile))
+                    }
+                }
+                Text("Sin definir: se mantiene el requisito aplicable hasta elegir un perfil.",style=MaterialTheme.typography.bodySmall)
                 Text("Los controles ya iniciados conservan su lista original de requisitos.",
                     style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
             Button(enabled = label.trim().length in 3..100 &&
-                validQty != null && validQty in 0..100 && roles.isNotEmpty(),
-                onClick = { onSave(existing?.id, label, category, validQty ?: 0, roles) }) {
+                validQty != null && validQty in 0..100 && roles.isNotEmpty() && profiles.isNotEmpty(),
+                onClick = { onSave(existing?.id, label, category, validQty ?: 0, roles,profiles) }) {
                 Text("Guardar")
             }
         },
