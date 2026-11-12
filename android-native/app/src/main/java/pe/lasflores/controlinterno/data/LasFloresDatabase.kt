@@ -16,7 +16,7 @@ import androidx.sqlite.execSQL
         BriefingPreferencesEntity::class,
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
         IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -333,4 +333,15 @@ val MIGRATION_7_8 = Migration(7, 8) { connection ->
     connection.execSQL("""CREATE TABLE IF NOT EXISTS briefing_preferences (
         id INTEGER NOT NULL PRIMARY KEY, firstTime TEXT NOT NULL, secondTime TEXT NOT NULL
     )""")
+}
+
+/** v9: perfiles y programación; ningún control histórico cambia su aplicabilidad. */
+val MIGRATION_8_9 = Migration(8, 9) { connection ->
+    connection.execSQL("ALTER TABLE staff ADD COLUMN weekendDaysMask INTEGER NOT NULL DEFAULT 65")
+    connection.execSQL("ALTER TABLE staff ADD COLUMN uniformProfile TEXT NOT NULL DEFAULT 'SIN_DEFINIR'")
+    connection.execSQL("ALTER TABLE staff ADD COLUMN scheduleHistory TEXT NOT NULL DEFAULT ''")
+    connection.execSQL("ALTER TABLE uniform_requirements ADD COLUMN profilesCsv TEXT NOT NULL DEFAULT '|MASCULINO|FEMENINO|GENERAL|'")
+    connection.execSQL("UPDATE uniform_requirements SET profilesCsv='|FEMENINO|' WHERE lower(replace(trim(label),'Ñ','ñ'))='moñera'")
+    connection.execSQL("ALTER TABLE inspection_requirements ADD COLUMN applicable INTEGER NOT NULL DEFAULT 1")
+    connection.execSQL("ALTER TABLE uniform_inspections ADD COLUMN uniformProfileSnapshot TEXT NOT NULL DEFAULT 'SIN_DEFINIR'")
 }

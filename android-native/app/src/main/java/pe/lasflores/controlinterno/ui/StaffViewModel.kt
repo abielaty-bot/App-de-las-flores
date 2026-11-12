@@ -40,10 +40,10 @@ class StaffViewModel(private val repository: StaffRepository) : ViewModel() {
     }
 
     fun add(name: String, role: String) = perform { repository.create(name, role) }
-    fun addDetailed(name: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int) =
-        perform { repository.create(name, role, category, briefingGroup, scheduleMode, restDaysMask) }
-    fun updateDetails(id: String, name: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int) =
-        perform { repository.updateDetails(id, name, role, category, briefingGroup, scheduleMode, restDaysMask) }
+    fun addDetailed(name: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int, weekendDaysMask:Int, uniformProfile:String) =
+        perform { repository.create(name, role, category, briefingGroup, scheduleMode, restDaysMask,weekendDaysMask,uniformProfile) }
+    fun updateDetails(id: String, name: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int, weekendDaysMask:Int, uniformProfile:String) =
+        perform { repository.updateDetails(id, name, role, category, briefingGroup, scheduleMode, restDaysMask,weekendDaysMask,uniformProfile) }
     fun addVacation(id: String, from: String, to: String, note: String) =
         perform { repository.addVacation(id, from, to, note) }
     fun removeVacation(id: String) = perform { repository.removeVacation(id) }

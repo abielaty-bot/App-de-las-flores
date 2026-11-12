@@ -4,6 +4,8 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffRepository
+import pe.lasflores.controlinterno.domain.StaffScheduleRules
+import java.time.LocalDate
 import pe.lasflores.controlinterno.domain.STAFF_ROLES
 
 class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: UniformDao) : StaffRepository {
@@ -11,11 +13,12 @@ class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: 
     override val vacations: Flow<List<StaffVacationEntity>> = dao.observeVacations()
     override val overrides: Flow<List<StaffDayOverrideEntity>> = dao.observeOverrides()
 
-    override suspend fun create(fullName: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int) {
+    override suspend fun create(fullName: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int, weekendDaysMask: Int, uniformProfile: String) {
         require(StaffName.isValid(fullName)) { "Nombre inválido: debe tener entre 2 y 120 caracteres." }
         require(role in STAFF_ROLES) { "Puesto no admitido." }
         require(category in 0..4 && briefingGroup in listOf(0, 11, 12)) { "Categoría o grupo inválido." }
-        require(scheduleMode in listOf("regular", "weekend") && restDaysMask in 0..127) { "Programación inválida." }
+        require(StaffScheduleRules.validSchedule(scheduleMode,restDaysMask,weekendDaysMask)) { "Programación inválida." }
+        require(uniformProfile in StaffScheduleRules.PROFILES) { "Perfil de uniforme inválido." }
         require(dao.findNameConflict(StaffName.normalize(fullName), "") == null) { "Ya existe un trabajador con ese nombre." }
         val now = System.currentTimeMillis()
         dao.upsert(StaffEntity(
@@ -28,7 +31,7 @@ class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: 
             restDaysMask = restDaysMask,
             isActive = true,
             createdAtMillis = now,
-            updatedAtMillis = now
+            updatedAtMillis = now, weekendDaysMask = weekendDaysMask, uniformProfile = uniformProfile
         ))
     }
 
@@ -40,20 +43,23 @@ class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: 
 
     override suspend fun updateDetails(
         id: String, fullName: String, role: String, category: Int,
-        briefingGroup: Int, scheduleMode: String, restDaysMask: Int
+        briefingGroup: Int, scheduleMode: String, restDaysMask: Int,
+        weekendDaysMask: Int, uniformProfile: String
     ) {
         require(StaffName.isValid(fullName)) { "Nombre inválido." }
         require(role in STAFF_ROLES) { "Puesto no admitido." }
         require(category in 0..4) { "Categoría inválida." }
         require(briefingGroup == 0 || briefingGroup == 11 || briefingGroup == 12) { "Grupo inválido." }
-        require(scheduleMode == "regular" || scheduleMode == "weekend") { "Programación inválida." }
-        require(restDaysMask in 0..127) { "Descansos inválidos." }
+        require(StaffScheduleRules.validSchedule(scheduleMode,restDaysMask,weekendDaysMask)) { "Programación inválida." }
+        require(uniformProfile in StaffScheduleRules.PROFILES) { "Perfil de uniforme inválido." }
         val name = StaffName.normalize(fullName)
         require(dao.findNameConflict(name, id) == null) { "Ya existe un trabajador con ese nombre." }
         val previous = dao.getById(id) ?: error("Trabajador no encontrado.")
         dao.upsert(previous.copy(
             fullName = name, role = role, category = category, briefingGroup = briefingGroup,
-            scheduleMode = scheduleMode, restDaysMask = restDaysMask, updatedAtMillis = System.currentTimeMillis()
+            scheduleMode = scheduleMode, restDaysMask = restDaysMask, updatedAtMillis = System.currentTimeMillis(),
+            weekendDaysMask = weekendDaysMask, uniformProfile = uniformProfile,
+            scheduleHistory = StaffScheduleRules.preserveSchedule(previous,scheduleMode,restDaysMask,weekendDaysMask,LocalDate.now().toString())
         ))
     }
 
@@ -88,7 +94,7 @@ class OfflineStaffRepository(private val dao: StaffDao, private val uniformDao: 
         }
         if (status == null) dao.deleteOverride(dateIso, staffId)
         else {
-            require(status in setOf("working", "rest", "vacation", "absent", "leave", "support")) {
+            require(status in setOf("working", "rest", "vacation", "absent", "leave", "support", "off")) {
                 "Estado diario inválido."
             }
             dao.upsertOverride(StaffDayOverrideEntity(dateIso, staffId, status, System.currentTimeMillis()))

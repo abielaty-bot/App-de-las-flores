@@ -1,6 +1,7 @@
 package pe.lasflores.controlinterno.data
 
 import androidx.room3.Entity
+import androidx.room3.ColumnInfo
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
 
@@ -13,7 +14,8 @@ data class UniformInspectionEntity(
     val workflow: String,
     val initialResult: String?,
     val createdAtMillis: Long,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    @ColumnInfo(defaultValue = "'SIN_DEFINIR'") val uniformProfileSnapshot: String = "SIN_DEFINIR"
 )
 
 @Entity(tableName = "uniform_answers", primaryKeys = ["inspectionId", "requirementId"], indices = [Index(value = ["inspectionId"])])
