@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -93,6 +93,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40015
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40017" ]]; then
             PREVIOUS_TAG=android-beta-v40016
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40018" ]]; then
+            PREVIOUS_TAG=android-beta-v40017
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -152,6 +154,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40017" ]]; then
               NOTES=$(printf '%s\n' '## Control de celulares' '- Registro diario Sí / No / N/A y pendientes, búsqueda y filtros; excepciones con motivo y observaciones.' '- Historial, estadísticas por día, semana y mes, ranking y fechas de incumplimiento.' '- Excel independiente y datos incluidos en los reportes generales.' '- Integración con personal programado, Mi jornada y recordatorio configurable.' '- No se controla custodia ni devolución: recuperar el celular al salir no altera el cumplimiento.' '- Room 10→11, respaldo JSON v9; conserva los registros anteriores.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40018" ]]; then
+              NOTES=$(printf '%s\n' '## Uniformes por puesto' '- Nuevo filtro Mozos, Caja, Runners y otros puestos; catálogo único con asignación múltiple, perfiles, cantidades, búsqueda y estado.' '- Runner disponible en Personal, independiente de Apoyo; no reclasifica trabajadores existentes.' '- Propuestas opcionales para Caja y Runners: selecciona el puesto y pulsa Aplicar propuesta si corresponde al uniforme real.' '- Filtros por puesto en inspecciones e historial; estadísticas de conformidad inicial y hoja Excel.' '- Conserva todas las inspecciones ya iniciadas. Room v11 sin cambio de esquema, respaldo JSON v10.' '- Incluye Control de celulares de 4.0017.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

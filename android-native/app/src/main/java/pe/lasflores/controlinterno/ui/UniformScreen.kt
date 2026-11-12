@@ -274,7 +274,7 @@ private fun WorkerSummary(row:WorkerInspection,selected:Boolean,enabled:Boolean,
             horizontalArrangement=Arrangement.spacedBy(8.dp)){
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
                 Text(row.staff.fullName,fontWeight=FontWeight.Bold)
-                Text(row.staff.role+" · "+row.reviewed+"/"+row.applicableCount+" revisados",style=MaterialTheme.typography.bodySmall)
+                Text((row.inspection?.roleSnapshot?:row.staff.role)+" · "+row.reviewed+"/"+row.applicableCount+" revisados",style=MaterialTheme.typography.bodySmall)
                 Text(row.status,color=statusColor(row.status),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold)
                 if(row.exempt>0)Text(row.exempt.toString()+" no aplica",style=MaterialTheme.typography.labelSmall)
                 if(!row.scheduled)Text("Registro histórico",style=MaterialTheme.typography.labelSmall)
@@ -295,7 +295,7 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
                 Column(Modifier.weight(1f)){
                     Text(row.staff.fullName,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-                    Text(row.staff.role+" · "+row.status,style=MaterialTheme.typography.bodySmall)
+                    Text((row.inspection?.roleSnapshot?:row.staff.role)+" · "+row.status,style=MaterialTheme.typography.bodySmall)
                     Text("Perfil: "+StaffScheduleRules.profileLabel(row.profile),style=MaterialTheme.typography.labelMedium,
                         color=MaterialTheme.colorScheme.tertiary)
                 }

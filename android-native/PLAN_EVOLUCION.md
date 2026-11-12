@@ -48,3 +48,13 @@ Base publicada: 4.0015 (Centro de actualizaciones). No desinstalar la aplicació
 - [x] Integración con Mi jornada, horario editable de aviso (12:30 por defecto), respaldo JSON v9 y migración Room 10→11.
 - [ ] CI, publicación firmada, prueba en tablet.
 - La lista incluye personal programado de todos los puestos. Las fechas previas sin control no se cuentan como faltas; la lista estimada solo se convierte en registro al marcar o sincronizar. No se controla la devolución, ni se infieren entregas por asistencia.
+
+
+## Requisitos por puesto (4.0018, candidata)
+- [x] Catálogo único con filtros Todos, Mozos, Caja, Runners y demás puestos de Personal; búsqueda, estado y grupos.
+- [x] Nuevo puesto Runner, distinto de Apoyo. No reclasifica a ningún trabajador existente.
+- [x] Nuevo requisito preselecciona el puesto del filtro; edición multirrol y perfiles; cantidad y estado se conservan.
+- [x] Propuestas optativas Caja/Runners, aditivas e idempotentes: reutilizan requisitos generales compatibles y no reactivan ni cambian reglas personalizadas. No se aplican automáticamente a personal existente.
+- [x] Filtros en inspecciones e historial; estadísticas de conformidad inicial por puesto histórico y hoja Excel.
+- [x] Room permanece v11; JSON v10 reconoce Runner y restaura versiones 1–9.
+- [ ] Compilación, pruebas y publicación firmada; comprobar en tablet.
