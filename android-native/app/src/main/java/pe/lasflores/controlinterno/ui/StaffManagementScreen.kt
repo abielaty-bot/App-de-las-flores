@@ -93,7 +93,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel) {
                     Text(person.fullName, fontWeight = FontWeight.Bold)
                     Text(person.role +
                         (if (person.category > 0) " · Categoría " + person.category else "") +
-                        (if (person.briefingGroup > 0) " · Briefing " + person.briefingGroup + ":00" else ""),
+                        (if (person.briefingGroup > 0) " · Grupo de briefing " + (person.briefingGroup-10) else ""),
                         style = MaterialTheme.typography.bodySmall)
                     Text("Situación: " + StaffScheduleRules.label(status),
                         color = if (StaffScheduleRules.isScheduled(status))
@@ -178,11 +178,11 @@ private fun StaffProfileDialog(
                             label = { Text(if (value == 0) "—" else value.toString()) })
                     }
                 }
-                Text("Grupo habitual de briefing")
+                Text("Grupo habitual de briefing (sin hora fija)")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0, 11, 12).forEach { value ->
                         FilterChip(selected = group == value, onClick = { group = value },
-                            label = { Text(if (value == 0) "Sin grupo" else value.toString() + ":00") })
+                            label = { Text(if (value == 0) "Sin grupo" else "Grupo " + (value-10)) })
                     }
                 }
                 Text("Programación habitual")

@@ -348,6 +348,10 @@ private fun SessionEditDialog(old:BriefingSessionEntity?,suggested:String,people
                 TextButton(onClick={selected=people.map{it.id}.toSet()+locked}){Text("Todos")}
                 TextButton(onClick={selected=locked}){Text("Limpiar")}
             }
+            Row(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+                TextButton(onClick={selected=people.filter{it.briefingGroup==11}.map{it.id}.toSet()+locked}){Text("Grupo habitual 1")}
+                TextButton(onClick={selected=people.filter{it.briefingGroup==12}.map{it.id}.toSet()+locked}){Text("Grupo habitual 2")}
+            }
             people.forEach{p->
                 Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()){
                     Checkbox(checked=p.id in selected,enabled=p.id !in locked,onCheckedChange={checked->
