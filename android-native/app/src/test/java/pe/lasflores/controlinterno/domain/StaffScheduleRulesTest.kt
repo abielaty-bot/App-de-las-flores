@@ -28,4 +28,31 @@ class StaffScheduleRulesTest {
         assertFalse(StaffScheduleRules.isScheduled("vacation"))
         assertTrue(StaffScheduleRules.isScheduled("support"))
     }
+
+    @Test fun weekendDaysAndOccasionalOverrides() {
+        val saturday=worker.copy(scheduleMode="weekend",weekendDaysMask=64)
+        val sunday=saturday.copy(weekendDaysMask=1)
+        assertEquals("support",StaffScheduleRules.status(saturday,"2026-11-14",emptyList(),emptyList()))
+        assertEquals("off",StaffScheduleRules.status(saturday,"2026-11-15",emptyList(),emptyList()))
+        assertEquals("off",StaffScheduleRules.status(sunday,"2026-11-14",emptyList(),emptyList()))
+        assertEquals("support",StaffScheduleRules.status(sunday,"2026-11-15",emptyList(),emptyList()))
+        val occasional=worker.copy(scheduleMode="occasional")
+        assertEquals("off",StaffScheduleRules.status(occasional,"2026-11-15",emptyList(),emptyList()))
+        assertEquals("support",StaffScheduleRules.status(occasional,"2026-11-15",emptyList(),
+            listOf(StaffDayOverrideEntity("2026-11-15",worker.id,"support",0))))
+        assertFalse(StaffScheduleRules.validSchedule("weekend",0,0))
+    }
+
+    @Test fun changingHabitualSchedulePreservesEarlierDates() {
+        val old=worker.copy(scheduleMode="weekend",weekendDaysMask=65)
+        val history=StaffScheduleRules.preserveSchedule(old,"weekend",0,1,"2026-11-16")
+        val changed=old.copy(restDaysMask=0,weekendDaysMask=1,scheduleHistory=history)
+        assertEquals("support",StaffScheduleRules.status(changed,"2026-11-14",emptyList(),emptyList()))
+        assertEquals("off",StaffScheduleRules.status(changed,"2026-11-21",emptyList(),emptyList()))
+        val history2=StaffScheduleRules.preserveSchedule(changed,"occasional",0,1,"2026-11-23")
+        val latest=changed.copy(scheduleMode="occasional",scheduleHistory=history2)
+        assertEquals("support",StaffScheduleRules.status(latest,"2026-11-22",emptyList(),emptyList()))
+        assertEquals("off",StaffScheduleRules.status(latest,"2026-11-29",emptyList(),emptyList()))
+        assertEquals(2,StaffScheduleRules.history(history2).size)
+    }
 }

@@ -132,7 +132,7 @@ class OfflineUniformRepository(
                     if(next==UniformRules.NA)"NO_APLICA" else "REVERTIR_NO_APLICA",
                     previous?.status,next,"",if(next==UniformRules.NA)exemptionReason.trim() else "Se retiró la excepción",now))
             }
-            if (dao.getAnswers(inspection.id).isEmpty()) {
+            if (dao.getAnswers(inspection.id).isEmpty() && dao.countExemptionEvents(inspection.id)==0) {
                 catalogDao.deleteForInspection(inspection.id)
                 dao.deleteInspection(inspection.id)
                 dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,requirementId,

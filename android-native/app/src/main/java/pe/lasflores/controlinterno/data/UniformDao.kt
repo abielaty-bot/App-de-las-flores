@@ -29,6 +29,9 @@ interface UniformDao {
     @Query("SELECT * FROM uniform_events")
     suspend fun allEvents(): List<UniformEventEntity>
 
+    @Query("SELECT COUNT(*) FROM uniform_events WHERE inspectionId=:inspectionId AND action IN ('NO_APLICA','REVERTIR_NO_APLICA')")
+    suspend fun countExemptionEvents(inspectionId:String):Int
+
     @Query("SELECT * FROM activity_days")
     suspend fun allActivityDays(): List<DailyActivityEntity>
 

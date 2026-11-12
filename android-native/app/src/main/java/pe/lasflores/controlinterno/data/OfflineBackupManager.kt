@@ -744,7 +744,6 @@ class OfflineBackupManager(
             "Una inspección referencia un trabajador desconocido."
         }
         require(data.answers.all { it.inspectionId in inspectionIds &&
-            it.status in setOf(UniformRules.OK,UniformRules.BAD,UniformRules.NA) &&
             (it.status!=UniformRules.NA || (it.quantity==null && it.correctedAtMillis==null && it.correctedBy==null)) }) {
             "Una respuesta de uniforme no tiene inspección."
         }

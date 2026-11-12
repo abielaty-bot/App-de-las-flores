@@ -71,14 +71,15 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         perform { materials.create(staffId, dateIso, material, quantity, reason, actor) }
     fun closeDelivery(id: String, action: String, note: String) =
         perform { materials.close(id, action, note) }
-    fun finalize(staffId: String) = perform { repository.finalize(_dateIso.value, staffId) }
-    fun correct(staffId: String, requirementId: String, verifier: String) =
-        perform { repository.correct(_dateIso.value, staffId, requirementId, verifier) }
-    fun rectify(staffId: String, requirementId: String, verifier: String, reason: String) =
-        perform { repository.rectify(_dateIso.value, staffId, requirementId, verifier, reason) }
-    fun markNotPerformed(reason: String) =
-        perform { repository.markNotPerformed(_dateIso.value, reason) }
-    fun reopenDay() = perform { repository.reopenDay(_dateIso.value) }
+    fun finalize(staffId:String) {val date=_dateIso.value;perform{repository.finalize(date,staffId)}}
+    fun correct(staffId:String,requirementId:String,verifier:String) {
+        val date=_dateIso.value;perform{repository.correct(date,staffId,requirementId,verifier)}
+    }
+    fun rectify(staffId:String,requirementId:String,verifier:String,reason:String) {
+        val date=_dateIso.value;perform{repository.rectify(date,staffId,requirementId,verifier,reason)}
+    }
+    fun markNotPerformed(reason:String) {val date=_dateIso.value;perform{repository.markNotPerformed(date,reason)}}
+    fun reopenDay() {val date=_dateIso.value;perform{repository.reopenDay(date)}}
 
     class Factory(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

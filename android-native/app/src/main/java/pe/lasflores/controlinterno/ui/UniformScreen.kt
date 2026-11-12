@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,10 +104,13 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             else->true
         }
     }
+    val listState=rememberLazyListState()
+    val scope=rememberCoroutineScope()
     fun selectNext(row:WorkerInspection){
         val index=visible.indexOfFirst{it.staff.id==row.staff.id}
-        expandedId=visible.drop(index+1).firstOrNull{it.pending}?.staff?.id
-            ?:visible.getOrNull(index+1)?.staff?.id.orEmpty()
+        val next=visible.drop(index+1).firstOrNull{it.pending} ?: visible.getOrNull(index+1)
+        expandedId=next?.staff?.id.orEmpty()
+        if(next!=null)scope.launch{listState.animateScrollToItem(visible.indexOf(next)+1)}
     }
     val showChecklist:@Composable (WorkerInspection)->Unit = { row ->
         UniformChecklist(row,hideExempt,busy||isNoReview,
@@ -151,21 +157,21 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
         val split=maxWidth>=820.dp && maxWidth>maxHeight
         if(split){
             Row(Modifier.fillMaxSize().padding(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-                LazyColumn(Modifier.width(310.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                LazyColumn(Modifier.width(310.dp),state=listState,verticalArrangement=Arrangement.spacedBy(8.dp)){
                     item{controls()}
                     items(visible,key={it.staff.id}){row->
-                        WorkerSummary(row,expandedId==row.staff.id,!isNoReview){expandedId=row.staff.id}
+                        WorkerSummary(row,expandedId==row.staff.id,!isNoReview){expandedId=if(expandedId==row.staff.id)"" else row.staff.id}
                     }
                     if(visible.isEmpty())item{Text("No hay trabajadores con este filtro.")}
                 }
-                val selected=visible.firstOrNull{it.staff.id==expandedId}?:visible.firstOrNull()
+                val selected=visible.firstOrNull{it.staff.id==expandedId}
                 LazyColumn(Modifier.weight(1f).fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)){
                     if(selected!=null)item{showChecklist(selected)}
                     else item{Text("Selecciona un trabajador.")}
                 }
             }
         }else{
-            LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(12.dp),
+            LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(12.dp),
                 verticalArrangement=Arrangement.spacedBy(8.dp)){
                 item{controls()}
                 items(visible,key={it.staff.id}){row->
@@ -333,13 +339,13 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
     Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(10.dp),
         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)){
         Column(Modifier.padding(horizontal=10.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
-            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
-                Column(Modifier.weight(1f)){
-                    Text(requirement.label,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
-                    Text((if(requirement.minQty>0)"Mínimo: "+requirement.minQty+" · " else "")+
-                        (if(auto)"No aplica al perfil" else status),
-                        style=MaterialTheme.typography.labelSmall,color=statusColor(status))
-                }
+            val details:@Composable ()->Unit={
+                Text(requirement.label,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
+                Text((if(requirement.minQty>0)"Mínimo: "+requirement.minQty+" · " else "")+
+                    (if(auto)"No aplica al perfil" else status),
+                    style=MaterialTheme.typography.labelSmall,color=statusColor(status))
+            }
+            val buttons:@Composable ()->Unit={
                 if(auto){
                     FilterChip(selected=true,onClick={},enabled=false,label={Text("✓ No aplica")})
                 }else{
@@ -352,6 +358,13 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
                         }
                     }
                 }
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()){
+                if(maxWidth>=450.dp)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                    horizontalArrangement=Arrangement.spacedBy(5.dp)){
+                    Column(Modifier.weight(1f)){details()}
+                    buttons()
+                }else Column(verticalArrangement=Arrangement.spacedBy(3.dp)){details();buttons()}
             }
             if(finalized && answer?.status==UniformRules.BAD && answer.correctedAtMillis==null){
                 FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
