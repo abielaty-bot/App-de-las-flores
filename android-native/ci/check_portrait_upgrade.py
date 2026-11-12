@@ -76,13 +76,21 @@ def check_update_notification_switch():
         for _ in range(12):
             adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
             xml=adb("shell","cat","/sdcard/las-flores-window.xml")
-            nodes=list(ET.fromstring(xml).iter("node"))
-            switches=[n for n in nodes if "Avisos automáticos de actualización" in n.get("content-desc","")
-                and n.get("checkable")=="true"]
-            if switches:return switches[0]
-            # The label and switch need not be exposed as separate nodes in Compose.
-            switches=[n for n in nodes if n.get("class")=="android.widget.Switch" and n.get("checkable")=="true"]
-            if len(switches)==1:return switches[0]
+            root=ET.fromstring(xml)
+            nodes=list(root.iter("node"))
+            parents={child:parent for parent in root.iter() for child in parent}
+            # Compose exposes the description on an inner non-checkable node;
+            # its enclosing clickable View owns the checked state (observed in API 35).
+            for n in nodes:
+                if "Avisos automáticos de actualización" not in n.get("content-desc",""):
+                    continue
+                while n is not None:
+                    if n.get("checkable")=="true" and n.get("clickable")=="true":
+                        return n
+                    n=parents.get(n)
+            switches=[n for n in nodes if n.get("checkable")=="true" and n.get("clickable")=="true"]
+            if len(switches)==1 and any(n.get("text")=="Avisar de nuevas versiones" for n in nodes):
+                return switches[0]
             adb("shell","input","swipe","360","1150","360","850","500")
         print("Jerarquía de pantalla al fallar: "+xml,flush=True)
         print(adb("shell","dumpsys","activity","activities")[-5000:],flush=True)
