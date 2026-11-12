@@ -41,6 +41,7 @@ data class BackupPreview(
     val journeyOccurrences: Int = 0,
     val journeyNotifications: Int = 0,
     val phoneChecks:Int=0
+)
 
 /**
  * Respaldo nativo íntegro de los módulos existentes (Personal y Uniformes).
