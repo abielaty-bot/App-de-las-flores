@@ -39,9 +39,11 @@ fun LasFloresScreen(
     incidentVm:IncidentViewModel,
     updateVm:UpdateViewModel,
     backupManager:OfflineBackupManager,
-    reportRepository:ReportRepository
+    reportRepository:ReportRepository,
+    openUpdates:Int=0
 ) {
     var screen by rememberSaveable{mutableStateOf("inicio")}
+    LaunchedEffect(openUpdates){if(openUpdates>0)screen="updates"}
     val holder=rememberSaveableStateHolder()
     val people by vm.staff.collectAsState()
     val personalStatus by vm.saveState.collectAsState()

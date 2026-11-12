@@ -1,6 +1,13 @@
 package pe.lasflores.controlinterno
 
 import android.os.Bundle
+import android.content.Intent
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import pe.lasflores.controlinterno.update.UpdateNotifications
+import pe.lasflores.controlinterno.update.UpdateCheckJob
+import pe.lasflores.controlinterno.update.UpdateStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
@@ -13,9 +20,17 @@ import pe.lasflores.controlinterno.ui.IncidentViewModel
 import pe.lasflores.controlinterno.update.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
+    private var openUpdates by mutableIntStateOf(0)
+    override fun onNewIntent(intent:Intent){
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if(intent.action==UpdateNotifications.OPEN)openUpdates++
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_LasFlores)
         super.onCreate(savedInstanceState)
+        if(intent.action==UpdateNotifications.OPEN)openUpdates++
+        UpdateCheckJob.configure(this,UpdateStore(this).automaticChecks)
         val app = application as LasFloresApp
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]
         val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository, app.materialRepository))[UniformViewModel::class.java]
@@ -23,6 +38,6 @@ class MainActivity : ComponentActivity() {
         val functionVm = ViewModelProvider(this, FunctionViewModel.Factory(app.functionRepository))[FunctionViewModel::class.java]
         val incidentVm = ViewModelProvider(this, IncidentViewModel.Factory(app.incidentRepository))[IncidentViewModel::class.java]
         val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
-        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager, app.reportRepository) }
+        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager, app.reportRepository, openUpdates) }
     }
 }
