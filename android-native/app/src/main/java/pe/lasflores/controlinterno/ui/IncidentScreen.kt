@@ -3,6 +3,10 @@ package pe.lasflores.controlinterno.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -129,12 +133,26 @@ fun IncidentScreen(vm:IncidentViewModel,staffVm:StaffViewModel) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun IncidentChoiceRow(label:String,options:List<Pair<String,String>>,
     selected:String,onSelect:(String)->Unit) {
     Text(label,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyMedium)
-    LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-        items(options,key={it.first}) {(id,title)->
+    if(options.size>5 || options.any{it.second.length>32}){
+        var expanded by remember{mutableStateOf(false)}
+        Box(Modifier.fillMaxWidth()){
+            OutlinedButton(onClick={expanded=true},modifier=Modifier.fillMaxWidth()){
+                Text(options.firstOrNull{it.first==selected}?.second?:"Seleccionar",modifier=Modifier.weight(1f))
+                Text("▾")
+            }
+            DropdownMenu(expanded=expanded,onDismissRequest={expanded=false},modifier=Modifier.heightIn(max=400.dp)){
+                options.forEach{(id,title)->
+                    DropdownMenuItem(text={Text(if(id==selected)"✓  "+title else title)},onClick={onSelect(id);expanded=false})
+                }
+            }
+        }
+    }else FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+        options.forEach{(id,title)->
             FilterChip(selected=selected==id,onClick={onSelect(id)},label={Text(title)})
         }
     }

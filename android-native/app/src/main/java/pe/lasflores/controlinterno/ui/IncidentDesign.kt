@@ -91,11 +91,18 @@ internal fun IncidentDesignedListCard(case:IncidentEntity,onOpen:(String)->Unit,
         Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer,RoundedCornerShape(10.dp)),contentAlignment=Alignment.Center){
             Icon(painterResource(R.drawable.ic_lf_incidentes),null,tint=MaterialTheme.colorScheme.onPrimaryContainer,modifier=Modifier.size(25.dp))
         }
-        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-            Text(case.code+" · "+case.productOrProcess,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge)
-            Text(case.occurredDate+" · "+case.occurredTime+" | "+IncidentRules.categoryName(case.category),
-                color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodySmall)
-            IncidentPills(case)
+        BoxWithConstraints(Modifier.weight(1f)){
+            val textContent:@Composable ()->Unit={
+                Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+                    Text(case.code+" · "+case.productOrProcess,fontWeight=FontWeight.Bold,style=MaterialTheme.typography.bodyLarge)
+                    Text(case.occurredDate+" · "+case.occurredTime+" | "+IncidentRules.categoryName(case.category),
+                        color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodySmall)
+                }
+            }
+            if(maxWidth>=410.dp)Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                Box(Modifier.weight(1f)){textContent()}
+                Box(Modifier.widthIn(max=210.dp)){IncidentPills(case)}
+            }else Column(verticalArrangement=Arrangement.spacedBy(5.dp)){textContent();IncidentPills(case)}
         }
         Text("›",color=MaterialTheme.colorScheme.primary,style=MaterialTheme.typography.headlineSmall)
     }
@@ -114,13 +121,28 @@ internal fun IncidentDesignedDashboard(incidents:List<IncidentEntity>,selected:I
         verticalArrangement=Arrangement.spacedBy(12.dp)){
         item{
             IncidentDesignCard{
-                IncidentHeading("Resumen del mes",R.drawable.ic_lf_reportes)
-                Text(YearMonth.parse(month).format(DateTimeFormatter.ofPattern("MMMM yyyy",Locale("es","PE"))),
-                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                    IncidentMetric("Total",stats.total,"neutral",Modifier.weight(1f),R.drawable.ic_lf_incidentes)
-                    IncidentMetric("Pendientes",open.size,"warning",Modifier.weight(1f),R.drawable.ic_lf_updates)
-                    IncidentMetric("Alta / crítica",open.count{it.priority in setOf("alta","critica")},"danger",Modifier.weight(1f),R.drawable.ic_lf_reportes)
+                BoxWithConstraints(Modifier.fillMaxWidth()){
+                    val heading:@Composable ()->Unit={
+                        Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            IncidentHeading("Resumen del mes",R.drawable.ic_lf_reportes)
+                            Text(YearMonth.parse(month).format(DateTimeFormatter.ofPattern("MMMM yyyy",Locale("es","PE"))),
+                                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    val metrics:@Composable (Modifier)->Unit={m->
+                        Row(m,horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                            IncidentMetric("Total",stats.total,"neutral",Modifier.weight(1f),R.drawable.ic_lf_incidentes)
+                            IncidentMetric("Pendientes",open.size,"warning",Modifier.weight(1f),R.drawable.ic_lf_updates)
+                            IncidentMetric("Alta / crítica",open.count{it.priority in setOf("alta","critica")},"danger",Modifier.weight(1f),R.drawable.ic_lf_reportes)
+                        }
+                    }
+                    if(maxWidth>=540.dp)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+                        Box(Modifier.weight(.85f)){heading()}
+                        metrics(Modifier.weight(1.8f))
+                    }else Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        heading()
+                        metrics(Modifier.fillMaxWidth())
+                    }
                 }
                 Text("Cerrados este mes: "+stats.closed+" · Pendientes de todas las fechas",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -188,10 +210,18 @@ internal fun IncidentDetailCard(case:IncidentEntity,actions:List<IncidentActionE
             Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer,RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center){
                 Icon(painterResource(R.drawable.ic_lf_incidentes),null,tint=MaterialTheme.colorScheme.onPrimaryContainer,modifier=Modifier.size(28.dp))
             }
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-                Text(case.code,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-                Text(case.productOrProcess,style=MaterialTheme.typography.bodyLarge)
-                IncidentPills(case)
+            BoxWithConstraints(Modifier.weight(1f)){
+                if(maxWidth>=410.dp)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+                        Text(case.code,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+                        Text(case.productOrProcess,style=MaterialTheme.typography.bodyLarge)
+                    }
+                    Box(Modifier.widthIn(max=235.dp)){IncidentPills(case)}
+                }else Column(verticalArrangement=Arrangement.spacedBy(3.dp)){
+                    Text(case.code,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+                    Text(case.productOrProcess,style=MaterialTheme.typography.bodyLarge)
+                    IncidentPills(case)
+                }
             }
         }
         Text(if(IncidentRules.isOpen(case))"Revisa el estado y registra el siguiente paso del caso." else "Consulta el historial y el resultado del caso.",
