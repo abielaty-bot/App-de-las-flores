@@ -98,5 +98,55 @@ class BriefingMigrationTest(unittest.TestCase):
             db.execute("INSERT INTO phone_checks VALUES ('2026-11-12','p','Prueba','Mozo','NO','','',101)")
         db.close()
 
+    def test_staff_delete_guard_checks_all_links_and_only_pristine_phone_rows(self):
+        dao=(SOURCE.parent / "StaffDao.kt").read_text(encoding="utf-8")
+        guard=dao.split('@Query("""SELECT \'Uniformes\'',1)[1].split('""")',1)[0]
+        guard="SELECT 'Uniformes'"+guard
+        cleanup=re.search(r'@Query\("(DELETE FROM phone_checks WHERE staffId=:id[^"]+)"\)',dao).group(1)
+        delete=re.search(r'@Query\("(DELETE FROM staff WHERE id=:id)"\)',dao).group(1)
+        db=sqlite3.connect(":memory:")
+        # Minimal schema of the actual referenced fields, not a simulated policy.
+        db.execute("CREATE TABLE staff(id TEXT PRIMARY KEY)")
+        for table in ("uniform_inspections","briefing_attendance","briefing_events","function_checks","material_deliveries","staff_vacations","staff_day_overrides"):
+            db.execute("CREATE TABLE "+table+"(staffId TEXT)")
+        for table in ("incidents","incident_actions"):
+            db.execute("CREATE TABLE "+table+"(assignedStaffId TEXT)")
+        db.execute("CREATE TABLE briefing_sessions(participantIds TEXT)")
+        db.execute("CREATE TABLE phone_checks(staffId TEXT,status TEXT,updatedAtMillis INTEGER,reason TEXT,note TEXT)")
+        def blockers(id):
+            return [row[0] for row in db.execute(guard,{"id":id})]
+        for id in ("p","pp","other"):
+            db.execute("INSERT INTO staff VALUES (?)",(id,))
+        db.execute("INSERT INTO briefing_sessions VALUES ('pp\nother')")
+        self.assertEqual(blockers("p"),[])
+        self.assertIn("Convocatorias de briefings",blockers("pp"))
+        db.execute("INSERT INTO phone_checks VALUES ('p','PENDING',0,'','')")
+        self.assertEqual(blockers("p"),[])
+        for table,column,label in [
+            ("uniform_inspections","staffId","Uniformes"),("briefing_attendance","staffId","Asistencia de briefings"),
+            ("briefing_events","staffId","Auditoría de briefings"),("function_checks","staffId","Funciones"),
+            ("incidents","assignedStaffId","Incidentes"),("incident_actions","assignedStaffId","Historial de incidentes"),
+            ("material_deliveries","staffId","Entrega de materiales"),("staff_vacations","staffId","Vacaciones"),
+            ("staff_day_overrides","staffId","Situaciones diarias")
+        ]:
+            db.execute("INSERT INTO "+table+"("+column+") VALUES ('p')")
+            self.assertEqual(blockers("p"),[label])
+            db.execute("DELETE FROM "+table)
+        for status,at,reason,note in [("YES",1,"",""),("NO",1,"",""),("NA",1,"Permiso",""),("PENDING",2,"","")]:
+            db.execute("INSERT INTO phone_checks VALUES ('p',?,?,?,?)",(status,at,reason,note))
+            self.assertEqual(blockers("p"),["Celulares"])
+            db.execute(cleanup,{"id":"p"})
+            self.assertEqual(db.execute("SELECT status,updatedAtMillis FROM phone_checks WHERE staffId='p'").fetchall(),[(status,at)])
+            db.execute("DELETE FROM phone_checks WHERE staffId='p'")
+        db.execute("INSERT INTO phone_checks VALUES ('p','PENDING',0,'','')")
+        db.execute("INSERT INTO phone_checks VALUES ('other','YES',1,'','')")
+        self.assertEqual(blockers("p"),[])
+        db.execute(cleanup,{"id":"p"})
+        db.execute(delete,{"id":"p"})
+        self.assertEqual(db.execute("SELECT id FROM staff ORDER BY id").fetchall(),[("other",),("pp",)])
+        self.assertEqual(db.execute("SELECT staffId FROM phone_checks").fetchall(),[("other",)])
+        self.assertIn("Convocatorias de briefings",blockers("pp"))
+        db.close()
+
 if __name__=="__main__":
     unittest.main()

@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -95,6 +95,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40016
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40018" ]]; then
             PREVIOUS_TAG=android-beta-v40017
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40019" ]]; then
+            PREVIOUS_TAG=android-beta-v40018
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -157,6 +159,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40018" ]]; then
               NOTES=$(printf '%s\n' '## Uniformes por puesto' '- Nuevo filtro Mozos, Caja, Runners y otros puestos; catálogo único con asignación múltiple, perfiles, cantidades, búsqueda y estado.' '- Runner disponible en Personal, independiente de Apoyo; no reclasifica trabajadores existentes.' '- Propuestas opcionales para Caja y Runners: selecciona el puesto y pulsa Aplicar propuesta si corresponde al uniforme real.' '- Filtros por puesto en inspecciones e historial; estadísticas de conformidad inicial y hoja Excel.' '- Conserva todas las inspecciones ya iniciadas. Room v11 sin cambio de esquema, respaldo JSON v10.' '- Incluye Control de celulares de 4.0017.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40019" ]]; then
+              NOTES=$(printf '%s\n' '## Eliminar trabajadores agregados por error' '- Personal: filtros Todos, Activos e Inactivos y acción Eliminar con confirmación.' '- Solo elimina fichas sin registros vinculados. Si tiene historial, muestra los módulos que impiden borrarla y permite desactivar.' '- Comprueba de nuevo los vínculos antes de eliminar en una única transacción. No borra evaluaciones, convocatorias ni otras actividades.' '- Room v11 y respaldo JSON v10 sin cambios. Incluye Uniformes por puesto y Celulares.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

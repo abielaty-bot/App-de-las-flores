@@ -9,6 +9,8 @@ interface StaffRepository {
     val overrides: Flow<List<pe.lasflores.controlinterno.data.StaffDayOverrideEntity>>
     suspend fun create(fullName: String, role: String, category: Int = 0, briefingGroup: Int = 0, scheduleMode: String = "regular", restDaysMask: Int = 0, weekendDaysMask: Int = 65, uniformProfile: String = "SIN_DEFINIR")
     suspend fun updateRole(id: String, role: String)
+    suspend fun deletionBlockers(id:String):List<String>
+    suspend fun deleteIfUnused(id:String):List<String>
     suspend fun setActive(id: String, active: Boolean)
     suspend fun updateDetails(id: String, fullName: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int, weekendDaysMask: Int = 65, uniformProfile: String = "SIN_DEFINIR")
     suspend fun addVacation(staffId: String, from: String, to: String, note: String)

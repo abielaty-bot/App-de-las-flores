@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -50,10 +52,15 @@ import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
 
 /** Ficha única de personal: programación diaria, descansos, apoyos y vacaciones. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={}) {
     val vacations by vm.vacations.collectAsState()
     val overrides by vm.overrides.collectAsState()
+    val deletion by vm.deletion.collectAsState()
+    val saved by vm.saveState.collectAsState()
+    var deleting by remember { mutableStateOf<StaffEntity?>(null) }
+    var activeFilter by rememberSaveable { mutableStateOf("all") }
     var dateIso by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     LaunchedEffect(openDate){if(openDate!=null){dateIso=openDate;onDateOpened()}}
     var query by rememberSaveable { mutableStateOf("") }
@@ -61,7 +68,8 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate
     var adding by remember { mutableStateOf(false) }
     var vacationPerson by remember { mutableStateOf<StaffEntity?>(null) }
     var dayPerson by remember { mutableStateOf<StaffEntity?>(null) }
-    val visible = people.filter { it.fullName.contains(query, ignoreCase = true) }
+    val visible = people.filter { it.fullName.contains(query, ignoreCase = true) && (activeFilter=="all"||(activeFilter=="active")==it.isActive) }
+    LaunchedEffect(deletion.deleted){if(deletion.deleted){deleting=null;vm.clearDeletion()}}
     val working = people.count {
         StaffScheduleRules.isScheduled(StaffScheduleRules.status(it, dateIso, vacations, overrides))
     }
@@ -91,6 +99,8 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate
             Button(onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) {
                 Text("+ Agregar trabajador")
             }
+            SectionControls(listOf("all" to "Todos","active" to "Activos","inactive" to "Inactivos"),activeFilter,{activeFilter=it})
+            if(saved=="Trabajador eliminado")Text(saved,color=semanticForeground("success"),style=MaterialTheme.typography.labelMedium)
         }
         items(visible, key = { it.id }) { person ->
             val status = StaffScheduleRules.status(person, dateIso, vacations, overrides)
@@ -110,17 +120,55 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate
                         OutlinedButton(onClick = { editing = person }) { Text("Editar") }
                         OutlinedButton(onClick = { dayPerson = person }) { Text("Situación") }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { vacationPerson = person }) { Text("Vacaciones") }
                         TextButton(onClick = { vm.changeActive(person.id, !person.isActive) }) {
                             Text(if (person.isActive) "Desactivar" else "Reactivar")
+                        }
+                        TextButton(onClick={deleting=person;vm.inspectDeletion(person.id)},enabled=saved!="Guardando…"){
+                            Text("Eliminar",color=MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             }
         }
         if (visible.isEmpty()) item { Text("No se encontraron trabajadores.") }
+    }
+
+    deleting?.let{person->
+        val state=deletion.takeIf{it.id==person.id}
+        val loading=state==null||state.loading
+        val blocked=state?.blockers.orEmpty()
+        val failure=state?.error.orEmpty()
+        fun close(){if(!loading){deleting=null;vm.clearDeletion()}}
+        AlertDialog(onDismissRequest={close()},title={Text("Eliminar trabajador")},
+            text={Column(Modifier.heightIn(max=440.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(9.dp)){
+                Text(person.fullName,fontWeight=FontWeight.Bold)
+                if(loading){
+                    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        CircularProgressIndicator(modifier=Modifier.height(24.dp))
+                        Text("Comprobando registros…")
+                    }
+                }else if(failure.isNotBlank()){
+                    Text(failure,color=MaterialTheme.colorScheme.error)
+                }else if(blocked.isNotEmpty()){
+                    Text("No se puede eliminar: tiene información vinculada.",color=MaterialTheme.colorScheme.error,fontWeight=FontWeight.SemiBold)
+                    blocked.forEach{Text("• "+it)}
+                    Text("Desactívalo para conservar sus registros y estadísticas. No se borrará ningún historial.",style=MaterialTheme.typography.bodySmall)
+                }else{
+                    Text("No tiene registros de actividad vinculados.")
+                    Text("Se eliminará definitivamente la ficha y las filas automáticas de celulares sin ninguna respuesta. Esta acción no se puede deshacer desde Personal.",style=MaterialTheme.typography.bodySmall)
+                }
+            }},
+            confirmButton={
+                if(!loading&&failure.isBlank()&&blocked.isEmpty())Button(onClick={vm.confirmDeletion(person.id)},
+                    colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error,contentColor=MaterialTheme.colorScheme.onError)){
+                    Text("Eliminar definitivamente")
+                }else if(!loading&&blocked.isNotEmpty()&&person.isActive)Button(onClick={close();vm.changeActive(person.id,false)}){Text("Desactivar")}
+                else if(!loading&&failure.isNotBlank())OutlinedButton(onClick={vm.inspectDeletion(person.id)}){Text("Reintentar")}
+            },
+            dismissButton={TextButton(onClick={close()},enabled=!loading){Text(if(blocked.isNotEmpty())"Cerrar" else "Cancelar")}})
     }
 
     if (adding || editing != null) {

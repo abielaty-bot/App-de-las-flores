@@ -58,3 +58,12 @@ Base publicada: 4.0015 (Centro de actualizaciones). No desinstalar la aplicació
 - [x] Filtros en inspecciones e historial; estadísticas de conformidad inicial por puesto histórico y hoja Excel.
 - [x] Room permanece v11; JSON v10 reconoce Runner y restaura versiones 1–9.
 - [ ] Compilación, pruebas y publicación firmada; comprobar en tablet.
+
+
+## Eliminar personal accidental (4.0019, candidata)
+- [x] Personal: filtro Todos/Activos/Inactivos y acción Eliminar en cada ficha.
+- [x] Confirmación con nombre y comprobación previa de referencias en todos los módulos, repetida dentro de la transacción de eliminación.
+- [x] Bloquea uniformes, briefings (asistencia/convocatoria/auditoría), funciones, incidentes y su historial, materiales, celulares revisados, vacaciones y situaciones diarias. Desactivar sigue disponible.
+- [x] Solo se quitan filas de celulares automáticas PENDING nunca marcadas; desmarcar una respuesta no elimina su vínculo.
+- [x] Room v11 y JSON v10 sin cambios; no elimina fichas automáticamente.
+- [ ] CI, publicación firmada y prueba en tablet.
