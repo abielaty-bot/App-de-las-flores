@@ -31,7 +31,7 @@ def tap(text, last=False):
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
 
-def open_personal():
+def open_menu_item(title):
     for _ in range(8):
         adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
         xml = adb("shell", "cat", "/sdcard/las-flores-window.xml")
@@ -40,10 +40,14 @@ def open_personal():
         if menu is not None:
             left, top, right, bottom = map(int, re.findall(r"\d+", menu.attrib["bounds"]))
             adb("shell", "input", "tap", str((left+right)//2), str((top+bottom)//2))
-            tap("Personal", last=True)
+            tap(title, last=True)
             return
         time.sleep(1)
-    tap("Personal", last=True)
+    tap(title, last=True)
+
+
+def open_personal():
+    open_menu_item("Personal")
 
 
 def launch():
@@ -63,8 +67,8 @@ def main():
     adb("shell", "wm", "density", "320")
     install("android-native/dist/previous/las-flores-beta.apk")
     launch()
-    code = 40021 if "android-beta-v40021" in sys.argv else 40008
-    if code == 40021:
+    code = 40022 if "android-beta-v40022" in sys.argv else (40021 if "android-beta-v40021" in sys.argv else 40008)
+    if code in (40021, 40022):
         open_personal()
     else:
         tap("Personal", last=True)
@@ -81,7 +85,7 @@ def main():
     if not re.search(rf"\bversionCode={code}\b", package_info):
         raise RuntimeError(f"Android no instaló {code}")
     launch()
-    if code == 40021:
+    if code in (40021, 40022):
         open_personal()
         find_text(TEST_NAME)
         adb("shell", "am", "force-stop", PACKAGE)
@@ -89,6 +93,16 @@ def main():
         open_personal()
         find_text(TEST_NAME)
         print("Registro conservado tras actualizar y reiniciar la app", flush=True)
+        if code == 40022:
+            open_menu_item("Incidentes")
+            find_text("Resumen del mes")
+            find_text("Casos pendientes")
+            tap("+ Registrar incidente")
+            find_text("Nuevo incidente")
+            find_text("1. ¿Qué ocurrió?")
+            tap("Cancelar")
+            find_text("Resumen del mes")
+            print("Nuevo módulo y formulario de Incidentes verificados.", flush=True)
         return
     find_text("Gestión de Personal")
     tap("Personal", last=True)
