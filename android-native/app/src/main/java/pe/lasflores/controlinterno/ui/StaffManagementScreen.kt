@@ -52,6 +52,7 @@ import pe.lasflores.controlinterno.domain.StaffName
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
 
 /** Ficha única de personal: programación diaria, descansos, apoyos y vacaciones. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={}) {
     val vacations by vm.vacations.collectAsState()
@@ -119,8 +120,8 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate
                         OutlinedButton(onClick = { editing = person }) { Text("Editar") }
                         OutlinedButton(onClick = { dayPerson = person }) { Text("Situación") }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { vacationPerson = person }) { Text("Vacaciones") }
                         TextButton(onClick = { vm.changeActive(person.id, !person.isActive) }) {
                             Text(if (person.isActive) "Desactivar" else "Reactivar")
