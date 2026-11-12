@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.lasflores.controlinterno.data.BriefingAttendanceEntity
+import pe.lasflores.controlinterno.data.BriefingSessionEntity
 
 class BriefingRulesTest {
     private fun record(
@@ -56,5 +57,46 @@ class BriefingRulesTest {
 
     @Test fun emptyPeriodDoesNotDivideByZero() {
         assertEquals(0,BriefingRules.stats(emptyList()).communicationPercentage)
+    }
+
+    @Test fun editingTimeDoesNotChangeSessionKey() {
+        val original=BriefingSessionEntity("2026-11-11",13,"Temas",1,"11:30",null,"PROGRAMADO","p1")
+        val edited=original.copy(scheduledTime="12:45")
+        assertEquals(original.dateIso to original.groupHour,edited.dateIso to edited.groupHour)
+        assertEquals("12:45",BriefingRules.timeLabel(edited))
+        assertTrue(BriefingRules.validSlot(13))
+        assertTrue(BriefingRules.validTime("12:30"))
+        assertFalse(BriefingRules.validTime("25:00"))
+        assertFalse(BriefingRules.validTime("12:60"))
+    }
+
+    @Test fun cancelledSessionsNeverEnterLiveStatistics() {
+        val date="2026-11-11"
+        val recorded=record("a",BriefingRules.FALTA)
+        val cancelled=BriefingSessionEntity(date,11,"",1,"11:30",null,"CANCELADO","person-a")
+        assertTrue(BriefingRules.activeRecords(listOf(recorded),listOf(cancelled)).isEmpty())
+        assertEquals(1,BriefingRules.activeRecords(listOf(recorded),listOf(cancelled.copy(status="REALIZADO",actualTime="11:40"))).size)
+    }
+
+    @Test fun confirmedInPersonPreservesOriginalAttendance() {
+        val mesa=record("a",BriefingRules.MESA)
+        val delegated=mesa.copy(communicationState="PENDIENTE_CONFIRMAR",communicationResponsible="Encargado")
+        assertTrue(BriefingRules.isValid(delegated))
+        assertTrue(BriefingRules.pending(delegated))
+        val done=delegated.copy(communicationState="OTRO_RESPONSABLE",informedAtMillis=10L,
+            informedBy="Encargado",communicationUpdatedAtMillis=10L)
+        assertTrue(BriefingRules.isValid(done))
+        assertEquals(BriefingRules.MESA,done.presence)
+        assertTrue(BriefingRules.communicated(done))
+        assertFalse(BriefingRules.pending(done))
+        assertFalse(BriefingRules.isValid(done.copy(informedAtMillis=null)))
+        assertFalse(BriefingRules.isValid(delegated.copy(communicationResponsible="")))
+    }
+
+    @Test fun participantSnapshotIsDeterministicAndDoesNotDuplicatePeople() {
+        val ids=BriefingRules.encodeParticipants(listOf("p2","p1","p2"))
+        val session=BriefingSessionEntity("2026-11-11",11,"",1,"11:30",null,"PROGRAMADO",ids)
+        assertEquals("p1\np2",ids)
+        assertEquals(setOf("p1","p2"),BriefingRules.participants(session))
     }
 }

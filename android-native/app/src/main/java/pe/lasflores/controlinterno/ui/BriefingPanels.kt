@@ -6,16 +6,20 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,186 +28,215 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import pe.lasflores.controlinterno.data.BriefingAttendanceEntity
+import pe.lasflores.controlinterno.data.BriefingSessionEntity
+import pe.lasflores.controlinterno.data.BriefingEventEntity
+import pe.lasflores.controlinterno.data.DailyActivityEntity
 import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.domain.BriefingRules
 
+private fun communicationDate(value:Long?) = value?.let{
+    Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+}.orEmpty()
+
 @Composable
-fun BriefingPendingPanel(records: List<BriefingAttendanceEntity>, vm: BriefingViewModel) {
-    var chosen by remember { mutableStateOf<BriefingAttendanceEntity?>(null) }
-    var actor by rememberSaveable { mutableStateOf("") }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Text("Pendientes de informar", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-            Text(records.size.toString() + " comunicaciones pendientes, incluidas las fechas anteriores.")
-            Text("No implica una falta. El trabajador debe recibir las indicaciones personalmente.",
-                style = MaterialTheme.typography.bodySmall)
+internal fun BriefingCommunicationDialog(record:BriefingAttendanceEntity,time:String,vm:BriefingViewModel,onDismiss:()->Unit) {
+    var state by remember(record.id){mutableStateOf(if(record.communicationState=="INFORMADO_HISTORICO")"" else record.communicationState)}
+    var actor by remember(record.id){mutableStateOf(record.communicationResponsible.ifBlank{record.informedBy.orEmpty()})}
+    var note by remember(record.id){mutableStateOf(record.communicationNote)}
+    val options=listOf("PERSONAL" to "Informado personalmente",
+        "OTRO_RESPONSABLE" to "Informado por otro responsable",
+        "PENDIENTE_CONFIRMAR" to "Pendiente de confirmar",
+        "PENDIENTE" to "Pendiente de informar")
+    AlertDialog(onDismissRequest=onDismiss,title={Text("Comunicación presencial")},
+        text={Column(Modifier.heightIn(max=450.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement=Arrangement.spacedBy(5.dp)){
+            Text(record.staffNameSnapshot+" · "+record.dateIso+" · "+time,fontWeight=FontWeight.Bold)
+            Text("Asistencia original: "+BriefingRules.label(record.presence)+". No se modificará.",style=MaterialTheme.typography.bodySmall)
+            if(record.communicationState=="INFORMADO_HISTORICO")Text("Registro anterior: informado por "+record.informedBy.orEmpty()+". Selecciona el método si necesitas corregirlo.")
+            options.forEach{(code,label)->
+                Row(verticalAlignment=Alignment.CenterVertically){
+                    RadioButton(selected=state==code,onClick={state=code})
+                    TextButton(onClick={state=code}){Text(label)}
+                }
+            }
+            OutlinedTextField(value=actor,onValueChange={actor=it.take(100)},
+                label={Text(if(state=="PENDIENTE_CONFIRMAR")"Responsable asignado" else "Quién comunicó / responsable")},
+                modifier=Modifier.fillMaxWidth())
+            OutlinedTextField(value=note,onValueChange={note=it.take(500)},label={Text("Observación opcional")},
+                minLines=2,modifier=Modifier.fillMaxWidth())
+            Text("Solo comunicación cara a cara. Se guarda fecha, hora y auditoría.",style=MaterialTheme.typography.bodySmall)
+        }},
+        confirmButton={Button(enabled=state.isNotBlank()&&(state=="PENDIENTE"||actor.trim().length>=2),
+            onClick={vm.inform(record.id,state,actor,note);onDismiss()}){Text("Guardar")}},
+        dismissButton={TextButton(onClick=onDismiss){Text("Cancelar")}})
+}
+
+@Composable
+fun BriefingPendingPanel(records:List<BriefingAttendanceEntity>,sessions:List<BriefingSessionEntity>,date:String,vm:BriefingViewModel) {
+    var all by rememberSaveable{mutableStateOf(true)}
+    var chosen by remember{mutableStateOf<BriefingAttendanceEntity?>(null)}
+    val index=sessions.associateBy{it.dateIso to it.groupHour}
+    val filtered=records.filter{all||it.dateIso==date}
+    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),
+        verticalArrangement=Arrangement.spacedBy(9.dp)){
+        item{
+            Text("Por informar",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            Text("Seguimiento presencial · "+filtered.size+" pendientes")
+            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                FilterChip(selected=all,onClick={all=true},label={Text("Todas las fechas")})
+                FilterChip(selected=!all,onClick={all=false},label={Text("Fecha elegida")})
+            }
         }
-        items(records, key = { it.id }) { item ->
-            Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(item.staffNameSnapshot, fontWeight = FontWeight.Bold)
-                    Text(item.dateIso + " · Grupo " + item.groupHour + ":00")
-                    Text("Registrado atendiendo mesas",
-                        style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { actor = ""; chosen = item }) { Text("Ya fue informado") }
+        items(filtered,key={it.id}){item->
+            val time=index[item.dateIso to item.groupHour]?.let(BriefingRules::timeLabel)?:BriefingRules.legacyTime(item.groupHour)
+            Card(Modifier.fillMaxWidth()){
+                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
+                    Text(item.staffNameSnapshot,fontWeight=FontWeight.Bold)
+                    Text(item.dateIso+" · "+time)
+                    Text(BriefingRules.communicationLabel(item),color=MaterialTheme.colorScheme.primary)
+                    if(item.communicationResponsible.isNotBlank())Text("Responsable: "+item.communicationResponsible)
+                    if(item.communicationNote.isNotBlank())Text(item.communicationNote,style=MaterialTheme.typography.bodySmall)
+                    Button(onClick={chosen=item}){Text("Registrar comunicación")}
                 }
             }
         }
-        if (records.isEmpty()) item { Text("No hay comunicaciones pendientes.") }
+        if(filtered.isEmpty())item{Text("No hay comunicaciones pendientes.")}
     }
-    chosen?.let { item ->
-        AlertDialog(
-            onDismissRequest = { chosen = null },
-            title = { Text("Confirmar comunicación") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(item.staffNameSnapshot + " · " + item.dateIso)
-                    OutlinedTextField(value = actor, onValueChange = { actor = it.take(100) },
-                        label = { Text("Nombre de quien informó") },
-                        modifier = Modifier.fillMaxWidth())
-                }
-            },
-            confirmButton = {
-                Button(enabled = actor.trim().length >= 2, onClick = {
-                    vm.inform(item.id, actor)
-                    chosen = null
-                }) { Text("Registrar comunicación") }
-            },
-            dismissButton = { TextButton(onClick = { chosen = null }) { Text("Cancelar") } }
-        )
+    chosen?.let{item->
+        BriefingCommunicationDialog(item,index[item.dateIso to item.groupHour]?.let(BriefingRules::timeLabel).orEmpty(),vm,{chosen=null})
+    }
+}
+
+private fun dateInScope(iso:String,date:String,scope:String):Boolean {
+    val anchor=LocalDate.parse(date)
+    return when(scope){
+        "day"->iso==date
+        "week"->{val start=anchor.minusDays((anchor.dayOfWeek.value-1).toLong());iso>=start.toString()&&iso<=start.plusDays(6).toString()}
+        "month"->iso.startsWith(date.take(7))
+        else->true
     }
 }
 
 @Composable
-fun BriefingHistoryPanel(
-    records: List<BriefingAttendanceEntity>, staff: List<StaffEntity>
-) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var start by rememberSaveable { mutableStateOf("") }
-    var end by rememberSaveable { mutableStateOf("") }
-    val names = remember(staff) { staff.associate { it.id to it.fullName } }
-    val datesValid = (start.isBlank() || runCatching { LocalDate.parse(start) }.isSuccess) &&
-        (end.isBlank() || runCatching { LocalDate.parse(end) }.isSuccess)
-    val filtered = if (!datesValid) emptyList() else records.filter {
-        (query.isBlank() || (names[it.staffId] ?: it.staffNameSnapshot)
-            .contains(query, ignoreCase = true)) &&
-        (start.isBlank() || it.dateIso >= start) &&
-        (end.isBlank() || it.dateIso <= end)
+private fun PeriodChips(scope:String,select:(String)->Unit,all:Boolean=false) {
+    LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+        val scopes=listOf("day" to "Día","week" to "Semana","month" to "Mes")+(if(all)listOf("all" to "Todo")else emptyList())
+        items(scopes){(id,label)->FilterChip(selected=id==scope,onClick={select(id)},label={Text(label)})}
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        item {
-            Text("Historial de briefings", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = query, onValueChange = { query = it.take(100) },
-                label = { Text("Buscar trabajador") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = start, onValueChange = { start = it.take(10) },
-                label = { Text("Desde · AAAA-MM-DD") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = end, onValueChange = { end = it.take(10) },
-                label = { Text("Hasta · AAAA-MM-DD") }, modifier = Modifier.fillMaxWidth())
-            if (!datesValid) Text("Introduce fechas válidas (AAAA-MM-DD).",
-                color = MaterialTheme.colorScheme.error)
-            Text(filtered.size.toString() + " registros",
-                style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+fun BriefingHistoryPanel(records:List<BriefingAttendanceEntity>,sessions:List<BriefingSessionEntity>,
+    plans:List<DailyActivityEntity>,events:List<BriefingEventEntity>,date:String) {
+    var scope by rememberSaveable{mutableStateOf("day")}
+    var query by rememberSaveable{mutableStateOf("")}
+    var audit by rememberSaveable{mutableStateOf(false)}
+    val selectedSessions=sessions.filter{dateInScope(it.dateIso,date,scope)}
+    val index=selectedSessions.associateBy{it.dateIso to it.groupHour}
+    val filtered=records.filter{dateInScope(it.dateIso,date,scope)&&it.staffNameSnapshot.contains(query,true)}
+    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        item{
+            Text("Historial de briefings",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            PeriodChips(scope,{scope=it},true)
+            OutlinedTextField(value=query,onValueChange={query=it.take(100)},label={Text("Buscar trabajador")},modifier=Modifier.fillMaxWidth())
+            TextButton(onClick={audit=!audit}){Text(if(audit)"Ver registros" else "Ver auditoría")}
         }
-        items(filtered, key = { it.id }) { item ->
-            Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(names[item.staffId] ?: item.staffNameSnapshot,
-                        fontWeight = FontWeight.Bold)
-                    Text(item.dateIso + " · " + item.groupHour + ":00")
-                    Text(BriefingRules.label(item.presence))
-                    Text(when {
-                        item.presence == BriefingRules.ASISTIO -> "Recibió las indicaciones presencialmente"
-                        item.informedAtMillis != null -> "Informado posteriormente · " +
-                            item.informedBy.orEmpty()
-                        item.presence == BriefingRules.MESA -> "Comunicación pendiente"
-                        else -> "No participó en el briefing"
-                    }, style = MaterialTheme.typography.bodySmall)
+        if(audit){
+            items(events.filter{dateInScope(it.dateIso,date,scope)}.take(200),key={it.id}){event->
+                Card(Modifier.fillMaxWidth()){
+                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                        Text(event.dateIso+" · "+event.action,fontWeight=FontWeight.Bold)
+                        Text(event.beforeValue+" → "+event.afterValue,style=MaterialTheme.typography.bodySmall)
+                        Text(event.actor+" · "+event.details,style=MaterialTheme.typography.bodySmall)
+                        Text(communicationDate(event.atMillis),style=MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
-        }
-        if (filtered.isEmpty() && datesValid) item {
-            Text("No hay registros en este período.")
+        }else{
+            items(plans.filter{dateInScope(it.dateIso,date,scope)},key={it.dateIso}){plan->
+                Text(plan.dateIso+" · No se realizó briefing",fontWeight=FontWeight.Medium)
+            }
+            if(query.isBlank())items(selectedSessions,key={it.dateIso+":"+it.groupHour}){s->
+                Card(Modifier.fillMaxWidth()){
+                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                        Text(s.dateIso+" · "+BriefingRules.timeLabel(s),fontWeight=FontWeight.Bold)
+                        Text(BriefingRules.stateLabel(s.status)+" · Convocados: "+BriefingRules.participants(s).size)
+                        Text("Hora programada: "+s.scheduledTime+" · Real: "+(s.actualTime?:"Sin registrar"),style=MaterialTheme.typography.bodySmall)
+                        if(s.topics.isNotBlank())Text(s.topics,style=MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            items(filtered,key={it.id}){record->
+                val s=index[record.dateIso to record.groupHour]
+                Card(Modifier.fillMaxWidth()){
+                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                        Text(record.staffNameSnapshot,fontWeight=FontWeight.Bold)
+                        Text(record.dateIso+" · "+(s?.let(BriefingRules::timeLabel)?:BriefingRules.legacyTime(record.groupHour)))
+                        Text(BriefingRules.label(record.presence)+" · "+BriefingRules.communicationLabel(record))
+                        if(s?.status=="CANCELADO")Text("Sesión cancelada · no cuenta en estadísticas")
+                        if(record.communicationResponsible.isNotBlank())Text("Responsable: "+record.communicationResponsible)
+                        if(record.communicationNote.isNotBlank())Text(record.communicationNote,style=MaterialTheme.typography.bodySmall)
+                        if(record.informedAtMillis!=null)Text("Informado: "+communicationDate(record.informedAtMillis),style=MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            if(filtered.isEmpty()&&selectedSessions.isEmpty())item{Text("No hay registros en este período. No implica que se haya cancelado el briefing.")}
         }
     }
 }
 
 @Composable
-fun BriefingStatisticsPanel(
-    records: List<BriefingAttendanceEntity>, staff: List<StaffEntity>
-) {
-    var month by rememberSaveable {
-        mutableStateOf(LocalDate.now().toString().take(7))
-    }
-    var personFilter by rememberSaveable { mutableStateOf("todos") }
-    val names = remember(staff) { staff.associate { it.id to it.fullName } }
-    val monthValid = Regex("""\d{4}-(0[1-9]|1[0-2])""").matches(month)
-    val monthData = if (monthValid) records.filter { it.dateIso.startsWith(month) }
-        else emptyList()
-    val data = monthData.filter { personFilter == "todos" || it.staffId == personFilter }
-    val stats = BriefingRules.stats(data)
-    val participants = records.map { it.staffId }.toSet()
-    val known = staff.filter { it.isActive || it.id in participants }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Text("Estadísticas de briefings", style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold)
-            Text("Porcentajes sobre los registros realizados; sin registrar no se considera falta.",
-                style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = month, onValueChange = { month = it.take(7) },
-                label = { Text("Mes · AAAA-MM") }, modifier = Modifier.fillMaxWidth())
-            if (!monthValid) Text("Mes inválido", color = MaterialTheme.colorScheme.error)
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                item {
-                    FilterChip(selected = personFilter == "todos",
-                        onClick = { personFilter = "todos" },
-                        label = { Text("Todos") })
-                }
-                items(known, key = { it.id }) { worker ->
-                    FilterChip(selected = personFilter == worker.id,
-                        onClick = { personFilter = worker.id },
-                        label = { Text(worker.fullName) })
-                }
+fun BriefingStatisticsPanel(records:List<BriefingAttendanceEntity>,sessions:List<BriefingSessionEntity>,
+    plans:List<DailyActivityEntity>,staff:List<StaffEntity>,date:String) {
+    var scope by rememberSaveable{mutableStateOf("month")}
+    var filter by rememberSaveable{mutableStateOf("todos")}
+    val scoped=sessions.filter{dateInScope(it.dateIso,date,scope)}
+    val valid=scoped.filter{it.status in setOf("REALIZADO","HISTORICO")}
+    val keys=valid.map{it.dateIso to it.groupHour}.toSet()
+    val base=records.filter{(it.dateIso to it.groupHour) in keys}
+    val data=base.filter{filter=="todos"||it.staffId==filter}
+    val stats=BriefingRules.stats(data)
+    val people=staff.filter{it.isActive||records.any{a->a.staffId==it.id}}
+    LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
+        item{
+            Text("Estadísticas",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            PeriodChips(scope,{scope=it})
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+                item{FilterChip(selected=filter=="todos",onClick={filter="todos"},label={Text("Todos")})}
+                items(people,key={it.id}){p->FilterChip(selected=filter==p.id,onClick={filter=p.id},label={Text(p.fullName)})}
             }
-            Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Resultados de " + month, fontWeight = FontWeight.Bold)
-                    Text("Registros realizados: " + stats.registered)
-                    Text("Asistencia presencial: " + stats.attended +
-                        " (" + stats.attendancePercentage + "%)")
-                    Text("Comunicación recibida: " + stats.communicated +
-                        " (" + stats.communicationPercentage + "%)")
-                    Text("Pendientes de informar: " + stats.pending)
-                    Text("No asistieron al briefing: " + stats.missed)
-                }
-            }
-            Text("Resultados por trabajador", fontWeight = FontWeight.Bold)
-        }
-        val people = if (personFilter == "todos") known else known.filter {
-            it.id == personFilter
-        }
-        items(people, key = { it.id }) { worker ->
-            val workerStats = BriefingRules.stats(monthData.filter { it.staffId == worker.id })
-            Card {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(names[worker.id] ?: worker.fullName, fontWeight = FontWeight.Bold)
-                    Text("Registros: " + workerStats.registered +
-                        " · Asistió: " + workerStats.attended)
-                    Text("Presencial: " + workerStats.attendancePercentage +
-                        "% · Comunicación: " + workerStats.communicationPercentage + "%")
-                    Text("Por informar: " + workerStats.pending)
+            Card(Modifier.fillMaxWidth()){
+                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                    Text("Resumen del período",fontWeight=FontWeight.Bold)
+                    Text("Sesiones realizadas: "+scoped.count{it.status=="REALIZADO"}+" · Históricas: "+scoped.count{it.status=="HISTORICO"})
+                    Text("Días sin briefing: "+plans.count{dateInScope(it.dateIso,date,scope)&&it.status=="NO_REALIZADA"})
+                    Text("Sesiones canceladas: "+scoped.count{it.status=="CANCELADO"})
+                    Text("Asistencias registradas: "+stats.attended+" / "+stats.registered)
+                    Text("Participantes únicos: "+data.filter{it.presence==BriefingRules.ASISTIO}.map{it.staffId}.distinct().size)
+                    Text("Participación: "+stats.attendancePercentage+"% · Comunicación: "+stats.communicationPercentage+"%")
+                    Text("No asistieron: "+stats.missed+" · Por informar: "+stats.pending)
+                    Text("Solo sesiones realizadas o históricas. Los porcentajes usan registros explícitos; sin registrar no es falta.",style=MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        if (people.isEmpty()) item { Text("Todavía no hay trabajadores registrados.") }
+        items(people.filter{filter=="todos"||it.id==filter},key={it.id}){p->
+            val result=BriefingRules.stats(base.filter{it.staffId==p.id})
+            Card(Modifier.fillMaxWidth()){
+                Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                    Text(p.fullName,fontWeight=FontWeight.Bold)
+                    Text("Registros: "+result.registered+" · Asistió: "+result.attended+" · Por informar: "+result.pending)
+                    Text("Participación: "+result.attendancePercentage+"% · Comunicación: "+result.communicationPercentage+"%",style=MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
     }
 }

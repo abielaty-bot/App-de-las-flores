@@ -13,9 +13,10 @@ import androidx.sqlite.execSQL
         StaffVacationEntity::class, StaffDayOverrideEntity::class,
         UniformRequirementEntity::class, InspectionRequirementEntity::class, MaterialDeliveryEntity::class,
         BriefingAttendanceEntity::class, BriefingSessionEntity::class, BriefingEventEntity::class,
+        BriefingPreferencesEntity::class,
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
         IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -297,4 +298,39 @@ val MIGRATION_6_7 = Migration(6, 7) { connection ->
         assignedStaffId TEXT NOT NULL
     )""")
     connection.execSQL("CREATE INDEX IF NOT EXISTS index_incident_actions_incidentId ON incident_actions(incidentId)")
+}
+
+/** v8: no se eliminan ni se sustituyen los registros existentes. */
+val MIGRATION_7_8 = Migration(7, 8) { connection ->
+    connection.execSQL("DROP INDEX IF EXISTS index_briefing_attendance_dateIso_staffId")
+    connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_briefing_attendance_dateIso_groupHour_staffId ON briefing_attendance(dateIso,groupHour,staffId)")
+    connection.execSQL("ALTER TABLE briefing_attendance ADD COLUMN communicationState TEXT NOT NULL DEFAULT 'NO_APLICA'")
+    connection.execSQL("ALTER TABLE briefing_attendance ADD COLUMN communicationResponsible TEXT NOT NULL DEFAULT ''")
+    connection.execSQL("ALTER TABLE briefing_attendance ADD COLUMN communicationNote TEXT NOT NULL DEFAULT ''")
+    connection.execSQL("ALTER TABLE briefing_attendance ADD COLUMN communicationUpdatedAtMillis INTEGER")
+    connection.execSQL("""UPDATE briefing_attendance SET
+        communicationState=CASE WHEN presence!='MESA' THEN 'NO_APLICA'
+            WHEN informedAtMillis IS NOT NULL THEN 'INFORMADO_HISTORICO' ELSE 'PENDIENTE' END,
+        communicationResponsible=COALESCE(informedBy,''),
+        communicationUpdatedAtMillis=informedAtMillis""")
+    connection.execSQL("ALTER TABLE briefing_sessions ADD COLUMN scheduledTime TEXT NOT NULL DEFAULT ''")
+    connection.execSQL("ALTER TABLE briefing_sessions ADD COLUMN actualTime TEXT")
+    connection.execSQL("ALTER TABLE briefing_sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'HISTORICO'")
+    connection.execSQL("ALTER TABLE briefing_sessions ADD COLUMN participantIds TEXT NOT NULL DEFAULT ''")
+    connection.execSQL("""INSERT OR IGNORE INTO briefing_sessions
+        (dateIso,groupHour,topics,updatedAtMillis)
+        SELECT dateIso,groupHour,'',MAX(updatedAtMillis)
+        FROM briefing_attendance GROUP BY dateIso,groupHour""")
+    connection.execSQL("""UPDATE briefing_sessions SET
+        scheduledTime=printf('%02d:00',groupHour),
+        participantIds=COALESCE((
+            SELECT group_concat(staffId,char(10)) FROM (
+                SELECT a.staffId FROM briefing_attendance a
+                WHERE a.dateIso=briefing_sessions.dateIso AND a.groupHour=briefing_sessions.groupHour
+                ORDER BY a.staffId
+            )
+        ),'')""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS briefing_preferences (
+        id INTEGER NOT NULL PRIMARY KEY, firstTime TEXT NOT NULL, secondTime TEXT NOT NULL
+    )""")
 }
