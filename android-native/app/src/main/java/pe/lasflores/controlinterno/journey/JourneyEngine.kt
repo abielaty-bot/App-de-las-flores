@@ -54,7 +54,7 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
             database.briefingDao().observeSessions().map{Unit},database.briefingDao().observeHistory().map{Unit},
             database.functionDao().observeChecks().map{Unit},database.incidentDao().observeIncidents().map{Unit},
             dao.observePreferences().map{Unit},dao.observeReminders().map{Unit},
-            dao.observeOccurrences().map{Unit},dao.observeNotifications().map{Unit})
+            dao.observeOccurrences().map{Unit},dao.observeNotifications().map{Unit},database.phoneDao().observeChecks().map{Unit})
         scope.launch{
             merge(*flows.toTypedArray()).debounce(250).catch{error->
                 _state.value=_state.value.copy(error=error.message?:"No se pudo observar la jornada")
@@ -89,13 +89,15 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
             val sessions=dao.sessions(date)
             val pending=dao.pendingBriefings(date)
             val mesa=dao.mesaCount(date)
+            val phones=PhoneRules.counts(PhoneRules.roster(date,people,vacations,overrides,database.phoneDao().dayChecks(date),day==today))
             return JourneyData(scheduledCount=scheduled.size,reviewedCount=reviews.map{it.staffId}.distinct().size,
                 noUniformReview=activity.any{it.module=="uniformes"&&it.status=="NO_REALIZADA"},
                 sessions=sessions,noBriefing=activity.any{it.module=="briefings"&&it.status=="NO_REALIZADA"},
                 pendingBriefings=pending.map{it.staffId}.distinct().size,
                 functionCount=f.size,pendingFunctions=f.count{it.result=="PENDING"},
                 openIncidents=incidents.size,urgentIncidents=incidents.count{it.priority in setOf("alta","critica")},
-                communicationRequired=mesa>0||pending.isNotEmpty())
+                communicationRequired=mesa>0||pending.isNotEmpty(),phoneTotal=phones.total,phoneReviewed=phones.reviewed,
+                noPhoneReview=activity.any{it.module=="celulares"&&it.status=="NO_REALIZADA"})
         }
         val tasks=JourneyRules.build(today,zone,prefs,defs,data(today),occurrences)
         val future=JourneyRules.build(tomorrow,zone,prefs,defs,data(tomorrow),occurrences)

@@ -82,5 +82,21 @@ class BriefingMigrationTest(unittest.TestCase):
             db.execute("INSERT INTO journey_occurrences VALUES ('manual-x:2026-11-12','2026-11-12',10,NULL,NULL,NULL,0)")
         db.close()
 
+    def test_phone_migration_keeps_journey_and_staff(self):
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE staff (id TEXT PRIMARY KEY, fullName TEXT)")
+        db.execute("INSERT INTO staff VALUES ('p','Prueba')")
+        db.execute("CREATE TABLE journey_preferences (id INTEGER PRIMARY KEY, enabled INTEGER, startTime TEXT)")
+        db.execute("INSERT INTO journey_preferences VALUES (1,1,'08:30')")
+        for sql in sql_for("MIGRATION_10_11"):
+            db.execute(sql)
+        self.assertEqual(db.execute("SELECT * FROM staff").fetchall(),[("p","Prueba")])
+        self.assertEqual(db.execute("SELECT * FROM journey_preferences").fetchone(),(1,1,"08:30",1,"12:30"))
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM phone_checks").fetchone()[0],0)
+        db.execute("INSERT INTO phone_checks VALUES ('2026-11-12','p','Prueba','Mozo','YES','','',100)")
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO phone_checks VALUES ('2026-11-12','p','Prueba','Mozo','NO','','',101)")
+        db.close()
+
 if __name__=="__main__":
     unittest.main()

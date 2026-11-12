@@ -16,8 +16,8 @@ import androidx.sqlite.execSQL
         BriefingPreferencesEntity::class,
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
         IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class,
-        JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class],
-    version = 10,
+        JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class, PhoneCheckEntity::class],
+    version = 11,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -29,6 +29,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun functionDao(): FunctionDao
     abstract fun incidentDao(): IncidentDao
     abstract fun journeyDao(): JourneyDao
+    abstract fun phoneDao(): PhoneDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -376,4 +377,17 @@ val MIGRATION_9_10 = Migration(9, 10) { connection ->
         body TEXT NOT NULL, module TEXT NOT NULL, sessionSlot INTEGER, atMillis INTEGER NOT NULL, readAtMillis INTEGER
     )""")
     connection.execSQL("CREATE INDEX IF NOT EXISTS index_journey_notifications_atMillis ON journey_notifications(atMillis)")
+}
+
+
+/** v11: control de celulares; preserva todas las tablas y registros existentes. */
+val MIGRATION_10_11 = Migration(10,11) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS phone_checks (
+        dateIso TEXT NOT NULL, staffId TEXT NOT NULL, nameSnapshot TEXT NOT NULL,
+        roleSnapshot TEXT NOT NULL, status TEXT NOT NULL, reason TEXT NOT NULL,
+        note TEXT NOT NULL, updatedAtMillis INTEGER NOT NULL, PRIMARY KEY(dateIso,staffId)
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_phone_checks_staffId ON phone_checks(staffId)")
+    connection.execSQL("ALTER TABLE journey_preferences ADD COLUMN phoneAlerts INTEGER NOT NULL DEFAULT 1")
+    connection.execSQL("ALTER TABLE journey_preferences ADD COLUMN phoneTime TEXT NOT NULL DEFAULT '12:30'")
 }

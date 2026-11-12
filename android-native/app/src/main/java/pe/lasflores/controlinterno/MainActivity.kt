@@ -20,6 +20,7 @@ import pe.lasflores.controlinterno.ui.UniformViewModel
 import pe.lasflores.controlinterno.ui.BriefingViewModel
 import pe.lasflores.controlinterno.ui.FunctionViewModel
 import pe.lasflores.controlinterno.ui.IncidentViewModel
+import pe.lasflores.controlinterno.ui.PhoneViewModel
 import pe.lasflores.controlinterno.update.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
         val functionVm = ViewModelProvider(this, FunctionViewModel.Factory(app.functionRepository))[FunctionViewModel::class.java]
         val incidentVm = ViewModelProvider(this, IncidentViewModel.Factory(app.incidentRepository))[IncidentViewModel::class.java]
         val updateVm = ViewModelProvider(this, UpdateViewModel.Factory(application))[UpdateViewModel::class.java]
-        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager, app.reportRepository, openUpdates,app.journey,journeyRoute) }
+        val phoneVm=ViewModelProvider(this,PhoneViewModel.Factory(app.phoneRepository))[PhoneViewModel::class.java]
+        setContent { LasFloresScreen(staffVm, uniformVm, briefingVm, functionVm, incidentVm, updateVm, app.backupManager, app.reportRepository, openUpdates,app.journey,journeyRoute,phoneVm) }
     }
 }

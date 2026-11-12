@@ -44,7 +44,8 @@ fun LasFloresScreen(
     reportRepository:ReportRepository,
     openUpdates:Int=0,
     journey:JourneyEngine,
-    journeyRoute:JourneyNavigation?=null
+    journeyRoute:JourneyNavigation?=null,
+    phoneVm:PhoneViewModel
 ) {
     var screen by rememberSaveable{mutableStateOf("inicio")}
     LaunchedEffect(openUpdates){if(openUpdates>0)screen="updates"}
@@ -54,6 +55,7 @@ fun LasFloresScreen(
         when(route.module){
             "briefings"->briefingVm.openFromJourney(route.dateIso,route.sessionSlot,route.taskKey.startsWith("inform:"))
             "uniformes"->uniformVm.setDate(route.dateIso)
+            "celulares"->phoneVm.setDate(route.dateIso)
             "funciones"->functionVm.setDate(route.dateIso)
             "personal","reportes"->requestedDate=route
         }
@@ -150,6 +152,7 @@ fun LasFloresScreen(
                     when(screen) {
                         "personal"->StaffManagementScreen(people,vm,requestedDate?.takeIf{it.module=="personal"}?.dateIso,{requestedDate=null})
                         "uniformes"->UniformScreen(people,uniformVm,vm)
+                        "celulares"->PhoneScreen(people,vm,phoneVm)
                         "briefings"->BriefingScreen(briefingVm,vm)
                         "funciones"->FunctionScreen(functionVm,vm)
                         "incidentes"->IncidentScreen(incidentVm,vm)

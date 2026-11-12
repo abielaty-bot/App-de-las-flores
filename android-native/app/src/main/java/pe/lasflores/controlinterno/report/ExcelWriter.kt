@@ -12,7 +12,7 @@ data class ExcelSheet(
 /** Archivo OOXML sin bibliotecas pesadas. Los textos nunca se interpretan como fórmulas. */
 class ExcelWriter {
     fun write(sheets: List<ExcelSheet>, output: OutputStream) {
-        require(sheets.isNotEmpty() && sheets.size <= 20)
+        require(sheets.isNotEmpty() && sheets.size <= 30)
         require(sheets.map { it.name }.toSet().size == sheets.size)
         sheets.forEach {
             require(it.name.length in 1..31 && it.name.none { c -> c in "[]:*?/\\" })
