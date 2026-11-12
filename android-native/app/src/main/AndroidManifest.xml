@@ -14,6 +14,7 @@
         android:supportsRtl="true"
         android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.LasFlores">
         <service android:name=".update.UpdateDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <service android:name=".data.DailyBackupJob" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE" />
         <service android:name=".update.UpdateCheckJob" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".journey.JourneyReceiver" android:exported="false">
             <intent-filter>

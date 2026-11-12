@@ -70,6 +70,7 @@ fun LasFloresScreen(
     val functionStatus by functionVm.message.collectAsState()
     val incidentStatus by incidentVm.message.collectAsState()
     val briefingStatus by briefingVm.message.collectAsState()
+    val phoneStatus by phoneVm.message.collectAsState()
     val updateStatus by updateVm.state.collectAsState()
     val errorCenter = remember { ErrorReportCenter() }
     val reportError: (String, String) -> Unit = remember(errorCenter) {
@@ -89,6 +90,9 @@ fun LasFloresScreen(
     }
     LaunchedEffect(incidentStatus) {
         if (ErrorReportText.isError(incidentStatus)) reportError("Incidentes", incidentStatus)
+    }
+    LaunchedEffect(phoneStatus) {
+        if (ErrorReportText.isError(phoneStatus)) reportError("Celulares", phoneStatus)
     }
     LaunchedEffect(updateStatus.status, updateStatus.error) {
         if (updateStatus.error) reportError("Actualizaciones", updateStatus.status)
@@ -131,13 +135,15 @@ fun LasFloresScreen(
                 "uniformes"->uniformStatus
                 "funciones"->functionStatus
                 "incidentes"->incidentStatus
+                "briefings"->briefingStatus
+                "celulares"->phoneStatus
                 else->""
             }
             Column(Modifier.fillMaxSize()) {
                 errorCenter.latest?.let { incident ->
                     CopyableErrorCard(incident, onDismiss = errorCenter::dismiss)
                 }
-                if(message=="Guardando…") {
+                if(message=="Guardando…" || message=="Guardado automáticamente" || message.startsWith("Error")) {
                     Text(
                         message,modifier=Modifier.fillMaxWidth().padding(
                             horizontal=16.dp,vertical=5.dp

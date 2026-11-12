@@ -26,7 +26,8 @@ import pe.lasflores.controlinterno.update.UpdateViewModel
 class MainActivity : ComponentActivity() {
     private var openUpdates by mutableIntStateOf(0)
     private var journeyRoute by mutableStateOf<JourneyNavigation?>(null)
-    override fun onResume(){super.onResume();(application as LasFloresApp).journey.refresh()}
+    override fun onResume(){super.onResume();(application as LasFloresApp).journey.refresh();(application as LasFloresApp).checkDailyBackup()}
+    override fun onStop(){super.onStop();if(!isChangingConfigurations)(application as LasFloresApp).checkDailyBackup(true)}
     override fun onNewIntent(intent:Intent){
         super.onNewIntent(intent)
         setIntent(intent)

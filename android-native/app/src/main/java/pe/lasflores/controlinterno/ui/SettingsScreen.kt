@@ -130,14 +130,14 @@ internal fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Datos y respaldos", style = MaterialTheme.typography.titleMedium)
-                Text("La apariencia se guarda por separado y no afecta los datos de personal, briefings, uniformes, funciones o incidentes.",
+                Text("Almacenamiento y seguridad", style = MaterialTheme.typography.titleMedium)
+                Text("Guardado automático local, copias diarias, recuperación y protección antes de actualizar.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(
                     onClick = onOpenBackups,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Abrir respaldos") }
+                ) { Text("Administrar almacenamiento") }
             }
         }
     }

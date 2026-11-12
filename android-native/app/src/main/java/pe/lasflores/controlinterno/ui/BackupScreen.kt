@@ -17,6 +17,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import pe.lasflores.controlinterno.LasFloresApp
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,7 +45,10 @@ import pe.lasflores.controlinterno.data.OfflineBackupManager
 fun BackupScreen(manager: OfflineBackupManager) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var message by remember { mutableStateOf("Sin respaldos realizados en esta sesión.") }
+    val automatic = remember(context) { (context.applicationContext as LasFloresApp).automaticBackups }
+    val protection by automatic.state.collectAsState()
+    var message by remember { mutableStateOf("Los registros se guardan en Room sin exportar archivos.") }
+    LaunchedEffect(automatic){automatic.refresh()}
     var working by remember { mutableStateOf(false) }
     var pendingJson by remember { mutableStateOf<String?>(null) }
     var pendingPreview by remember { mutableStateOf<BackupPreview?>(null) }
@@ -129,10 +137,53 @@ fun BackupScreen(manager: OfflineBackupManager) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Guardado y respaldos", style = MaterialTheme.typography.headlineSmall,
+            Text("Almacenamiento y seguridad", style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold)
-            Text("La base de datos se guarda automáticamente. El respaldo JSON permite recuperar todos los módulos Android disponibles.",
+            Text("Guardado automático activo · Room / SQLite. Funciona sin internet. JSON solo para respaldo y traslado.",
                 style = MaterialTheme.typography.bodyMedium)
+        }
+        item {
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Copias automáticas internas", fontWeight = FontWeight.Bold)
+                    Text("Una copia por día de uso (se refresca al salir), las últimas 7 fechas y una copia independiente antes de actualizar. Android puede diferir la tarea diaria.")
+                    Text(protection.message, color=if(protection.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    OutlinedButton(enabled=!working && !protection.busy,modifier=Modifier.fillMaxWidth(),onClick={
+                        scope.launch{
+                            working=true
+                            try{automatic.daily(true);message="Copia interna verificada."}
+                            catch(e:Exception){message="Error al crear copia: verifica el almacenamiento y los registros."}
+                            finally{working=false}
+                        }
+                    }){Text("Crear copia ahora")}
+                    protection.copies.forEach { copy ->
+                        val date=Instant.ofEpochMilli(copy.timestamp).atZone(ZoneId.systemDefault())
+                            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                        Text((if(copy.beforeUpdate)"Antes de actualizar" else "Copia diaria") + " · " + date,
+                            fontWeight=FontWeight.SemiBold)
+                        Text("Tamaño: "+(copy.size/1024)+" KB",style=MaterialTheme.typography.bodySmall)
+                        OutlinedButton(enabled=!working && !protection.busy,modifier=Modifier.fillMaxWidth(),onClick={
+                            scope.launch{
+                                working=true
+                                try{
+                                    val text=automatic.read(copy.name)
+                                    val summary=withContext(Dispatchers.IO){manager.preview(text)}
+                                    val current=withContext(Dispatchers.IO){manager.preview(manager.exportJson())}
+                                    existingRecords=current.people+current.inspections+current.briefings+current.functionChecks+current.incidents+current.deliveries+current.reminders+current.phoneChecks
+                                    replacementAcknowledged=false
+                                    migrationMode=null
+                                    pendingJson=text
+                                    pendingPreview=summary
+                                    message="Copia verificada. Revisa los registros antes de restaurar."
+                                }catch(e:Exception){message="Error al leer la copia. No se modificaron los registros."}
+                                finally{working=false}
+                            }
+                        }){Text("Ver y restaurar copia")}
+                    }
+                    if(protection.copies.isEmpty())Text("Aún no hay copias verificadas.")
+                    Text("Las copias internas no sobreviven a borrar los datos de Android o desinstalar. Exporta una copia fuera de la tablet periódicamente.",style=MaterialTheme.typography.bodySmall)
+                }
+            }
         }
         item {
             Card {
@@ -200,6 +251,10 @@ fun BackupScreen(manager: OfflineBackupManager) {
                                         manager.recoveryJson() ?: error("No existe un respaldo interno anterior.")
                                     }
                                     val summary = withContext(Dispatchers.IO) { manager.preview(text) }
+                                    val current=withContext(Dispatchers.IO){manager.preview(manager.exportJson())}
+                                    existingRecords=current.people+current.inspections+current.briefings+current.functionChecks+current.incidents+current.deliveries+current.reminders+current.phoneChecks
+                                    replacementAcknowledged=false
+                                    migrationMode=null
                                     pendingJson = text
                                     pendingPreview = summary
                                     message = "Copia interna validada. Confirma su restauración."
@@ -268,7 +323,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                         Text("Este archivo es anterior a Briefings. Restaurarlo reemplazará los briefings actuales.",
                             color = MaterialTheme.colorScheme.error)
                     Text("Se reemplazará la información actual por el contenido del archivo seleccionado. Se guardará una copia interna previa por seguridad.")
-                    if (existingRecords > 0) {
+                    run {
                         Text("Esta tablet ya contiene $existingRecords registros principales. " +
                             "Comprueba que estén incluidos en el archivo seleccionado.",
                             color = MaterialTheme.colorScheme.error)
@@ -286,7 +341,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                 }
             },
             confirmButton = {
-                Button(enabled = !working && (existingRecords == 0 || replacementAcknowledged), onClick = {
+                Button(enabled = !working && replacementAcknowledged, onClick = {
                     val fileContent = pendingJson ?: return@Button
                     working = true
                     scope.launch {
