@@ -10,7 +10,7 @@ data class AppRelease(
     val sha256: String,
     val sizeBytes: Long,
     val publishedAt: String = ""
-
+)
 
 /** Contrato estricto de nuestra distribución: releases android-beta-vN. */
 object UpdatePolicy {

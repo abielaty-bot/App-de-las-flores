@@ -169,8 +169,9 @@ private fun ProgressPanel(ui:UpdateUiState,vm:UpdateViewModel){
                 "Tiempo transcurrido" to UpdateFormat.duration(p.elapsedMillis/1000),
                 "Tiempo restante estimado" to if(active)UpdateFormat.duration(p.etaSeconds) else if(p.remaining==0L)"0 s" else "—")
             BoxWithConstraints(Modifier.fillMaxWidth()){
+                val columns=if(maxWidth>=360.dp)2 else 1
                 Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-                    metrics.chunked(if(maxWidth>=360.dp)2 else 1).forEach{line->
+                    metrics.chunked(columns).forEach{line->
                         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
                             line.forEach{(label,value)->
                                 Card(Modifier.weight(1f)){
