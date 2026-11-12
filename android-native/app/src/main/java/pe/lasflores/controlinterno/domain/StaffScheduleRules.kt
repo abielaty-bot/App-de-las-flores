@@ -34,7 +34,7 @@ object StaffScheduleRules {
         val rest = prior?.rest ?: person.restDaysMask
         val weekend = prior?.weekend ?: person.weekendDaysMask
         return when (mode) {
-            "weekend" -> if (isRestDay(weekend, day)) "support" else "off"
+            "weekend" -> if (isRestDay(weekend, day)) "support" else if(day.dayOfWeek.value<6)"rest" else "off"
             "occasional" -> "off"
             "custom" -> if (isRestDay(rest, day)) "off" else "working"
             else -> if (isRestDay(rest, day)) "rest" else "working"

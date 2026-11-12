@@ -66,10 +66,16 @@ object ReportExtras {
                 a.labelSnapshot,a.groupSnapshot,
                 minQty[a.inspectionId to a.requirementId]?.minQtySnapshot?:0,
                 a.quantity,""+when(a.status){
-                    "OK"->"Cumple";"BAD"->"No cumple";else->"Pendiente"
+                    "OK"->"Cumple";"BAD"->"No cumple";"NA"->"No aplica";else->"Pendiente"
                 },timestamp(a.correctedAtMillis),a.correctedBy.orEmpty(),
                 if(a.status=="BAD"&&a.correctedAtMillis!=null)
-                    "Incumplimiento original corregido" else "")
+                    "Incumplimiento original corregido" else if(a.status=="NA")
+                    snapshot.uniformEvents.filter{it.inspectionId==a.inspectionId&&it.requirementId==a.requirementId&&it.action=="NO_APLICA"}.maxByOrNull{it.atMillis}?.note.orEmpty()
+                    else "")
+        } + snapshot.inspectionSnapshots.filter{it.inspectionId in byId && !it.applicable}.map { r ->
+            val i=byId.getValue(r.inspectionId)
+            listOf(i.dateIso,names[i.staffId]?:i.staffId,i.roleSnapshot,r.labelSnapshot,r.categorySnapshot,
+                r.minQtySnapshot,null,"No aplica","","","Excluido automáticamente por perfil de uniforme")
         }
 
         val allEvents=snapshot.uniformEvents.filter{

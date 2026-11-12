@@ -43,7 +43,7 @@ class OfflineUniformRepository(
         }
 
     override suspend fun saveRequirement(
-        id: String?, label: String, category: String, minQty: Int, roles: Set<String>
+        id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>
     ) {
         val title = label.trim().replace(Regex("\\s+"), " ")
         require(title.length in 3..100) { "El requisito debe tener de 3 a 100 caracteres." }
@@ -66,7 +66,7 @@ class OfflineUniformRepository(
                 previous?.sortOrder ?: (catalogDao.allRequirements().maxOfOrNull {
                     it.sortOrder + 1
                 } ?: 0),
-                System.currentTimeMillis()
+                System.currentTimeMillis(), UniformRules.profilesCsv(profiles)
             ))
         }
     }
@@ -79,9 +79,9 @@ class OfflineUniformRepository(
         }
     }
 
-    override suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int?) {
+    override suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int?, exemptionReason:String) {
         database.withWriteTransaction {
-            require(value == UniformRules.OK || value == UniformRules.BAD) { "Respuesta desconocida" }
+            require(value in setOf(UniformRules.OK,UniformRules.BAD,UniformRules.NA)) { "Respuesta desconocida" }
             require(dao.getDayStatus(dateIso)?.status != "NO_REALIZADA") { "El día figura sin revisión." }
             val worker = staffDao.getById(staffId) ?: error("Trabajador no encontrado")
             val status = StaffScheduleRules.status(
@@ -99,12 +99,12 @@ class OfflineUniformRepository(
                 require(active.isNotEmpty()) { "No hay requisitos activos para este puesto." }
                 inspection = UniformInspectionEntity(
                     UUID.randomUUID().toString(), dateIso, staffId, worker.role,
-                    "DRAFT", null, now, now
+                    "DRAFT", null, now, now,worker.uniformProfile
                 )
                 dao.insertInspection(inspection)
                 active.forEach { item ->
                     catalogDao.upsertSnapshot(InspectionRequirementEntity(
-                        inspection.id, item.id, item.label, item.category, item.minQty
+                        inspection.id, item.id, item.label, item.category, item.minQty,item.appliesToProfile(worker.uniformProfile)
                     ))
                 }
             }
@@ -112,6 +112,7 @@ class OfflineUniformRepository(
             val requirement = catalogDao.forInspection(inspection.id)
                 .firstOrNull { it.requirementId == requirementId }
                 ?: error("Este requisito no pertenece a la revisión.")
+            require(requirement.applicable) { "Este requisito no corresponde al perfil congelado." }
             if (quantity != null) require(quantity in 0..100) { "Cantidad inválida." }
             if (value == UniformRules.OK && requirement.minQtySnapshot > 0) {
                 require(quantity != null && quantity >= requirement.minQtySnapshot) {
@@ -120,11 +121,17 @@ class OfflineUniformRepository(
             }
             val previous = dao.getAnswer(inspection.id, requirementId)
             val next = UniformRules.toggle(previous?.status, value)
+            if(next==UniformRules.NA) require(exemptionReason.trim().length in 5..500) { "Explica por qué no aplica (5 a 500 caracteres)." }
             if (next == null) dao.deleteAnswer(inspection.id, requirementId)
             else dao.upsertAnswer(
                 UniformAnswerEntity(inspection.id, requirementId, requirement.labelSnapshot,
-                    requirement.categorySnapshot, next, null, null, quantity)
+                    requirement.categorySnapshot, next, null, null, if(next==UniformRules.NA)null else quantity)
             )
+            if (next==UniformRules.NA || previous?.status==UniformRules.NA) {
+                dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,requirementId,
+                    if(next==UniformRules.NA)"NO_APLICA" else "REVERTIR_NO_APLICA",
+                    previous?.status,next,"",if(next==UniformRules.NA)exemptionReason.trim() else "Se retiró la excepción",now))
+            }
             if (dao.getAnswers(inspection.id).isEmpty()) {
                 catalogDao.deleteForInspection(inspection.id)
                 dao.deleteInspection(inspection.id)
@@ -141,7 +148,7 @@ class OfflineUniformRepository(
             val requirements = catalogDao.forInspection(inspection.id)
             require(requirements.isNotEmpty()) { "La inspección no tiene requisitos." }
             val answers = dao.getAnswers(inspection.id)
-            val statuses = requirements.map { required ->
+            val statuses = requirements.filter{it.applicable}.map { required ->
                 val answer = answers.firstOrNull { it.requirementId == required.requirementId }
                 if (answer?.status == UniformRules.OK && required.minQtySnapshot > 0)
                     require((answer.quantity ?: 0) >= required.minQtySnapshot) {

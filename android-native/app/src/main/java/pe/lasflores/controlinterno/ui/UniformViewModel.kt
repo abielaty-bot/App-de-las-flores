@@ -45,6 +45,7 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         _dateIso.value = LocalDate.parse(_dateIso.value).plusDays(delta).toString()
     }
     fun today() { _dateIso.value = LocalDate.now().toString() }
+    fun setDate(iso:String) { _dateIso.value = LocalDate.parse(iso).toString() }
 
     private fun perform(action: suspend () -> Unit) {
         viewModelScope.launch {
@@ -58,10 +59,12 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         }
     }
 
-    fun choose(staffId: String, requirementId: String, value: String, quantity: Int? = null) =
-        perform { repository.choose(_dateIso.value, staffId, requirementId, value, quantity) }
-    fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>) =
-        perform { repository.saveRequirement(id, label, category, minQty, roles) }
+    fun choose(staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String="") {
+        val date=_dateIso.value
+        perform { repository.choose(date, staffId, requirementId, value, quantity,exemptionReason) }
+    }
+    fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>) =
+        perform { repository.saveRequirement(id, label, category, minQty, roles,profiles) }
     fun setRequirementActive(id: String, active: Boolean) =
         perform { repository.setRequirementActive(id, active) }
     fun deliver(staffId: String, dateIso: String, material: String, quantity: Int, reason: String, actor: String) =
