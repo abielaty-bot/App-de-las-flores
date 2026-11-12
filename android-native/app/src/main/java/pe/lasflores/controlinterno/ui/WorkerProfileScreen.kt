@@ -98,13 +98,13 @@ internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,
             "resumen"->{
                 item{
                     Text("Indicadores del período",style=MaterialTheme.typography.titleMedium)
-                    Text("Los porcentajes solo consideran registros evaluados. Sin datos no equivale a incumplimiento.",style=MaterialTheme.typography.bodySmall)
+                    Text("Uniformes y funciones conservan el resultado inicial; celulares excluye pendientes y no aplica. Briefings mide comunicación sobre registros válidos. Sin datos no equivale a incumplimiento.",style=MaterialTheme.typography.bodySmall)
                 }
-                item{WorkerMetric("Uniformes",rate(snapshot.uniformPercent),"${snapshot.conforming} conformes de ${snapshot.finalized.size} finalizadas · ${snapshot.inspections.size-snapshot.finalized.size} en revisión"){tab="uniformes"}}
-                item{WorkerMetric("Briefings",rate(WorkerProfileData.percent(snapshot.briefingStats.communicated,snapshot.briefingStats.registered)),
+                item{WorkerMetric("Uniformes · conformidad inicial",rate(snapshot.uniformPercent),"${snapshot.conforming} conformes de ${snapshot.finalized.size} finalizadas · ${snapshot.inspections.size-snapshot.finalized.size} en revisión"){tab="uniformes"}}
+                item{WorkerMetric("Briefings · comunicación",rate(WorkerProfileData.percent(snapshot.briefingStats.communicated,snapshot.briefingStats.registered)),
                     "${snapshot.briefingStats.attended} asistencias · ${snapshot.briefingStats.pending} pendientes de informar · ${snapshot.briefingStats.missed} faltas confirmadas"){tab="briefings"}}
-                item{WorkerMetric("Celulares",rate(snapshot.phoneStats.percent),"${snapshot.phoneStats.yes} entregó · ${snapshot.phoneStats.no} no entregó · ${snapshot.phoneStats.na} no aplica · ${snapshot.phoneStats.pending} sin revisar"){tab="celulares"}}
-                item{WorkerMetric("Funciones",rate(snapshot.functionStats.rate),"${snapshot.functionStats.ok} cumplidas · ${snapshot.functionStats.bad} incumplidas · ${snapshot.functionStats.pending} pendientes"){tab="funciones"}}
+                item{WorkerMetric("Celulares · entrega",rate(snapshot.phoneStats.percent),"${snapshot.phoneStats.yes} entregó · ${snapshot.phoneStats.no} no entregó · ${snapshot.phoneStats.na} no aplica · ${snapshot.phoneStats.pending} sin revisar"){tab="celulares"}}
+                item{WorkerMetric("Funciones · cumplimiento inicial",rate(snapshot.functionStats.rate),"${snapshot.functionStats.ok} cumplidas · ${snapshot.functionStats.bad} incumplidas · ${snapshot.functionStats.pending} pendientes"){tab="funciones"}}
                 item{WorkerMetric("Incidentes asignados",snapshot.incidents.count{it.status!=IncidentRules.ANULADO}.toString(),"${snapshot.incidentOpen} pendientes · asignación de seguimiento, no atribución de culpa"){tab="incidentes"}}
                 item{WorkerMetric("Materiales",snapshot.currentDeliveryUnits.toString(),"Unidades entregadas vigentes en este período"){tab="materiales"}}
             }
@@ -135,7 +135,7 @@ internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,
             }
             "materiales"->{
                 item{Text("Entregas de materiales",style=MaterialTheme.typography.titleMedium);if(snapshot.deliveries.isEmpty())Text("Sin entregas en este período.")}
-                items(snapshot.deliveries,key={it.id}){a->WorkerHistoryRow(a.dateIso,a.material+" · "+a.quantity,a.status,listOf(a.reason,a.closingNote).filter{it.isNotBlank()})}
+                items(snapshot.deliveries,key={it.id}){a->WorkerHistoryRow(a.dateIso,a.material+" · "+a.quantity,when(a.status){"ENTREGADA"->"Entregada";"DEVUELTA"->"Devuelta";"ANULADA"->"Anulada";else->a.status},listOf(a.reason,a.closingNote).filter{it.isNotBlank()})}
             }
         }
     }

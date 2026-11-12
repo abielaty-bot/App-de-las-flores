@@ -28,9 +28,10 @@ data class WorkerProfileData(
             require(selection.staffId!=null)
             val ins=s.inspections.filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)}.sortedByDescending{it.dateIso}
             val ids=ins.map{it.id}.toSet()
+            val excludedPhoneDays=s.activityDays.filter{it.module=="celulares"&&it.status=="NO_REALIZADA"}.map{it.dateIso}.toSet()
             return WorkerProfileData(ins,s.uniformAnswers.filter{it.inspectionId in ids},s.uniformEvents.filter{it.inspectionId in ids},
                 BriefingRules.activeRecords(s.briefingAttendance,s.briefingSessions).filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)}.sortedByDescending{it.dateIso},
-                s.phoneChecks.filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)}.sortedByDescending{it.dateIso},
+                s.phoneChecks.filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)&&it.dateIso !in excludedPhoneDays}.sortedByDescending{it.dateIso},
                 s.functions.filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)}.sortedByDescending{it.dateIso},
                 s.incidents.filter{selection.matches(it.assignedStaffId)&&selection.includes(it.occurredDate)}.sortedByDescending{it.occurredDate},
                 s.deliveries.filter{selection.matches(it.staffId)&&selection.includes(it.dateIso)}.sortedByDescending{it.dateIso})
