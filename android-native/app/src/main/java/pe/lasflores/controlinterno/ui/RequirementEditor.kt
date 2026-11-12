@@ -83,7 +83,7 @@ internal fun RequirementEditor(existing:UniformRequirementEntity?,defaultRole:St
                     }
                     RequirementEditorSection("2. Cantidad mínima",R.drawable.ic_lf_funciones){
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                            Checkbox(checked=quantityEnabled,onCheckedChange={quantityEnabled=it;if(it&&qty.toIntOrNull() !in 1..100)qty="1"},enabled=!saving)
+                            Checkbox(checked=quantityEnabled,onCheckedChange={quantityEnabled=it;if(it&&(qty.toIntOrNull() ?: 0) !in 1..100)qty="1"},enabled=!saving)
                             Column(Modifier.weight(1f)){
                                 Text("Requiere una cantidad específica",fontWeight=FontWeight.SemiBold)
                                 Text("Ejemplo: mínimo 3 lapiceros.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -94,7 +94,7 @@ internal fun RequirementEditor(existing:UniformRequirementEntity?,defaultRole:St
                                 OutlinedButton(onClick={qty=((qty.toIntOrNull()?:1)-1).coerceAtLeast(1).toString()},enabled=!saving&&(qty.toIntOrNull()?:1)>1){Text("−")}
                                 OutlinedTextField(qty,{qty=it.filter(Char::isDigit).take(3)},enabled=!saving,
                                     label={Text("Cantidad requerida")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),
-                                    isError=qty.toIntOrNull() !in 1..100,modifier=Modifier.weight(1f))
+                                    isError=(qty.toIntOrNull() ?: 0) !in 1..100,modifier=Modifier.weight(1f))
                                 OutlinedButton(onClick={qty=((qty.toIntOrNull()?:0)+1).coerceIn(1,100).toString()},enabled=!saving&&(qty.toIntOrNull()?:0)<100){Text("+")}
                             }
                         }else Text("Solo se verifica si cumple o no cumple; sin cantidad mínima.",style=MaterialTheme.typography.bodySmall)
