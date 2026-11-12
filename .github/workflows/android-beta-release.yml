@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -91,6 +91,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40014
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40016" ]]; then
             PREVIOUS_TAG=android-beta-v40015
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40017" ]]; then
+            PREVIOUS_TAG=android-beta-v40016
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -147,6 +149,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40016" ]]; then
               NOTES=$(printf '%s\n' '## Mi jornada y recordatorios operativos' '- Mi jornada en Inicio: progreso, actividades pendientes y accesos directos.' '- Centro de notificaciones: campana, historial, posponer y completar actividades manuales.' '- Recordatorios personalizados y plantillas; días de trabajo, horarios y período silencioso.' '- Avisos de briefings, comunicación presencial, uniformes, funciones, incidentes prioritarios y resumen de jornada.' '- Alarmas vinculadas a las sesiones y reprogramación al cambiar horarios o reiniciar. Activa los avisos en Notificaciones > Ajustes y concede los permisos de Android.' '- Room 9→10, respaldo JSON v8 y exportación de avisos y actividades persistidas.' '- Incluye el nuevo gestor de descargas de 4.0015 y todas las funciones anteriores.' 'Antes de instalar, crea un respaldo y no desinstales la versión anterior.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40017" ]]; then
+              NOTES=$(printf '%s\n' '## Control de celulares' '- Registro diario Sí / No / N/A y pendientes, búsqueda y filtros; excepciones con motivo y observaciones.' '- Historial, estadísticas por día, semana y mes, ranking y fechas de incumplimiento.' '- Excel independiente y datos incluidos en los reportes generales.' '- Integración con personal programado, Mi jornada y recordatorio configurable.' '- No se controla custodia ni devolución: recuperar el celular al salir no altera el cumplimiento.' '- Room 10→11, respaldo JSON v9; conserva los registros anteriores.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
