@@ -257,6 +257,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                     if(p.formatVersion<8)Text("Esta copia es anterior a los recordatorios; se restaurará sin ellos.")
                     Text("Controles de celulares: "+p.phoneChecks)
                     if(p.formatVersion<9)Text("Esta copia es anterior a Celulares; no contiene sus registros.")
+                    if(p.formatVersion<10)Text("Esta copia conserva los puestos originales; no convierte Apoyo en Runner.")
                     if (p.formatVersion < 5)
                         Text("Este archivo es anterior a Incidentes. Si lo restauras, reemplazará los incidentes que hayas registrado en esta tablet.",
                             color = MaterialTheme.colorScheme.error)

@@ -57,17 +57,24 @@ class OfflineUniformRepository(
         database.withWriteTransaction {
             val previous = id?.let { catalogDao.getRequirement(it) }
             require(id == null || previous != null) { "Requisito no encontrado." }
-            val positions = pe.lasflores.controlinterno.domain.STAFF_ROLES
-                .filter { it in roles }
+            val positions = pe.lasflores.controlinterno.domain.UniformRoleRules.rolesCsv(roles)
             catalogDao.upsertRequirement(UniformRequirementEntity(
                 previous?.id ?: UUID.randomUUID().toString(),
-                title, category, minQty, "|" + positions.joinToString("|") + "|",
+                title, category, minQty, positions,
                 previous?.isActive ?: true,
                 previous?.sortOrder ?: (catalogDao.allRequirements().maxOfOrNull {
                     it.sortOrder + 1
                 } ?: 0),
                 System.currentTimeMillis(), UniformRules.profilesCsv(profiles)
             ))
+        }
+    }
+
+    override suspend fun applyRoleProposal(role:String) {
+        database.withWriteTransaction {
+            if(catalogDao.allRequirements().isEmpty())defaultRequirements().forEach{catalogDao.upsertRequirement(it)}
+            val plan=pe.lasflores.controlinterno.domain.UniformRoleRules.proposal(role,catalogDao.allRequirements(),System.currentTimeMillis()){UUID.randomUUID().toString()}
+            plan.forEach{catalogDao.upsertRequirement(it)}
         }
     }
 

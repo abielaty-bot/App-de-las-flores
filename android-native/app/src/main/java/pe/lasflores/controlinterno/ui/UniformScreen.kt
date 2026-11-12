@@ -50,6 +50,8 @@ import pe.lasflores.controlinterno.domain.UniformDaySnapshot
 import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.domain.UniformRequirement
 import pe.lasflores.controlinterno.domain.UniformRules
+import pe.lasflores.controlinterno.domain.UniformRoleRules
+import pe.lasflores.controlinterno.domain.STAFF_ROLES
 
 private data class WorkerInspection(val staff:StaffEntity,val inspection:UniformInspectionEntity?,
     val requirements:List<UniformRequirement>,val answers:Map<String,UniformAnswerEntity>,
@@ -75,6 +77,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
     var expandedId by rememberSaveable(dateIso) { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("all") }
+    var roleFilter by rememberSaveable { mutableStateOf("all") }
     var hideExempt by rememberSaveable { mutableStateOf(false) }
     var dialog by remember(dateIso) { mutableStateOf("") }
     var dialogStaff by remember(dateIso) { mutableStateOf("") }
@@ -97,7 +100,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
         WorkerInspection(staff,inspection,requirements,answers,inspection?.let(validSnapshot::statusFor)?:"Sin revisar",scheduled)
     }
     val visible=rows.filter{row->
-        row.staff.fullName.contains(query,true) && when(filter){
+        (roleFilter=="all"||(row.inspection?.roleSnapshot?:row.staff.role)==roleFilter) && row.staff.fullName.contains(query,true) && when(filter){
             "pending"->row.pending
             "observed"->row.inspection?.initialResult==UniformRules.OBSERVADO
             "ok"->row.inspection?.initialResult==UniformRules.CONFORME
@@ -142,6 +145,11 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
                 items(listOf("all" to "Todos","pending" to "Pendientes","observed" to "Observados","ok" to "Conformes")){(code,label)->
                     FilterChip(selected=filter==code,onClick={filter=code},label={Text(label)})
+                }
+            }
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                items(listOf("all" to "Todos los puestos")+STAFF_ROLES.map{it to UniformRoleRules.label(it)}){(code,label)->
+                    FilterChip(selected=roleFilter==code,onClick={roleFilter=code;expandedId=""},label={Text(label)})
                 }
             }
             FilterChip(selected=hideExempt,onClick={hideExempt=!hideExempt},label={Text(if(hideExempt)"No aplica ocultos" else "Ocultar No aplica")})
@@ -266,7 +274,7 @@ private fun WorkerSummary(row:WorkerInspection,selected:Boolean,enabled:Boolean,
             horizontalArrangement=Arrangement.spacedBy(8.dp)){
             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
                 Text(row.staff.fullName,fontWeight=FontWeight.Bold)
-                Text(row.staff.role+" · "+row.reviewed+"/"+row.applicableCount+" revisados",style=MaterialTheme.typography.bodySmall)
+                Text((row.inspection?.roleSnapshot?:row.staff.role)+" · "+row.reviewed+"/"+row.applicableCount+" revisados",style=MaterialTheme.typography.bodySmall)
                 Text(row.status,color=statusColor(row.status),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold)
                 if(row.exempt>0)Text(row.exempt.toString()+" no aplica",style=MaterialTheme.typography.labelSmall)
                 if(!row.scheduled)Text("Registro histórico",style=MaterialTheme.typography.labelSmall)
@@ -287,7 +295,7 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
                 Column(Modifier.weight(1f)){
                     Text(row.staff.fullName,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-                    Text(row.staff.role+" · "+row.status,style=MaterialTheme.typography.bodySmall)
+                    Text((row.inspection?.roleSnapshot?:row.staff.role)+" · "+row.status,style=MaterialTheme.typography.bodySmall)
                     Text("Perfil: "+StaffScheduleRules.profileLabel(row.profile),style=MaterialTheme.typography.labelMedium,
                         color=MaterialTheme.colorScheme.tertiary)
                 }
