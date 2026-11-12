@@ -84,7 +84,8 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
     var proposal by remember { mutableStateOf(false) }
     var role by rememberSaveable { mutableStateOf("Mozo") }
     var query by rememberSaveable { mutableStateOf("") }
-    var status by rememberSaveable { mutableStateOf("all") }
+    var status by rememberSaveable { mutableStateOf("active") }
+    val deletion by vm.requirementDeletion.collectAsState()
     val roleRows=catalog.filter{role=="all"||UniformRoleRules.assigned(it,role)}
     val visible=roleRows.filter{it.label.contains(query,true)&&(status=="all"||(status=="active")==it.isActive)}
     val groups=listOf("Uniforme","Presentación","Implementos","Otro")
@@ -93,7 +94,7 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
             Text("Requisitos de uniformes",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
             Text("Un catálogo compartido por puestos. Los controles ya iniciados conservan sus requisitos originales.",style=MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(6.dp))
-            SectionControls(listOf("all" to "Todos")+STAFF_ROLES.map{it to UniformRoleRules.label(it)},role,{role=it;query="";status="all"})
+            SectionControls(listOf("all" to "Todos")+STAFF_ROLES.map{it to UniformRoleRules.label(it)},role,{role=it;query="";status="active"})
         }
         item{
             Card(Modifier.fillMaxWidth()){
@@ -138,6 +139,9 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){
                                 OutlinedButton(onClick={editing=req},enabled=!busy){Text("Editar")}
                                 TextButton(onClick={vm.setRequirementActive(req.id,!req.isActive)},enabled=!busy){Text(if(req.isActive)"Desactivar" else "Activar")}
+                                TextButton(onClick={vm.inspectRequirementDeletion(req)},enabled=!busy){
+                                    Text("Eliminar",color=MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
@@ -145,6 +149,24 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
             }
         }
         if(visible.isEmpty())item{Text("No hay requisitos con estos filtros.")}
+    }
+    deletion.requirement?.let{req->
+        AlertDialog(onDismissRequest=vm::dismissRequirementDeletion,
+            title={Text("Eliminar requisito")},
+            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                Text(req.label,fontWeight=FontWeight.Bold)
+                Text("El requisito pertenece al catálogo compartido. Eliminarlo lo retira de todos sus puestos y perfiles.")
+                when{
+                    deletion.checking->Text("Comprobando revisiones y auditoría…")
+                    deletion.blocker!=null->Text(deletion.blocker.orEmpty(),color=MaterialTheme.colorScheme.error)
+                    else->Text("No tiene registros vinculados. Esta acción elimina solamente el requisito del catálogo y no modifica ninguna revisión anterior.")
+                }
+            }},
+            confirmButton={
+                if(deletion.blocker==null)Button(enabled=!deletion.checking&&!busy,onClick=vm::confirmRequirementDeletion){Text("Eliminar definitivamente")}
+                else if(req.isActive)Button(enabled=!busy,onClick={vm.setRequirementActive(req.id,false);vm.dismissRequirementDeletion()}){Text("Desactivar")}
+            },
+            dismissButton={TextButton(onClick=vm::dismissRequirementDeletion){Text(if(deletion.blocker==null)"Cancelar" else "Cerrar")}})
     }
     if(adding||editing!=null)RequirementDialog(editing,if(role=="all")"Mozo" else role,
         onDismiss={adding=false;editing=null},

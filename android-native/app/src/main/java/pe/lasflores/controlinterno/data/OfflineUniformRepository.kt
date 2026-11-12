@@ -86,6 +86,26 @@ class OfflineUniformRepository(
         }
     }
 
+    /** Historical snapshots, responses and audit events are never deleted by catalog maintenance. */
+    override suspend fun requirementDeletionBlocker(id:String):String? = database.withWriteTransaction {
+        when {
+            catalogDao.getRequirement(id)==null -> "Requisito no encontrado."
+            catalogDao.countRequirementReferences(id)>0 -> "Este requisito tiene historial o auditoría. Desactívalo para retirarlo de las revisiones futuras."
+            catalogDao.countRequirements()<=1 -> "Conserva al menos un requisito en el catálogo para evitar que se reinicialicen los requisitos base."
+            else -> null
+        }
+    }
+
+    override suspend fun deleteUnusedRequirement(id:String,expectedUpdatedAt:Long){
+        database.withWriteTransaction {
+            val current=catalogDao.getRequirement(id) ?: error("Requisito no encontrado.")
+            require(current.updatedAtMillis==expectedUpdatedAt){"El requisito cambió. Vuelve a abrir la confirmación."}
+            require(catalogDao.countRequirementReferences(id)==0){"Este requisito ya tiene historial. Solo puedes desactivarlo."}
+            require(catalogDao.countRequirements()>1){"No se puede eliminar el último requisito del catálogo."}
+            check(catalogDao.deleteRequirement(id)==1){"No se pudo eliminar el requisito."}
+        }
+    }
+
     override suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int?, exemptionReason:String) {
         database.withWriteTransaction {
             require(value in setOf(UniformRules.OK,UniformRules.BAD,UniformRules.NA)) { "Respuesta desconocida" }

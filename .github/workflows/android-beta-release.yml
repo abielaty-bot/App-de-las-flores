@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -103,6 +103,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40020
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40022" ]]; then
             PREVIOUS_TAG=android-beta-v40021
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40023" ]]; then
+            PREVIOUS_TAG=android-beta-v40022
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -177,6 +179,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40022" ]]; then
               NOTES=$(printf '%s\n' '## Rediseño de Incidentes' '- Resumen visual, casos pendientes, ficha de detalle integrada y estados por color y texto.' '- Historial cronológico, botones claros y formularios amplios de registro y seguimiento.' '- Diseño borgoña y champán adaptable a tablet vertical y modo oscuro.' '- Conserva Room v11, registros y protección automática de 4.0021.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40023" ]]; then
+              NOTES=$(printf '%s\n' '## Eliminar requisitos de uniformes' '- Acción Eliminar con comprobación de historial, confirmación y protección de todos los puestos.' '- No elimina requisitos vinculados a inspecciones, respuestas o auditoría; permite desactivarlos.' '- Muestra requisitos activos por defecto; los inactivos siguen accesibles mediante filtros.' '- Conserva Room v11, datos históricos y respaldo automático.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

@@ -189,5 +189,24 @@ class BriefingMigrationTest(unittest.TestCase):
         self.assertEqual(db.execute("SELECT id FROM uniform_requirements").fetchall(),[("req",)])
         db.close()
 
+    def test_requirement_delete_guard_preserves_snapshots_and_events(self):
+        source=(SOURCE.parent / "UniformCatalogDao.kt").read_text(encoding="utf-8")
+        count=re.search(r'@Query\("""(SELECT \(SELECT COUNT\(\*\) FROM inspection_requirements.*?uniform_events WHERE requirementId=:id\))"""\)',source,re.S).group(1)
+        delete=re.search(r'@Query\("(DELETE FROM uniform_requirements WHERE id=:id)"\)',source).group(1)
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE uniform_requirements(id TEXT PRIMARY KEY)")
+        for table in ("inspection_requirements","uniform_answers","uniform_events"):
+            db.execute("CREATE TABLE "+table+"(requirementId TEXT)")
+        db.executemany("INSERT INTO uniform_requirements VALUES (?)",[("free",),("snapshot",),("answer",),("audit",)])
+        for table,id in [("inspection_requirements","snapshot"),("uniform_answers","answer"),("uniform_events","audit")]:
+            db.execute("INSERT INTO "+table+" VALUES (?)",(id,))
+            self.assertEqual(db.execute(count,{"id":id}).fetchone()[0],1)
+        self.assertEqual(db.execute(count,{"id":"free"}).fetchone()[0],0)
+        db.execute(delete,{"id":"free"})
+        self.assertEqual(db.execute("SELECT id FROM uniform_requirements ORDER BY id").fetchall(),[("answer",),("audit",),("snapshot",)])
+        for table in ("inspection_requirements","uniform_answers","uniform_events"):
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM "+table).fetchone()[0],1)
+        db.close()
+
 if __name__=="__main__":
     unittest.main()
