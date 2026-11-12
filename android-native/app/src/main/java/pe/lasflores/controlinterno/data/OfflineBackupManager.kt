@@ -13,6 +13,7 @@ import pe.lasflores.controlinterno.domain.BriefingRules
 import pe.lasflores.controlinterno.domain.FunctionRules
 import pe.lasflores.controlinterno.domain.IncidentRules
 import pe.lasflores.controlinterno.domain.JourneyRules
+import pe.lasflores.controlinterno.domain.PhoneRules
 import android.util.Base64
 import java.io.File
 
@@ -35,11 +36,11 @@ data class BackupPreview(
     val incidentTypes: Int = 0,
     val incidents: Int = 0,
     val incidentActions: Int = 0,
-    val formatVersion: Int = 8,
+    val formatVersion: Int = 9,
     val reminders: Int = 0,
     val journeyOccurrences: Int = 0,
-    val journeyNotifications: Int = 0
-)
+    val journeyNotifications: Int = 0,
+    val phoneChecks:Int=0
 
 /**
  * Respaldo nativo íntegro de los módulos existentes (Personal y Uniformes).
@@ -82,6 +83,7 @@ class OfflineBackupManager(
         val journeyReminders: List<JourneyReminderEntity>,
         val journeyOccurrences: List<JourneyOccurrenceEntity>,
         val journeyNotifications: List<JourneyNotificationEntity>,
+        val phoneChecks:List<PhoneCheckEntity>,
         val formatVersion: Int
     ) {
         fun preview() = BackupPreview(
@@ -90,7 +92,7 @@ class OfflineBackupManager(
             briefingAttendance.size, briefingSessions.size, briefingEvents.size,
             functionTasks.size, functionChecks.size, functionEvidence.size, functionEvents.size,
             incidentTypes.size, incidents.size, incidentActions.size,
-            formatVersion,journeyReminders.size,journeyOccurrences.size,journeyNotifications.size
+            formatVersion,journeyReminders.size,journeyOccurrences.size,journeyNotifications.size,phoneChecks.size
         )
     }
 
@@ -155,7 +157,7 @@ class OfflineBackupManager(
 
     suspend fun exportJson(): String = database.withWriteTransaction {
         val root = obj(
-            "app" to "lasflores-android", "formatVersion" to 8,
+            "app" to "lasflores-android", "formatVersion" to 9,
             "exportedAtMillis" to System.currentTimeMillis()
         )
         // Conserva el JSON Web sin modificar para poder auditar campos históricos
@@ -306,7 +308,7 @@ class OfflineBackupManager(
             "uniformsTime" to x.uniformsTime,"informTime" to x.informTime,"functionsTime" to x.functionsTime,
             "summaryTime" to x.summaryTime,"quietEnabled" to x.quietEnabled,"quietStart" to x.quietStart,"quietEnd" to x.quietEnd,
             "briefingAlerts" to x.briefingAlerts,"uniformAlerts" to x.uniformAlerts,"functionAlerts" to x.functionAlerts,
-            "summaryAlerts" to x.summaryAlerts,"incidentAlerts" to x.incidentAlerts)})
+            "summaryAlerts" to x.summaryAlerts,"incidentAlerts" to x.incidentAlerts,"phoneAlerts" to x.phoneAlerts,"phoneTime" to x.phoneTime)})
         root.put("journeyReminders",arr(journey.allReminders()){x->obj(
             "id" to x.id,"title" to x.title,"startDateIso" to x.startDateIso,"time" to x.time,"recurrence" to x.recurrence,
             "daysMask" to x.daysMask,"leadMinutes" to x.leadMinutes,"workdaysOnly" to x.workdaysOnly,"priority" to x.priority,
@@ -317,6 +319,9 @@ class OfflineBackupManager(
         root.put("journeyNotifications",arr(journey.allNotifications()){x->obj(
             "id" to x.id,"taskKey" to x.taskKey,"dateIso" to x.dateIso,"title" to x.title,"body" to x.body,
             "module" to x.module,"sessionSlot" to x.sessionSlot,"atMillis" to x.atMillis,"readAtMillis" to x.readAtMillis)})
+        root.put("phoneChecks",arr(database.phoneDao().allChecks()){x->obj(
+            "dateIso" to x.dateIso,"staffId" to x.staffId,"nameSnapshot" to x.nameSnapshot,"roleSnapshot" to x.roleSnapshot,
+            "status" to x.status,"reason" to x.reason,"note" to x.note,"updatedAtMillis" to x.updatedAtMillis)})
         root.toString(2)
     }
 
@@ -348,6 +353,7 @@ class OfflineBackupManager(
             normalizeOldBriefings(originalBase)
             normalizeOldUniformProfiles(originalBase)
             normalizeOldJourney(originalBase)
+            normalizeOldPhones(originalBase)
             originalBase.remove("exportedAtMillis")
             currentBase.remove("exportedAtMillis")
             require(canonicalJson(originalBase) == canonicalJson(currentBase)) {
@@ -373,6 +379,7 @@ class OfflineBackupManager(
             archiveWrite(archive)
             database.withWriteTransaction<Unit> {
             val journey=database.journeyDao()
+            database.phoneDao().clear()
             journey.clearNotifications();journey.clearOccurrences();journey.clearReminders();journey.clearPreferences()
             incidentDao.clearActions()
             incidentDao.clearIncidents()
@@ -420,6 +427,7 @@ class OfflineBackupManager(
             payload.journeyReminders.forEach{journey.saveReminder(it)}
             payload.journeyOccurrences.forEach{journey.saveOccurrence(it)}
             payload.journeyNotifications.forEach{journey.saveNotification(it)}
+            payload.phoneChecks.forEach{database.phoneDao().save(it)}
             }
         } catch (error: Exception) {
             runCatching { archiveWrite(formerArchive) }
@@ -495,6 +503,13 @@ class OfflineBackupManager(
         root.put("formatVersion",8)
     }
 
+    private fun normalizeOldPhones(root:JSONObject){
+        if(root.optInt("formatVersion",0)!=8)return
+        rows(root,"journeyPreferences"){it}.forEach{it.put("phoneAlerts",true);it.put("phoneTime","12:30")}
+        root.put("phoneChecks",JSONArray())
+        root.put("formatVersion",9)
+    }
+
     private fun decode(text: String): Payload {
         require(text.toByteArray(Charsets.UTF_8).size <= 30 * 1024 * 1024) {
             "El archivo supera 30 MB."
@@ -516,12 +531,13 @@ class OfflineBackupManager(
             else "El archivo no pertenece a Las Flores Android."
         }
         val version = root.getInt("formatVersion")
-        require(version in 1..8) {
+        require(version in 1..9) {
             "Formato de respaldo Android incompatible."
         }
         normalizeOldBriefings(root)
         normalizeOldUniformProfiles(root)
         normalizeOldJourney(root)
+        normalizeOldPhones(root)
 
         val data = Payload(
             staff = rows(root, "staff") { x -> StaffEntity(
@@ -703,7 +719,7 @@ class OfflineBackupManager(
                 x.getInt("workingDaysMask"),x.getInt("briefingLead"),x.getString("uniformsTime"),x.getString("informTime"),
                 x.getString("functionsTime"),x.getString("summaryTime"),x.getBoolean("quietEnabled"),x.getString("quietStart"),
                 x.getString("quietEnd"),x.getBoolean("briefingAlerts"),x.getBoolean("uniformAlerts"),x.getBoolean("functionAlerts"),
-                x.getBoolean("summaryAlerts"),x.getBoolean("incidentAlerts"))}else emptyList(),
+                x.getBoolean("summaryAlerts"),x.getBoolean("incidentAlerts"),x.getBoolean("phoneAlerts"),x.getString("phoneTime"))}else emptyList(),
             journeyReminders=if(version>=3)rows(root,"journeyReminders"){x->JourneyReminderEntity(
                 x.getString("id"),x.getString("title"),x.getString("startDateIso"),x.getString("time"),x.getString("recurrence"),
                 x.getInt("daysMask"),x.getInt("leadMinutes"),x.getBoolean("workdaysOnly"),x.getString("priority"),
@@ -714,6 +730,9 @@ class OfflineBackupManager(
             journeyNotifications=if(version>=3)rows(root,"journeyNotifications"){x->JourneyNotificationEntity(
                 x.getString("id"),x.getString("taskKey"),x.getString("dateIso"),x.getString("title"),x.getString("body"),
                 x.getString("module"),if(x.isNull("sessionSlot"))null else x.getInt("sessionSlot"),x.getLong("atMillis"),nullableLong(x,"readAtMillis"))}else emptyList(),
+            phoneChecks=if(version>=3)rows(root,"phoneChecks"){x->PhoneCheckEntity(
+                x.getString("dateIso"),x.getString("staffId"),x.getString("nameSnapshot"),x.getString("roleSnapshot"),
+                x.getString("status"),x.getString("reason"),x.getString("note"),x.getLong("updatedAtMillis"))}else emptyList(),
             formatVersion = version
         )
         validate(data)
@@ -791,6 +810,14 @@ class OfflineBackupManager(
         unique(data.incidentActions, "acciones de incidentes") { it.id }
 
         val staffIds = data.staff.map { it.id }.toSet()
+        unique(data.phoneChecks,"control de celulares"){it.dateIso to it.staffId}
+        require(data.phoneChecks.all{it.staffId in staffIds&&PhoneRules.valid(it)}){"Registros de celulares inválidos."}
+        val noPhoneDays=data.activityDays.filter{it.module=="celulares"}
+        require(noPhoneDays.all{it.status=="NO_REALIZADA"&&it.reason.trim().length in 3..500&&
+            runCatching{StaffScheduleRules.parseDate(it.dateIso)}.isSuccess}&&
+            data.phoneChecks.none{r->r.status!=PhoneRules.PENDING&&noPhoneDays.any{it.dateIso==r.dateIso}}){
+            "Jornadas de celulares inconsistentes."
+        }
         val inspectionIds = data.inspections.map { it.id }.toSet()
         require(data.staff.all {
             it.id.isNotBlank() && StaffName.isValid(it.fullName) && it.role in STAFF_ROLES &&

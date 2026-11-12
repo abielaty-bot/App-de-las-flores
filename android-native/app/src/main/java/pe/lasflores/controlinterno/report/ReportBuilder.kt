@@ -49,7 +49,8 @@ data class ReportSnapshot(
     val inspectionSnapshots: List<InspectionRequirementEntity> = emptyList(),
     val journeyReminders:List<JourneyReminderEntity> = emptyList(),
     val journeyOccurrences:List<JourneyOccurrenceEntity> = emptyList(),
-    val journeyNotifications:List<JourneyNotificationEntity> = emptyList()
+    val journeyNotifications:List<JourneyNotificationEntity> = emptyList(),
+    val phoneChecks:List<PhoneCheckEntity> = emptyList()
 )
 
 data class ReportCounts(
@@ -274,6 +275,6 @@ object ReportBuilder {
             sheet("Acciones incidentes","Historial vinculado a casos del período seleccionado",
                 listOf("Código","Fecha incidente","Acción","Ejecutó","Estado anterior",
                     "Estado posterior","Descripción","Origen verificado"),actions)
-        ) + ReportExtras.build(snapshot,select)
+        ) + ReportExtras.build(snapshot,select) + PhoneReports.build(snapshot.phoneChecks,snapshot.activityDays,select,includeEmpty=false)
     }
 }

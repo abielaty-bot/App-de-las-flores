@@ -105,7 +105,7 @@ fun BackupScreen(manager: OfflineBackupManager) {
                 migrationMode = manager.webMigrationMode(text)
                 existingRecords = current.people + current.inspections +
                     current.briefings + current.functionChecks +
-                    current.incidents + current.deliveries + current.reminders + current.journeyOccurrences + current.journeyNotifications
+                    current.incidents + current.deliveries + current.reminders + current.journeyOccurrences + current.journeyNotifications + current.phoneChecks
                 replacementAcknowledged = false
                 pendingJson = text
                 pendingPreview = summary
@@ -255,6 +255,8 @@ fun BackupScreen(manager: OfflineBackupManager) {
                     Text("Acciones de seguimiento: " + p.incidentActions)
                     Text("Recordatorios: "+p.reminders+" · Actividades: "+p.journeyOccurrences+" · Avisos: "+p.journeyNotifications)
                     if(p.formatVersion<8)Text("Esta copia es anterior a los recordatorios; se restaurará sin ellos.")
+                    Text("Controles de celulares: "+p.phoneChecks)
+                    if(p.formatVersion<9)Text("Esta copia es anterior a Celulares; no contiene sus registros.")
                     if (p.formatVersion < 5)
                         Text("Este archivo es anterior a Incidentes. Si lo restauras, reemplazará los incidentes que hayas registrado en esta tablet.",
                             color = MaterialTheme.colorScheme.error)

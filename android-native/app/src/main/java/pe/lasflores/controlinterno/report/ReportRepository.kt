@@ -24,7 +24,8 @@ class ReportRepository(private val database: LasFloresDatabase) {
             inspectionSnapshots = database.catalogDao().allSnapshots(),
             journeyReminders=database.journeyDao().allReminders(),
             journeyOccurrences=database.journeyDao().allOccurrences(),
-            journeyNotifications=database.journeyDao().allNotifications()
+            journeyNotifications=database.journeyDao().allNotifications(),
+            phoneChecks=database.phoneDao().allChecks()
         )
     }
 }
