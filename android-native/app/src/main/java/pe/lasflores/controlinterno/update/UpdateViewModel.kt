@@ -86,9 +86,20 @@ class UpdateViewModel(app:Application):AndroidViewModel(app){
         }
     }
     fun setAutomaticChecks(enabled:Boolean){
-        store.automaticChecks=enabled
-        UpdateRuntime.change{it.copy(automaticChecks=enabled)}
-        UpdateCheckJob.configure(getApplication<Application>(),enabled)
+        if(!enabled){
+            // Disable first so even a previously scheduled job will not send alerts.
+            store.automaticChecks=false
+            UpdateCheckJob.configure(getApplication<Application>(),false)
+            UpdateRuntime.change{it.copy(automaticChecks=false)}
+            return
+        }
+        val configured=UpdateCheckJob.configure(getApplication<Application>(),true)
+        store.automaticChecks=configured
+        UpdateRuntime.change{
+            if(configured)it.copy(automaticChecks=true)
+            else it.copy(automaticChecks=false,error=true,
+                status="No se pudieron activar los avisos automáticos. Puedes buscar versiones manualmente.")
+        }
     }
     class Factory(private val app:Application):ViewModelProvider.Factory{
         @Suppress("UNCHECKED_CAST")

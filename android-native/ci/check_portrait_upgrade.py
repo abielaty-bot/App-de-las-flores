@@ -62,6 +62,40 @@ def install(*args):
         raise RuntimeError(result)
 
 
+def check_update_notification_switch():
+    open_menu_item("Actualizaciones")
+    find_text("Centro de actualizaciones")
+    def switch_node():
+        for _ in range(7):
+            adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
+            xml=adb("shell","cat","/sdcard/las-flores-window.xml")
+            nodes=list(ET.fromstring(xml).iter("node"))
+            if any(n.get("text")=="Avisar de nuevas versiones" for n in nodes):
+                switches=[n for n in nodes if n.get("class")=="android.widget.Switch" and n.get("checkable")=="true"]
+                if switches:return switches[0]
+            adb("shell","input","swipe","360","1220","360","610","400")
+        raise RuntimeError("No se encontró el interruptor de avisos")
+    def toggle(node):
+        left,top,right,bottom=map(int,re.findall(r"\d+",node.attrib["bounds"]))
+        adb("shell","input","tap",str((left+right)//2),str((top+bottom)//2))
+        time.sleep(1)
+    node=switch_node()
+    if node.get("checked")!="true":toggle(node)
+    if switch_node().get("checked")!="true":
+        raise RuntimeError("No se activaron los avisos")
+    adb("shell","am","force-stop",PACKAGE)
+    launch()
+    open_personal()
+    find_text(TEST_NAME)
+    open_menu_item("Actualizaciones")
+    find_text("Centro de actualizaciones")
+    node=switch_node()
+    if node.get("checked")!="true":raise RuntimeError("No se conservó el ajuste de avisos")
+    toggle(node)
+    if switch_node().get("checked")!="false":raise RuntimeError("No se desactivaron los avisos")
+    print("Avisos activados, reinicio sin cierre y desactivación verificados.",flush=True)
+
+
 def main():
     adb("shell", "wm", "size", "720x1600")
     adb("shell", "wm", "density", "320")
@@ -110,6 +144,7 @@ def main():
             tap("Cancelar")
             find_text("Requisitos de uniformes")
             print("Editor de requisitos y navegación verificados.", flush=True)
+            check_update_notification_switch()
         if code == 40022:
             open_menu_item("Incidentes")
             find_text("Resumen del mes")

@@ -191,7 +191,7 @@ jobs:
               NOTES=$(printf '%s\n' '## Catálogo compacto y ficha integral' '- Requisitos agrupados, filtros por puesto y estado, contadores y menú de acciones con eliminación segura.' '- Ficha mensual individual: uniformes, briefings, celulares, funciones, incidentes asignados y materiales; historial por módulo y exportación Excel.' '- Indicadores sin convertir registros pendientes o no evaluados en incumplimientos. Conserva Room v11 y respaldo automático.')
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40025" ]]; then
-              NOTES=$(printf '%s\n' '## Editor profesional de requisitos' '- Editor de pantalla completa con secciones, selección de puestos adaptable, perfiles y cantidades con controles +/-.' '- Resumen previo, botón fijo, confirmación de descarte y permanencia del formulario si falla el guardado.' '- Conserva catálogo, ficha individual, Room v11 y respaldos automáticos.')
+              NOTES=$(printf '%s\n' '## Editor profesional de requisitos' '- Editor de pantalla completa con secciones, selección de puestos adaptable, perfiles y cantidades con controles +/-.' '- Resumen previo, botón fijo, confirmación de descarte y permanencia del formulario si falla el guardado.' '- Corrige cierre al activar avisos de actualización en Android 14+: permiso de red y protección del inicio. Verifica activación y reinicio en emulador.' '- Conserva catálogo, ficha individual, Room v11 y respaldos automáticos.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

@@ -39,7 +39,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if(intent.action==UpdateNotifications.OPEN)openUpdates++
         JourneyAlerts.route(intent)?.let{journeyRoute=it}
-        UpdateCheckJob.configure(this,UpdateStore(this).automaticChecks)
+        val updateStore=UpdateStore(this)
+        if(!UpdateCheckJob.configure(this,updateStore.automaticChecks)){
+            // Recover safely from a stale enabled preference or scheduler failure.
+            updateStore.automaticChecks=false
+        }
         val app = application as LasFloresApp
         val staffVm = ViewModelProvider(this, StaffViewModel.Factory(app.staffRepository))[StaffViewModel::class.java]
         val uniformVm = ViewModelProvider(this, UniformViewModel.Factory(app.uniformRepository, app.materialRepository))[UniformViewModel::class.java]
