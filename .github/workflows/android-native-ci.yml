@@ -36,6 +36,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
+      - name: Verificar migración SQL de briefings
+        run: python3 tools/test_briefing_migration.py
       - name: Unit tests and debug APK
         run: |
           # Las variantes comparten exportación de esquemas Room: compilarlas secuencialmente.
