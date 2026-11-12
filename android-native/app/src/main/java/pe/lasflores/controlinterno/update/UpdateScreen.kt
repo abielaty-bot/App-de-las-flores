@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -121,7 +123,8 @@ fun UpdateScreen(vm:UpdateViewModel){
                             Text("Avisar de nuevas versiones",fontWeight=FontWeight.Medium)
                             Text("Consulta periódica, aproximadamente diaria. No descarga ni instala automáticamente.",style=MaterialTheme.typography.bodySmall)
                         }
-                        Switch(checked=ui.automaticChecks,onCheckedChange=vm::setAutomaticChecks)
+                        Switch(checked=ui.automaticChecks,onCheckedChange=vm::setAutomaticChecks,
+                            modifier=Modifier.semantics { contentDescription="Avisos automáticos de actualización" })
                     }
                 }
             }

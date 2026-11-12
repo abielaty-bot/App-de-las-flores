@@ -73,14 +73,19 @@ def open_updates():
 def check_update_notification_switch():
     open_updates()
     def switch_node():
-        for _ in range(7):
+        for _ in range(12):
             adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
             xml=adb("shell","cat","/sdcard/las-flores-window.xml")
             nodes=list(ET.fromstring(xml).iter("node"))
-            if any(n.get("text")=="Avisar de nuevas versiones" for n in nodes):
-                switches=[n for n in nodes if n.get("class")=="android.widget.Switch" and n.get("checkable")=="true"]
-                if switches:return switches[0]
-            adb("shell","input","swipe","360","1220","360","610","400")
+            switches=[n for n in nodes if "Avisos automáticos de actualización" in n.get("content-desc","")
+                and n.get("checkable")=="true"]
+            if switches:return switches[0]
+            # The label and switch need not be exposed as separate nodes in Compose.
+            switches=[n for n in nodes if n.get("class")=="android.widget.Switch" and n.get("checkable")=="true"]
+            if len(switches)==1:return switches[0]
+            adb("shell","input","swipe","360","1150","360","850","500")
+        print("Jerarquía de pantalla al fallar: "+xml,flush=True)
+        print(adb("shell","dumpsys","activity","activities")[-5000:],flush=True)
         raise RuntimeError("No se encontró el interruptor de avisos")
     def toggle(node):
         left,top,right,bottom=map(int,re.findall(r"\d+",node.attrib["bounds"]))
