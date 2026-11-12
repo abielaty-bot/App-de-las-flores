@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import pe.lasflores.controlinterno.data.StaffEntity
 import pe.lasflores.controlinterno.domain.StaffRepository
+
+data class StaffDeletionState(val id:String="",val loading:Boolean=false,val blockers:List<String> = emptyList(),val error:String="",val deleted:Boolean=false)
 
 class StaffViewModel(private val repository: StaffRepository) : ViewModel() {
     val staff: StateFlow<List<StaffEntity>> = repository.staff.stateIn(
@@ -38,6 +41,33 @@ class StaffViewModel(private val repository: StaffRepository) : ViewModel() {
             }
         }
     }
+
+    private val _deletion=MutableStateFlow(StaffDeletionState())
+    val deletion=_deletion.asStateFlow()
+    fun inspectDeletion(id:String){
+        _deletion.value=StaffDeletionState(id,loading=true)
+        viewModelScope.launch{
+            try{
+                val blockers=repository.deletionBlockers(id)
+                if(_deletion.value.id==id)_deletion.value=StaffDeletionState(id,blockers=blockers)
+            }catch(e:CancellationException){throw e}
+            catch(e:Exception){if(_deletion.value.id==id)_deletion.value=StaffDeletionState(id,error=e.message?:"No se pudo comprobar el historial.")}
+        }
+    }
+    fun confirmDeletion(id:String){
+        val current=_deletion.value
+        if(current.id!=id||current.loading||current.deleted||current.error.isNotBlank()||current.blockers.isNotEmpty())return
+        _deletion.value=current.copy(loading=true)
+        viewModelScope.launch{
+            try{
+                val blockers=repository.deleteIfUnused(id)
+                if(_deletion.value.id==id)_deletion.value=StaffDeletionState(id,blockers=blockers,deleted=blockers.isEmpty())
+                if(blockers.isEmpty())_saveState.value="Trabajador eliminado"
+            }catch(e:CancellationException){throw e}
+            catch(e:Exception){if(_deletion.value.id==id)_deletion.value=StaffDeletionState(id,error=e.message?:"No se pudo eliminar.")}
+        }
+    }
+    fun clearDeletion(){if(!_deletion.value.loading)_deletion.value=StaffDeletionState()}
 
     fun add(name: String, role: String) = perform { repository.create(name, role) }
     fun addDetailed(name: String, role: String, category: Int, briefingGroup: Int, scheduleMode: String, restDaysMask: Int, weekendDaysMask:Int, uniformProfile:String) =

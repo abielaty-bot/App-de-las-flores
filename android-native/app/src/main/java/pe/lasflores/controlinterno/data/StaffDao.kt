@@ -55,6 +55,27 @@ interface StaffDao {
     @Query("DELETE FROM staff_vacations")
     suspend fun clearVacations()
 
+    // Los vínculos indirectos (fotos, respuestas, eventos de funciones) dependen
+    // de sus registros padre, que se protegen aquí. Las convocatorias usan IDs por línea.
+    @Query("""SELECT 'Uniformes' WHERE EXISTS (SELECT 1 FROM uniform_inspections WHERE staffId=:id)
+        UNION ALL SELECT 'Asistencia de briefings' WHERE EXISTS (SELECT 1 FROM briefing_attendance WHERE staffId=:id)
+        UNION ALL SELECT 'Convocatorias de briefings' WHERE EXISTS (SELECT 1 FROM briefing_sessions WHERE instr(char(10)||participantIds||char(10),char(10)||:id||char(10))>0)
+        UNION ALL SELECT 'Auditoría de briefings' WHERE EXISTS (SELECT 1 FROM briefing_events WHERE staffId=:id)
+        UNION ALL SELECT 'Funciones' WHERE EXISTS (SELECT 1 FROM function_checks WHERE staffId=:id)
+        UNION ALL SELECT 'Incidentes' WHERE EXISTS (SELECT 1 FROM incidents WHERE assignedStaffId=:id)
+        UNION ALL SELECT 'Historial de incidentes' WHERE EXISTS (SELECT 1 FROM incident_actions WHERE assignedStaffId=:id)
+        UNION ALL SELECT 'Entrega de materiales' WHERE EXISTS (SELECT 1 FROM material_deliveries WHERE staffId=:id)
+        UNION ALL SELECT 'Celulares' WHERE EXISTS (SELECT 1 FROM phone_checks WHERE staffId=:id AND (status!='PENDING' OR updatedAtMillis!=0 OR reason!='' OR note!=''))
+        UNION ALL SELECT 'Vacaciones' WHERE EXISTS (SELECT 1 FROM staff_vacations WHERE staffId=:id)
+        UNION ALL SELECT 'Situaciones diarias' WHERE EXISTS (SELECT 1 FROM staff_day_overrides WHERE staffId=:id)""")
+    suspend fun deletionBlockers(id:String):List<String>
+
+    @Query("DELETE FROM phone_checks WHERE staffId=:id AND status='PENDING' AND updatedAtMillis=0 AND reason='' AND note=''")
+    suspend fun deleteUnmarkedPhoneRows(id:String)
+
+    @Query("DELETE FROM staff WHERE id=:id")
+    suspend fun deleteById(id:String):Int
+
     @Query("DELETE FROM staff")
     suspend fun clearStaff()
 

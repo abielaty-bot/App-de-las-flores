@@ -41,7 +41,7 @@ class LasFloresApp : Application() {
     }
     val phoneRepository by lazy { OfflinePhoneRepository(database) }
     val reportRepository by lazy { ReportRepository(database) }
-    val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database.staffDao(), database.uniformDao()) }
+    val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database) }
     val uniformRepository: UniformRepository by lazy {
         OfflineUniformRepository(database, database.uniformDao(),
             database.staffDao(), database.catalogDao())
