@@ -148,6 +148,22 @@ class OfflineUniformRepository(
         }
     }
 
+    /** Exclusivamente para una inspección creada por error. No es corrección de una falta real.
+     * Borra el registro identificado y sus dependencias, no todo el día ni el trabajador. */
+    override suspend fun deleteMistakenInspection(dateIso:String,staffId:String,inspectionId:String,expectedUpdatedAt:Long) {
+        database.withWriteTransaction {
+            StaffScheduleRules.parseDate(dateIso)
+            val current=dao.getInspection(dateIso,staffId)?:error("La revisión ya no existe.")
+            require(current.id==inspectionId&&current.updatedAtMillis==expectedUpdatedAt){
+                "La revisión cambió. Vuelve a abrirla y comprueba los datos antes de eliminar."
+            }
+            dao.deleteAnswersForInspection(inspectionId)
+            catalogDao.deleteForInspection(inspectionId)
+            dao.deleteEventsForInspection(inspectionId)
+            dao.deleteInspection(inspectionId)
+        }
+    }
+
     override suspend fun finalize(dateIso: String, staffId: String) {
         database.withWriteTransaction {
             val inspection = dao.getInspection(dateIso, staffId) ?: error("No se inició la revisión")

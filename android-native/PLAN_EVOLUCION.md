@@ -67,3 +67,13 @@ Base publicada: 4.0015 (Centro de actualizaciones). No desinstalar la aplicació
 - [x] Solo se quitan filas de celulares automáticas PENDING nunca marcadas; desmarcar una respuesta no elimina su vínculo.
 - [x] Room v11 y JSON v10 sin cambios; no elimina fichas automáticamente.
 - [ ] CI, publicación firmada y prueba en tablet.
+
+
+## Eliminar revisión errónea (4.0020, candidata)
+- [x] Uniformes: acción explícita en Inspecciones e Historial, incluso en una revisión finalizada o un trabajador inactivo.
+- [x] Confirmación con nombre, fecha, puesto, resultado y casilla que acredita error de registro. Advertencia de respaldo y eliminación irreversible.
+- [x] Transacción: verifica ID, fecha, trabajador y versión temporal; elimina únicamente respuestas, requisitos congelados y eventos de esa inspección, y la inspección.
+- [x] Se recalculan resultados por las consultas existentes; no se modifica otra fecha, persona, catálogo ni otros módulos.
+- [x] Personal conserva la protección 4.0019: después de eliminar la revisión, solo permite borrar la ficha si no tiene otros vínculos.
+- [x] Room v11 / JSON v10 sin cambios. Prueba SQL de alcance y preservación.
+- [ ] CI, publicación firmada, prueba en tablet.
