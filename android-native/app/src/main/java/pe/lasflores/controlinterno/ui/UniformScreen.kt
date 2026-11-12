@@ -347,7 +347,11 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
             }
             val buttons:@Composable ()->Unit={
                 if(auto){
-                    FilterChip(selected=true,onClick={},enabled=false,label={Text("✓ No aplica")})
+                    FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){
+                        FilterChip(selected=false,onClick={},enabled=false,label={Text("Sí")})
+                        FilterChip(selected=false,onClick={},enabled=false,label={Text("No")})
+                        FilterChip(selected=true,onClick={},enabled=false,label={Text("✓ No aplica")})
+                    }
                 }else{
                     FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){
                         listOf(UniformRules.OK to "Sí",UniformRules.BAD to "No",UniformRules.NA to "No aplica").forEach{(code,label)->

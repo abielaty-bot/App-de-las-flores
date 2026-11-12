@@ -113,13 +113,19 @@ object ReportBuilder {
 
         val uniformRows=inspections.map{i->
             val checks=answers[i.id].orEmpty()
+            val frozen=snapshot.inspectionSnapshots.filter{it.inspectionId==i.id}
+            val manualExempt=checks.count{it.status=="NA"}
+            val applicable=frozen.count{it.applicable}-manualExempt
+            val evaluated=checks.count{it.status in setOf("OK","BAD")}
+            val percent=if(evaluated==0)"Sin evaluaciones" else (checks.count{it.status=="OK"}*100/evaluated).toString()+"%"
             listOf(i.dateIso,staffNames[i.staffId]?:i.staffId,i.roleSnapshot,
                 if(i.workflow=="FINALIZED")"Finalizada" else "En revisión",
                 i.initialResult?:"Sin resultado",uniformStatus(i),
-                checks.count{it.status in setOf("OK","BAD")},checks.count{it.status=="BAD"},checks.count{it.correctedAtMillis!=null},
+                evaluated,checks.count{it.status=="BAD"},checks.count{it.correctedAtMillis!=null},
                 uniformEvents[i.id].orEmpty().count{it.action=="RECTIFICAR"},
-                checks.count{it.status=="NA"}+snapshot.inspectionSnapshots.count{it.inspectionId==i.id&&!it.applicable},
-                pe.lasflores.controlinterno.domain.StaffScheduleRules.profileLabel(i.uniformProfileSnapshot))
+                manualExempt+frozen.count{!it.applicable},
+                pe.lasflores.controlinterno.domain.StaffScheduleRules.profileLabel(i.uniformProfileSnapshot),
+                applicable.coerceAtLeast(evaluated),percent)
         }
         val briefingIndex=snapshot.briefingSessions.associateBy{it.dateIso to it.groupHour}
         val allBriefings=snapshot.briefingAttendance.filter{select.includes(it.dateIso)&&select.matches(it.staffId)}
@@ -246,7 +252,7 @@ object ReportBuilder {
                     "Entregas período","Unidades entregadas no anuladas"),personnelRows),
             sheet("Uniformes","Estado inicial vs. corrección posterior",
                 listOf("Fecha","Trabajador","Puesto","Revisión","Resultado inicial","Estado actual",
-                    "Requisitos revisados","Incumplimientos marcados","Correcciones","Rectificaciones","No aplica","Perfil de uniforme"),uniformRows),
+                    "Requisitos revisados","Incumplimientos marcados","Correcciones","Rectificaciones","No aplica","Perfil de uniforme","Requisitos aplicables","% cumplimiento de lo evaluado (sin correcciones posteriores)"),uniformRows),
             sheet("Briefings","Sin registrar no se trata como falta",
                 listOf("Fecha","Trabajador","Hora","Asistencia","Comunicación","Responsable","Categoría","Estado sesión","Hora programada","Hora real","Observación","Informado el"),briefRows),
             sheet("Temas briefing","Indicaciones registradas para el equipo",
