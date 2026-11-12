@@ -39,3 +39,12 @@ Base publicada: 4.0015 (Centro de actualizaciones). No desinstalar la aplicació
 - No reescribir inspecciones ni asistencias anteriores. La aplicabilidad histórica anterior a v9 permanece como originalmente registrada.
 - El formato JSON v8 se restaura en Android compatible; las versiones antiguas no pueden leerlo. El convertidor Web todavía no admite v6/v7/v8 y debe bloquear fusiones incompatibles hasta actualizarse.
 - Probar con datos sintéticos, restauración y actualización firmada antes de publicar. No publicar información privada de trabajadores.
+
+
+## Celulares (4.0017, candidata)
+- [x] Registro de cumplimiento diario, no custodia: Sí, No, N/A justificado, pendiente; observación opcional.
+- [x] Personal programado, descansos y apoyos, lista histórica congelada; ajustar pendientes de hoy sin borrar respuestas ya registradas.
+- [x] Calendario, filtros, búsqueda, progreso de revisión, historial y estadísticas por día/semana/mes, detalle de incumplimientos y Excel independiente.
+- [x] Integración con Mi jornada, horario editable de aviso (12:30 por defecto), respaldo JSON v9 y migración Room 10→11.
+- [ ] CI, publicación firmada, prueba en tablet.
+- La lista incluye personal programado de todos los puestos. Las fechas previas sin control no se cuentan como faltas; la lista estimada solo se convierte en registro al marcar o sincronizar. No se controla la devolución, ni se infieren entregas por asistencia.

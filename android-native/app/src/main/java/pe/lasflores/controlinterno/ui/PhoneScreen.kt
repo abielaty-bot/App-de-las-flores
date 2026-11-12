@@ -177,6 +177,7 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
                     }else DayControls(date,{vm.setDate(LocalDate.parse(date).minusDays(if(period==ReportPeriod.WEEK)7 else 1).toString())},
                         {vm.setDate(LocalDate.parse(date).plusDays(if(period==ReportPeriod.WEEK)7 else 1).toString())},{vm.setDate(today)},vm::setDate)
                     Text(selection.subtitle,style=MaterialTheme.typography.bodySmall)
+                    Text("Jornadas sin revisión: "+days.count{selection.includes(it.dateIso)&&it.status=="NO_REALIZADA"},style=MaterialTheme.typography.bodySmall)
                 }
                 item{
                     Card(Modifier.fillMaxWidth()){
