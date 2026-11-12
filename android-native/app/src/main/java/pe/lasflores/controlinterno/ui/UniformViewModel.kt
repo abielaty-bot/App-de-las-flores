@@ -72,6 +72,24 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
     }
     fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>) =
         perform { repository.saveRequirement(id, label, category, minQty, roles,profiles) }
+    /** Keep the editor open until the Room transaction has actually completed. */
+    fun saveRequirementFromEditor(id:String?,label:String,category:String,minQty:Int,roles:Set<String>,profiles:Set<String>,
+        onSaved:()->Unit,onFailure:(String)->Unit) {
+        viewModelScope.launch {
+            _saveStatus.value="Guardando…"
+            try {
+                repository.saveRequirement(id,label,category,minQty,roles,profiles)
+                _saveStatus.value="Guardado automáticamente"
+            } catch(e:CancellationException){throw e}
+            catch(e:Exception){
+                val reason=e.message?:"No se pudo guardar el requisito."
+                _saveStatus.value="Error: "+reason
+                onFailure(reason)
+                return@launch
+            }
+            onSaved()
+        }
+    }
     fun applyRoleProposal(role:String)=perform{repository.applyRoleProposal(role)}
     fun setRequirementActive(id: String, active: Boolean) =
         perform { repository.setRequirementActive(id, active) }
