@@ -1,5 +1,7 @@
 package pe.lasflores.controlinterno.ui
 
+import androidx.activity.compose.BackHandler
+import pe.lasflores.controlinterno.report.ReportRepository
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
@@ -54,7 +56,14 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 /** Ficha única de personal: programación diaria, descansos, apoyos y vacaciones. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={}) {
+fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={},reportRepository:ReportRepository?=null) {
+    var profileId by rememberSaveable {mutableStateOf<String?>(null)}
+    val profilePerson=people.firstOrNull{it.id==profileId}
+    BackHandler(enabled=profilePerson!=null){profileId=null}
+    if(profilePerson!=null && reportRepository!=null){
+        WorkerProfileScreen(profilePerson,reportRepository,onBack={profileId=null})
+        return
+    }
     val vacations by vm.vacations.collectAsState()
     val overrides by vm.overrides.collectAsState()
     val deletion by vm.deletion.collectAsState()
@@ -108,6 +117,7 @@ fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(person.fullName, fontWeight = FontWeight.Bold)
+                    if(reportRepository!=null)OutlinedButton(onClick={profileId=person.id},modifier=Modifier.fillMaxWidth()){Text("Ver ficha integral")}
                     Text(person.role +
                         (if (person.category > 0) " · Categoría " + person.category else "") +
                         (if (person.briefingGroup > 0) " · Grupo de briefing " + (person.briefingGroup-10) else ""),

@@ -1,6 +1,17 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
+import pe.lasflores.controlinterno.R
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.HorizontalDivider
@@ -82,6 +93,7 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
     var editing by remember { mutableStateOf<UniformRequirementEntity?>(null) }
     var adding by remember { mutableStateOf(false) }
     var proposal by remember { mutableStateOf(false) }
+    var viewRequirement by remember { mutableStateOf<UniformRequirementEntity?>(null) }
     var role by rememberSaveable { mutableStateOf("Mozo") }
     var query by rememberSaveable { mutableStateOf("") }
     var status by rememberSaveable { mutableStateOf("active") }
@@ -94,25 +106,28 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
             Text("Requisitos de uniformes",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
             Text("Un catálogo compartido por puestos. Los controles ya iniciados conservan sus requisitos originales.",style=MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(6.dp))
-            SectionControls(listOf("all" to "Todos")+STAFF_ROLES.map{it to UniformRoleRules.label(it)},role,{role=it;query="";status="active"})
-        }
-        item{
-            Card(Modifier.fillMaxWidth()){
-                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-                    Text(if(role=="all")"CATÁLOGO GENERAL" else UniformRoleRules.label(role).uppercase(),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.tertiary)
-                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
-                        Column{
-                            Text(roleRows.count{it.isActive}.toString(),style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold)
-                            Text("Requisitos activos",style=MaterialTheme.typography.bodySmall)
-                        }
-                        Text(roleRows.count{!it.isActive}.toString()+" desactivados",style=MaterialTheme.typography.labelMedium)
-                    }
-                    Text(message,style=MaterialTheme.typography.labelSmall,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                    Button(onClick={adding=true},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("+ Agregar requisito")}
-                    if(role in UniformRoleRules.PROPOSAL_ROLES)OutlinedButton(onClick={proposal=true},enabled=!busy&&catalog.isNotEmpty(),modifier=Modifier.fillMaxWidth()){Text("Aplicar propuesta de "+UniformRoleRules.label(role))}
-                    if(roleRows.none{it.isActive})Text("Este puesto no tiene requisitos activos. Configúralos antes de revisar.",color=semanticForeground("warning"),style=MaterialTheme.typography.bodySmall)
+            FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                (listOf("Mozo","Caja","Runner","all")+STAFF_ROLES.filter{it !in setOf("Mozo","Caja","Runner")}).distinct().forEach{r->
+                    FilterChip(selected=role==r,onClick={role=r;query="";status="active"},
+                        label={Text(if(r=="all")"Todos los puestos" else UniformRoleRules.label(r))})
                 }
             }
+        }
+        item{
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp)){
+                listOf(Triple("Activos",roleRows.count{it.isActive},"success"),Triple("Inactivos",roleRows.count{!it.isActive},"neutral")).forEach{(label,count,kind)->
+                    Card(Modifier.weight(1f),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),shape=RoundedCornerShape(13.dp)){
+                        Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
+                            Text(label,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(count.toString(),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=semanticForeground(kind))
+                        }
+                    }
+                }
+            }
+            if(message!="Guardado automático activo")Text(message,style=MaterialTheme.typography.labelSmall,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            Button(onClick={adding=true},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("+ Agregar requisito")}
+            if(role in UniformRoleRules.PROPOSAL_ROLES)OutlinedButton(onClick={proposal=true},enabled=!busy&&catalog.isNotEmpty(),modifier=Modifier.fillMaxWidth()){Text("Aplicar propuesta de "+UniformRoleRules.label(role))}
+            if(roleRows.none{it.isActive})Text("Este puesto no tiene requisitos activos.",color=semanticForeground("warning"),style=MaterialTheme.typography.bodySmall)
         }
         item{
             OutlinedTextField(query,{query=it.take(100)},label={Text("Buscar requisito")},singleLine=true,modifier=Modifier.fillMaxWidth())
@@ -122,33 +137,40 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
         }
         groups.forEach{group->
             val rows=visible.filter{it.category==group}
-            if(rows.isNotEmpty()){
-                item{Text(group.uppercase(),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.tertiary)}
-                items(rows,key={it.id}){req->
-                    Card(Modifier.fillMaxWidth()){
-                        Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-                                Text(req.label,modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold)
-                                Surface(color=semanticBackground(if(req.isActive)"success" else "neutral"),shape=MaterialTheme.shapes.small){
-                                    Text(if(req.isActive)"Activo" else "Inactivo",modifier=Modifier.padding(horizontal=8.dp,vertical=4.dp),style=MaterialTheme.typography.labelSmall,color=semanticForeground(if(req.isActive)"success" else "neutral"))
-                                }
-                            }
-                            if(req.minQty>0)Text("Cantidad mínima: "+req.minQty,style=MaterialTheme.typography.bodySmall)
-                            Text("Puestos: "+STAFF_ROLES.filter{UniformRoleRules.assigned(req,it)}.joinToString(" · "){UniformRoleRules.label(it)},style=MaterialTheme.typography.bodySmall)
-                            Text("Perfiles: "+UniformRules.PROFILES.filter{req.profilesCsv.contains("|"+it+"|")}.joinToString(", "){StaffScheduleRules.profileLabel(it)},style=MaterialTheme.typography.bodySmall)
-                            FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-                                OutlinedButton(onClick={editing=req},enabled=!busy){Text("Editar")}
-                                TextButton(onClick={vm.setRequirementActive(req.id,!req.isActive)},enabled=!busy){Text(if(req.isActive)"Desactivar" else "Activar")}
-                                TextButton(onClick={vm.inspectRequirementDeletion(req)},enabled=!busy){
-                                    Text("Eliminar",color=MaterialTheme.colorScheme.error)
-                                }
-                            }
+            if(rows.isNotEmpty())item(key="group-"+group){
+                Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(13.dp),
+                    colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
+                    Column{
+                        Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal=13.dp,vertical=10.dp),
+                            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                            Icon(painterResource(R.drawable.ic_lf_uniformes),null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(20.dp))
+                            Text(group,modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.primary)
+                            Text(rows.size.toString(),style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        rows.forEachIndexed{index,req->
+                            CompactRequirementRow(req,busy,onView={viewRequirement=req},onEdit={editing=req},
+                                onToggle={vm.setRequirementActive(req.id,!req.isActive)},onDelete={vm.inspectRequirementDeletion(req)})
+                            if(index<rows.lastIndex)HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
             }
         }
         if(visible.isEmpty())item{Text("No hay requisitos con estos filtros.")}
+    }
+    viewRequirement?.let{req->
+        val current=catalog.firstOrNull{it.id==req.id}?:req
+        AlertDialog(onDismissRequest={viewRequirement=null},title={Text(current.label)},
+            text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+                Text("Grupo: "+current.category)
+                Text(if(current.isActive)"Activo" else "Inactivo")
+                if(current.minQty>0)Text("Cantidad mínima: "+current.minQty)
+                Text("Puestos: "+STAFF_ROLES.filter{UniformRoleRules.assigned(current,it)}.joinToString(", "){UniformRoleRules.label(it)})
+                Text("Perfiles: "+UniformRules.PROFILES.filter{current.profilesCsv.contains("|"+it+"|")}.joinToString(", "){StaffScheduleRules.profileLabel(it)})
+                Text("Los cambios solo afectan revisiones futuras.",style=MaterialTheme.typography.bodySmall)
+            }},
+            confirmButton={Button(onClick={viewRequirement=null;editing=current}){Text("Editar")}},
+            dismissButton={TextButton(onClick={viewRequirement=null}){Text("Cerrar")}})
     }
     deletion.requirement?.let{req->
         AlertDialog(onDismissRequest=vm::dismissRequirementDeletion,
@@ -181,6 +203,36 @@ private fun RequirementsAdmin(vm: UniformViewModel) {
 }
 
 @Composable
+private fun CompactRequirementRow(req:UniformRequirementEntity,busy:Boolean,onView:()->Unit,onEdit:()->Unit,onToggle:()->Unit,onDelete:()->Unit){
+    var expanded by remember(req.id){mutableStateOf(false)}
+    val roles=STAFF_ROLES.filter{UniformRoleRules.assigned(req,it)}
+    Row(Modifier.fillMaxWidth().padding(start=13.dp,end=5.dp,top=6.dp,bottom=6.dp),
+        verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+            Text(req.label,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyLarge)
+            Text((if(roles.size==STAFF_ROLES.size)"Todos los puestos" else roles.joinToString(" · "){UniformRoleRules.label(it)})+
+                (if(req.minQty>0)" · Mín. "+req.minQty else ""),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Surface(color=semanticBackground(if(req.isActive)"success" else "neutral"),shape=MaterialTheme.shapes.small){
+            Text(if(req.isActive)"Activo" else "Inactivo",modifier=Modifier.padding(horizontal=8.dp,vertical=5.dp),
+                style=MaterialTheme.typography.labelSmall,color=semanticForeground(if(req.isActive)"success" else "neutral"))
+        }
+        Box{
+            IconButton(onClick={expanded=true},enabled=!busy){
+                Icon(painterResource(R.drawable.ic_lf_more),contentDescription="Opciones de "+req.label)
+            }
+            DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}){
+                DropdownMenuItem(text={Text("Ver requisito")},onClick={expanded=false;onView()})
+                DropdownMenuItem(text={Text("Editar")},onClick={expanded=false;onEdit()})
+                DropdownMenuItem(text={Text(if(req.isActive)"Desactivar" else "Activar")},onClick={expanded=false;onToggle()})
+                DropdownMenuItem(text={Text("Eliminar",color=MaterialTheme.colorScheme.error)},onClick={expanded=false;onDelete()})
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun RequirementDialog(
     existing: UniformRequirementEntity?,
     defaultRole:String,
@@ -206,9 +258,10 @@ private fun RequirementDialog(
                 OutlinedTextField(value = label, onValueChange = { label = it.take(100) },
                     label = { Text("Nombre del requisito") }, modifier = Modifier.fillMaxWidth())
                 Text("Grupo", fontWeight = FontWeight.Bold)
-                groups.forEach { group ->
-                    FilterChip(selected = category == group, onClick = { category = group },
-                        label = { Text(group) })
+                FlowRow(horizontalArrangement=Arrangement.spacedBy(7.dp)){
+                    groups.forEach { group ->
+                        FilterChip(selected = category == group, onClick = { category = group },label = { Text(group) })
+                    }
                 }
                 OutlinedTextField(value = qty, onValueChange = { qty = it.filter(Char::isDigit).take(3) },
                     label = { Text("Cantidad mínima (0 si no aplica)") }, modifier = Modifier.fillMaxWidth())

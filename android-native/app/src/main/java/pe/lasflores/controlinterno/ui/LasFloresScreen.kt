@@ -156,7 +156,7 @@ fun LasFloresScreen(
                 }
                 holder.SaveableStateProvider(screen) {
                     when(screen) {
-                        "personal"->StaffManagementScreen(people,vm,requestedDate?.takeIf{it.module=="personal"}?.dateIso,{requestedDate=null})
+                        "personal"->StaffManagementScreen(people,vm,requestedDate?.takeIf{it.module=="personal"}?.dateIso,{requestedDate=null},reportRepository)
                         "uniformes"->UniformScreen(people,uniformVm,vm)
                         "celulares"->PhoneScreen(people,vm,phoneVm)
                         "briefings"->BriefingScreen(briefingVm,vm)
