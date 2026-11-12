@@ -178,9 +178,12 @@ class GitHubUpdateRepository(private val context: Context) {
     suspend fun verifyReady(release:AppRelease):File=withContext(Dispatchers.IO){
         checkRelease(release)
         val apk=verifiedFile(release)
-        verifyHash(apk,release)
-        verifyApkPackage(apk,release)
-        apk
+        try{
+            verifyHash(apk,release)
+            verifyApkPackage(apk,release)
+            apk
+        }catch(e:CancellationException){throw e}
+        catch(e:Exception){apk.delete();throw e}
     }
     private suspend fun verifyHash(file:File,release:AppRelease){
         check(file.isFile && file.length()==release.sizeBytes){"El archivo está incompleto o ya no existe."}

@@ -97,7 +97,11 @@ class UpdateDownloadService:Service(){
         startedAt=SystemClock.elapsedRealtime();lastBytesAt=startedAt
         UpdateRuntime.change{it.copy(busy=true,error=false,downloadedFile=null,phase=UpdatePhase.DOWNLOADING,
             status="Conectando con GitHub…",progress=DownloadProgress(repository.partialBytes(release),release.sizeBytes))}
-        startForeground(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,true))
+        try{startForeground(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,true))}
+        catch(e:Exception){
+            UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.ERROR,error=true,status="No se pudo iniciar el servicio de descarga: "+e.message)}
+            stopSelf();return START_NOT_STICKY
+        }
         ticker=scope.launch{
             while(isActive){
                 delay(1000)
@@ -108,7 +112,8 @@ class UpdateDownloadService:Service(){
                         status=if(now-lastBytesAt>3500)"Esperando datos de la conexión…" else "Descargando actualización…")
                     else state
                 }
-                if(UpdateRuntime.state.value.busy)manager.notify(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,true))
+                if(UpdateRuntime.state.value.busy && UpdateNotifications.allowed(this@UpdateDownloadService))
+                    runCatching{manager.notify(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,true))}
             }
         }
         job=scope.launch{
@@ -135,7 +140,7 @@ class UpdateDownloadService:Service(){
                 ticker?.cancel()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 if(!userCancelled&&!timedOut&&UpdateNotifications.allowed(this@UpdateDownloadService))
-                    manager.notify(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,false))
+                    runCatching{manager.notify(UpdateNotifications.ACTIVE_ID,notification(UpdateRuntime.state.value,false))}
                 stopSelf()
             }
         }

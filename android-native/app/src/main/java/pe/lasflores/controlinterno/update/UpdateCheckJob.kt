@@ -6,6 +6,7 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,8 +26,9 @@ class UpdateCheckJob:JobService(){
                 val release=GitHubUpdateRepository(this@UpdateCheckJob).check()
                 if(release!=null && store.automaticChecks && release.versionCode>store.lastNotifiedVersion &&
                     UpdateNotifications.available(this@UpdateCheckJob,release))store.lastNotifiedVersion=release.versionCode
-            }catch(_:Exception){/* Siguiente ventana periódica; no alarma repetitiva de error. */}
-            finally{jobFinished(params,false)}
+            }catch(e:CancellationException){throw e}
+            catch(_:Exception){/* Siguiente ventana periódica; no alarma repetitiva de error. */}
+            jobFinished(params,false)
         }
         return true
     }

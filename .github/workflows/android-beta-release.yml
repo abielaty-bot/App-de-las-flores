@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,6 +87,8 @@ jobs:
           PREVIOUS_TAG=android-beta-v40007
           if [[ "$LF_RELEASE_TAG" == "android-beta-v40014" ]]; then
             PREVIOUS_TAG=android-beta-v40013
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40015" ]]; then
+            PREVIOUS_TAG=android-beta-v40014
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -137,6 +139,9 @@ jobs:
             NOTES="Beta Android firmada. Incluye comprobación de actualizaciones desde la aplicación, verificación SHA-256 y confirmación de instalación mediante Android."
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40014" ]]; then
               NOTES=$(printf '%s\n' '## Personal, Uniformes y navegación' '- Menú lateral desplegable en todos los módulos; al cerrarlo se recupera toda la pantalla.' '- Personal: sábados, domingos, días personalizados, apoyo ocasional y perfil de uniforme.' '- Uniformes: No aplica automático por perfil, excepción manual justificada, búsqueda, filtros, calendario y siguiente trabajador.' '- Moñera: se configura para el perfil femenino por defecto; los perfiles existentes quedan sin definir hasta elegirlos.' '- Conservación de inspecciones anteriores, migración Room 8→9, respaldo JSON v7 y reportes Excel actualizados.' 'Antes de instalar: exporta un respaldo desde Respaldos. Actualiza sin desinstalar la aplicación.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40015" ]]; then
+              NOTES=$(printf '%s\n' '## Nuevo centro de actualizaciones' '- Porcentaje y bytes reales, velocidad, tiempo transcurrido y restante estimado.' '- Descarga en segundo plano con notificación, cancelación y reintento; reanudación segura cuando el servidor la acepta.' '- Verificación de espacio, SHA-256, paquete, versión y firma; nueva comprobación antes de instalar.' '- Historial de versiones detectadas, notas, fecha de publicación y avisos opcionales de nuevas versiones.' '- No cambia Room ni el respaldo JSON v7. Se conservan las mejoras de Briefings, Personal, Uniformes y navegación.' 'Antes de actualizar, exporta una copia desde Respaldos. No desinstales la aplicación.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \

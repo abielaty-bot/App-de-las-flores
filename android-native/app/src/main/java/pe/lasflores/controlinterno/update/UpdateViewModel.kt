@@ -32,8 +32,10 @@ class UpdateViewModel(app:Application):AndroidViewModel(app){
                     progress=DownloadProgress(bytes,release?.sizeBytes?:0),
                     status=if(release==null)"No hay actualizaciones publicadas para esta versión." else if(ready!=null)
                         "Descarga guardada. Lista para verificar e instalar." else "Nueva versión "+UpdatePolicy.versionNameForCode(release.versionCode)+" disponible.")}
-            }catch(e:CancellationException){throw e}
-            catch(e:Exception){UpdateRuntime.change{it.copy(busy=false,error=true,phase=UpdatePhase.ERROR,status="Error al consultar GitHub: "+e.message)}}
+            }catch(e:CancellationException){
+                UpdateRuntime.change{it.copy(busy=false,phase=if(it.downloadedFile!=null)UpdatePhase.READY else if(it.release!=null)UpdatePhase.AVAILABLE else UpdatePhase.IDLE,status="Consulta interrumpida")}
+                throw e
+            }catch(e:Exception){UpdateRuntime.change{it.copy(busy=false,error=true,phase=UpdatePhase.ERROR,status="Error al consultar GitHub: "+e.message)}}
         }
     }
     fun download(){
@@ -64,8 +66,10 @@ class UpdateViewModel(app:Application):AndroidViewModel(app){
                 val apk=repository.verifyReady(release)
                 UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.READY,status="APK verificada. Confirma la instalación en Android.",downloadedFile=apk)}
                 onReady(apk)
-            }catch(e:CancellationException){throw e}
-            catch(e:Exception){
+            }catch(e:CancellationException){
+                UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.READY,status="Comprobación interrumpida. Vuelve a pulsar Instalar.")}
+                throw e
+            }catch(e:Exception){
                 UpdateRuntime.change{it.copy(busy=false,phase=UpdatePhase.ERROR,error=true,downloadedFile=null,
                     status="No se pudo instalar: "+(e.message?:"Error de verificación"))}
             }
