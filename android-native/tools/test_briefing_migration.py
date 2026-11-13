@@ -111,6 +111,7 @@ class BriefingMigrationTest(unittest.TestCase):
             db.execute("CREATE TABLE "+table+"(staffId TEXT)")
         for table in ("incidents","incident_actions"):
             db.execute("CREATE TABLE "+table+"(assignedStaffId TEXT)")
+        db.execute("CREATE TABLE operational_instances(staffId TEXT)")
         db.execute("CREATE TABLE briefing_sessions(participantIds TEXT)")
         db.execute("CREATE TABLE phone_checks(staffId TEXT,status TEXT,updatedAtMillis INTEGER,reason TEXT,note TEXT)")
         def blockers(id):
@@ -126,7 +127,7 @@ class BriefingMigrationTest(unittest.TestCase):
             ("uniform_inspections","staffId","Uniformes"),("briefing_attendance","staffId","Asistencia de briefings"),
             ("briefing_events","staffId","Auditoría de briefings"),("function_checks","staffId","Funciones"),
             ("incidents","assignedStaffId","Incidentes"),("incident_actions","assignedStaffId","Historial de incidentes"),
-            ("material_deliveries","staffId","Entrega de materiales"),("staff_vacations","staffId","Vacaciones"),
+            ("operational_instances","staffId","Control operativo"),("material_deliveries","staffId","Entrega de materiales"),("staff_vacations","staffId","Vacaciones"),
             ("staff_day_overrides","staffId","Situaciones diarias")
         ]:
             db.execute("INSERT INTO "+table+"("+column+") VALUES ('p')")
