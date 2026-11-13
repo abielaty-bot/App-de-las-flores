@@ -66,6 +66,7 @@ interface StaffDao {
         UNION ALL SELECT 'Historial de incidentes' WHERE EXISTS (SELECT 1 FROM incident_actions WHERE assignedStaffId=:id)
         UNION ALL SELECT 'Entrega de materiales' WHERE EXISTS (SELECT 1 FROM material_deliveries WHERE staffId=:id)
         UNION ALL SELECT 'Celulares' WHERE EXISTS (SELECT 1 FROM phone_checks WHERE staffId=:id AND (status!='PENDING' OR updatedAtMillis!=0 OR reason!='' OR note!=''))
+        UNION ALL SELECT 'Control operativo' WHERE EXISTS (SELECT 1 FROM operational_instances WHERE staffId=:id)
         UNION ALL SELECT 'Vacaciones' WHERE EXISTS (SELECT 1 FROM staff_vacations WHERE staffId=:id)
         UNION ALL SELECT 'Situaciones diarias' WHERE EXISTS (SELECT 1 FROM staff_day_overrides WHERE staffId=:id)""")
     suspend fun deletionBlockers(id:String):List<String>
