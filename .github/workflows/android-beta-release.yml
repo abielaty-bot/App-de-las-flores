@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -109,6 +109,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40023
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40025" ]]; then
             PREVIOUS_TAG=android-beta-v40024
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40026" ]]; then
+            PREVIOUS_TAG=android-beta-v40025
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -122,13 +124,13 @@ jobs:
           test "$PREVIOUS_CERT" = "$NEW_CERT"
           rm -f "$LF_KEYSTORE_PATH"
       - name: Habilitar KVM para la prueba de actualización
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Probar la actualización firmada en Android
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
@@ -192,6 +194,9 @@ jobs:
             fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40025" ]]; then
               NOTES=$(printf '%s\n' '## Editor profesional de requisitos' '- Editor de pantalla completa con secciones, selección de puestos adaptable, perfiles y cantidades con controles +/-.' '- Resumen previo, botón fijo, confirmación de descarte y permanencia del formulario si falla el guardado.' '- Corrige cierre al activar avisos de actualización en Android 14+: permiso de red y protección del inicio. Verifica activación y reinicio en emulador.' '- Conserva catálogo, ficha individual, Room v11 y respaldos automáticos.')
+            fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40026" ]]; then
+              NOTES=$(printf '%s\n' '## Control operativo' '- Catálogo de checklist, inspecciones, asignaciones, correcciones y fotografías.' '- Consultas a módulos existentes, exportación Excel y respaldos.' '- Migración Room 11→12. Exporta un respaldo antes de actualizar; no desinstales la aplicación.')
             fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
