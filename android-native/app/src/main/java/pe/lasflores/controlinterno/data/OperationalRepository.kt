@@ -11,6 +11,12 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
     private val dao=db.operationalDao()
     val catalog=OperationalCatalogRepository(context,dao)
     fun observe(period:String)=dao.observePeriod(period)
+    fun events(id:String)=dao.observeEvents(id)
+    suspend fun all()=dao.allInstances()
+    suspend fun evidence(id:String,encoded:String)=db.withWriteTransaction {
+        require(dao.instance(id)!=null && encoded.length in 1..2000000)
+        event(id,"PHOTO","",encoded,"Evidencia fotográfica")
+    }
     fun period(t:OperationalTemplateEntity,date:LocalDate):String=when(t.frequency){
         "Semanal"->date.minusDays((date.dayOfWeek.value-1).toLong()).toString()+"-W"
         "Mensual"->date.toString().take(7)
@@ -32,11 +38,17 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
                 if(t.frequency.contains("Mié",true) && day !in 3..5)continue
                 if(t.deadline.contains("Mié/Jue/Vie",true) && day !in 3..5)continue
                 val target=when {
+                    t.titular=="Edith" && day in 3..5 -> when(t.id){
+                        "OFI-05-1","OFI-11-1","OFI-14-1"->"Leo"
+                        "OFI-07-1","OFI-08-1","OFI-09-1","OFI-10-1"->"Álvaro"
+                        else->"Dina"
+                    }
                     t.groupName=="Abastecimiento OF-1" && day==3 -> "Edith"
                     t.groupName=="Abastecimiento OF-2" && day==4 -> "Edith"
                     else -> t.titular
                 }
                 val person=people.filter{norm(it.fullName).startsWith(norm(target)+" ") || norm(it.fullName)==norm(target)}.singleOrNull()
+                if(t.titular=="Edith" && day in 3..5 && t.id in setOf("OFI-05-1","OFI-07-1","OFI-08-1","OFI-09-1","OFI-10-1","OFI-11-1","OFI-12-1","OFI-13-1","OFI-14-1","OFI-15-1"))continue
                 val key=period(t,date)
                 dao.insertInstance(OperationalInstanceEntity(t.id+":"+key,key,t.id,t.version,t.label,t.standard,t.location,person?.id,person?.fullName ?: if(target=="Maître")"Maître" else "Sin asignar","UNREVIEWED","NONE","",false,null,System.currentTimeMillis()))
             }
