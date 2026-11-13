@@ -120,8 +120,8 @@ def main():
     adb("shell", "wm", "density", "320")
     install("android-native/dist/previous/las-flores-beta.apk")
     launch()
-    code = 40027 if "android-beta-v40027" in sys.argv else 40026 if "android-beta-v40026" in sys.argv else 40025 if "android-beta-v40025" in sys.argv else (40024 if "android-beta-v40024" in sys.argv else (40022 if "android-beta-v40022" in sys.argv else (40021 if "android-beta-v40021" in sys.argv else 40008)))
-    if code in (40021, 40022, 40024, 40025, 40026, 40027):
+    code = 40028 if "android-beta-v40028" in sys.argv else 40027 if "android-beta-v40027" in sys.argv else 40026 if "android-beta-v40026" in sys.argv else 40025 if "android-beta-v40025" in sys.argv else (40024 if "android-beta-v40024" in sys.argv else (40022 if "android-beta-v40022" in sys.argv else (40021 if "android-beta-v40021" in sys.argv else 40008)))
+    if code in (40021, 40022, 40024, 40025, 40026, 40027, 40028):
         open_personal()
     else:
         tap("Personal", last=True)
@@ -138,7 +138,7 @@ def main():
     if not re.search(rf"\bversionCode={code}\b", package_info):
         raise RuntimeError(f"Android no instaló {code}")
     launch()
-    if code in (40021, 40022, 40024, 40025, 40026, 40027):
+    if code in (40021, 40022, 40024, 40025, 40026, 40027, 40028):
         open_personal()
         find_text(TEST_NAME)
         adb("shell", "am", "force-stop", PACKAGE)
@@ -146,14 +146,14 @@ def main():
         open_personal()
         find_text(TEST_NAME)
         print("Registro conservado tras actualizar y reiniciar la app", flush=True)
-        if code in (40024, 40025, 40026, 40027):
+        if code in (40024, 40025, 40026, 40027, 40028):
             tap("Ver ficha integral", last=True)
             find_text("Ficha integral")
             find_text(TEST_NAME)
             tap("Volver a Personal")
             find_text(TEST_NAME)
             print("Ficha individual y navegación verificadas.", flush=True)
-        if code in (40025, 40026, 40027):
+        if code in (40025, 40026, 40027, 40028):
             open_menu_item("Uniformes")
             tap("Configurar requisitos")
             tap("+ Agregar requisito")
@@ -164,7 +164,7 @@ def main():
             find_text("Requisitos de uniformes")
             print("Editor de requisitos y navegación verificados.", flush=True)
             check_update_notification_switch()
-        if code == 40027:
+        if code in (40027, 40028):
             open_menu_item("Control operativo")
             find_text("Supervisión de la jornada")
             tap("Revisión")
