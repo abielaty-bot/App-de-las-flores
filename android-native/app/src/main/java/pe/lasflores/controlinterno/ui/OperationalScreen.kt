@@ -43,6 +43,7 @@ internal fun OperationalScreen() {
     var pendingOnly by rememberSaveable{mutableStateOf(false)}
     var message by remember{mutableStateOf("")}
     var busy by remember{mutableStateOf(false)}
+    var failureOnly by remember{mutableStateOf(false)}
     var selected by remember{mutableStateOf<OperationalInstanceEntity?>(null)}
     var edit by remember{mutableStateOf<OperationalTemplateEntity?>(null)}
     var people by remember{mutableStateOf(emptyList<StaffEntity>())}
@@ -152,7 +153,7 @@ internal fun OperationalScreen() {
                 }
                 item{
                     if(section=="Inicio"){
-                        Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(if(rows.isEmpty())"Preparar jornada" else "Actualizar asignaciones de jornada")}
+                        Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(if(rows.isEmpty())"Preparar jornada" else "Preparar controles faltantes")}
                         OutlinedButton(onClick={section="Revisión"},modifier=Modifier.fillMaxWidth()){Text("Continuar inspección")}
                     }else Button(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Exportar período a Excel")}
                     Text("Estaciones de trabajo",style=MaterialTheme.typography.titleMedium)
@@ -199,12 +200,12 @@ internal fun OperationalScreen() {
                                     Text(row.labelSnapshot,style=MaterialTheme.typography.titleMedium)
                                     Text(if(section=="Seguimiento")row.staffNameSnapshot+" · "+row.locationSnapshot else row.locationSnapshot,style=MaterialTheme.typography.labelSmall)
                                 }
-                                TextButton(onClick={selected=row}){Text("Detalle")}
+                                TextButton(onClick={failureOnly=false;selected=row}){Text("Detalle")}
                             }
                             if(row.initialResult=="UNREVIEWED"){
                                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
                                     Button(onClick={run{repo.review(row.id,"CONFORMING","")}},enabled=!busy,modifier=Modifier.weight(1f).heightIn(min=48.dp),colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF317253),contentColor=Color.White)){Text("✓ Cumple")}
-                                    OutlinedButton(onClick={selected=row},enabled=!busy,modifier=Modifier.weight(1f).heightIn(min=48.dp)){Text("✕ No cumple",color=MaterialTheme.colorScheme.error)}
+                                    OutlinedButton(onClick={failureOnly=true;selected=row},enabled=!busy,modifier=Modifier.weight(1f).heightIn(min=48.dp)){Text("✕ No cumple",color=MaterialTheme.colorScheme.error)}
                                 }
                             }else{
                                 Text(label(row.initialResult)+(if(row.correction=="NONE")"" else " · "+label(row.correction)),color=if(row.initialResult=="CONFORMING")Color(0xFF317253) else MaterialTheme.colorScheme.error,style=MaterialTheme.typography.labelLarge)
@@ -239,8 +240,8 @@ internal fun OperationalScreen() {
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
                 if(row.initialResult=="UNREVIEWED"){
                     Row{Checkbox(attributable,{attributable=it});Text("Incumplimiento atribuible")}
-                    listOf("CONFORMING","NONCONFORMING","BLOCKED","NOT_APPLICABLE").forEach{v->
-                        OutlinedButton(onClick={run{repo.review(row.id,v,note,attributable);selected=null}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(label(v))}
+                    (if(failureOnly)listOf("NONCONFORMING","BLOCKED","NOT_APPLICABLE") else listOf("CONFORMING","NONCONFORMING","BLOCKED","NOT_APPLICABLE")).forEach{v->
+                        OutlinedButton(onClick={run{repo.review(row.id,v,note,attributable);selected=null}},enabled=!busy && (v=="CONFORMING" || note.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(label(v))}
                     }
                 }
                 if(row.initialResult!="UNREVIEWED" && row.correction in setOf("NONE","PENDING")) TextButton(onClick={run{repo.review(row.id,"UNREVIEWED",note);selected=null}},enabled=!busy && note.isNotBlank()){Text("Anular revisión con motivo")}
