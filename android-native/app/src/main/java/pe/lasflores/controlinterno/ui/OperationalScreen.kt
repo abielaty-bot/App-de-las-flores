@@ -31,7 +31,7 @@ import java.time.LocalDate
 import pe.lasflores.controlinterno.domain.OperationalReporting
 
 @Composable
-internal fun OperationalScreen() {
+internal fun OperationalScreen(route:pe.lasflores.controlinterno.journey.JourneyNavigation?=null,onRouteConsumed:()->Unit={}) {
     val context=LocalContext.current
     val repo=remember(context){(context.applicationContext as LasFloresApp).operationalRepository}
     val scope=rememberCoroutineScope()
@@ -54,6 +54,21 @@ internal fun OperationalScreen() {
     val periodRows by remember(period){repo.observe(period)}.collectAsState(initial=emptyList())
     val allRows by remember{repo.observeAll()}.collectAsState(initial=emptyList())
     val rows=if(section=="Reportes")OperationalReporting.periodRows(allRows,date,mode) else periodRows
+    LaunchedEffect(route?.nonce,allRows){
+        val request=route?:return@LaunchedEffect
+        if(request.taskKey.startsWith("correction:")){
+            val target=allRows.firstOrNull{it.id==request.taskKey.removePrefix("correction:")}
+            if(target!=null){
+                val key=target.periodKey
+                mode=when{key.endsWith("-W")->"Semanal";key.length==7->"Mensual";else->"Diaria"}
+                dateIso=if(key.length==7)key+"-01" else key.removeSuffix("-W")
+                section="Seguimiento";filter="";pendingOnly=false;failureOnly=false;selected=target
+                onRouteConsumed()
+            }
+        }else{
+            dateIso=request.dateIso;mode="Diaria";section="Inicio";onRouteConsumed()
+        }
+    }
     val templates by remember{repo.catalog.observe()}.collectAsState(initial=emptyList())
     fun run(action:suspend ()->Unit){if(busy)return;busy=true;scope.launch{
         try{action();message="Guardado automáticamente"}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+(e.message?:"No se pudo guardar")}finally{busy=false}
