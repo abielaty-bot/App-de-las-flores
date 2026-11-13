@@ -3,7 +3,12 @@ package pe.lasflores.controlinterno.domain
 import java.time.LocalDate
 import org.junit.Assert.*
 import org.junit.Test
-import pe.lasflores.controlinterno.domain.OperationalRules.*
+import pe.lasflores.controlinterno.domain.OperationalRules.Definition
+import pe.lasflores.controlinterno.domain.OperationalRules.Frequency
+import pe.lasflores.controlinterno.domain.OperationalRules.Assignment
+import pe.lasflores.controlinterno.domain.OperationalRules.Review
+import pe.lasflores.controlinterno.domain.OperationalRules.Result
+import pe.lasflores.controlinterno.domain.OperationalRules.Correction
 
 class OperationalRulesTest {
     private val monday = LocalDate.of(2026, 11, 9)
