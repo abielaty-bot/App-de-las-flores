@@ -1,6 +1,8 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
@@ -67,10 +69,16 @@ internal fun OperationalScreen() {
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){uri->
         if(uri!=null)run{
             withContext(Dispatchers.IO){
+                val start=when(mode){"Semanal"->date.minusDays((date.dayOfWeek.value-1).toLong());"Mensual"->date.withDayOfMonth(1);else->date}
+                val end=when(mode){"Semanal"->start.plusDays(6);"Mensual"->start.plusMonths(1).minusDays(1);else->date}
+                val reportRows=repo.all().filter{r->
+                    val d=runCatching{LocalDate.parse(r.periodKey.removeSuffix("-W"))}.getOrNull()
+                    r.periodKey==period || (d!=null && !d.isBefore(start) && !d.isAfter(end) && !r.periodKey.endsWith("-W"))
+                }
                 val output=context.contentResolver.openOutputStream(uri)?:error("No se pudo crear Excel")
                 output.use{ExcelWriter().write(listOf(ExcelSheet("Control operativo","Control operativo Las Flores",period,
                     listOf("Período","Zona","Responsable","Función","Estándar","Resultado inicial","Corrección","Observación","Atribuible"),
-                    rows.map{listOf(it.periodKey,it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot,it.standardSnapshot,label(it.initialResult),label(it.correction),it.note,it.attributable)})),it)}
+                    reportRows.map{listOf(it.periodKey,it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot,it.standardSnapshot,label(it.initialResult),label(it.correction),it.note,it.attributable)})),it)}
             }
         }
     }
@@ -131,6 +139,10 @@ internal fun OperationalScreen() {
                 Text("Responsable: "+row.staffNameSnapshot)
                 TextButton(onClick={photoId=row.id;photo.launch("image/*")},enabled=!busy){Text("Adjuntar foto")}
                 Text("Evidencias: "+history.count{it.action=="PHOTO"})
+                history.filter{it.action=="PHOTO"}.forEach{e->
+                    val bitmap=remember(e.id){runCatching{val bytes=android.util.Base64.decode(e.afterValue,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)?.asImageBitmap()}.getOrNull()}
+                    bitmap?.let{Image(it,contentDescription="Evidencia de la función",modifier=Modifier.fillMaxWidth().heightIn(max=200.dp))}
+                }
                 history.filter{it.action!="PHOTO"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
                 if(row.initialResult=="UNREVIEWED"||row.correction in setOf("NONE","PENDING")){
