@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import pe.lasflores.controlinterno.report.ExcelWriter
 import pe.lasflores.controlinterno.report.ExcelSheet
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -73,7 +74,7 @@ internal fun OperationalScreen() {
                 val end=when(mode){"Semanal"->start.plusDays(6);"Mensual"->start.plusMonths(1).minusDays(1);else->date}
                 val reportRows=repo.all().filter{r->
                     val d=runCatching{LocalDate.parse(r.periodKey.removeSuffix("-W"))}.getOrNull()
-                    r.periodKey==period || (d!=null && !d.isBefore(start) && !d.isAfter(end) && !r.periodKey.endsWith("-W"))
+                    r.periodKey==period || (d!=null && !d.isBefore(start) && !d.isAfter(end) && (mode=="Mensual" || !r.periodKey.endsWith("-W")))
                 }
                 val output=context.contentResolver.openOutputStream(uri)?:error("No se pudo crear Excel")
                 output.use{ExcelWriter().write(listOf(ExcelSheet("Control operativo","Control operativo Las Flores",period,
@@ -93,8 +94,8 @@ internal fun OperationalScreen() {
             Text(dateIso,style=MaterialTheme.typography.titleMedium)
             TextButton(onClick={dateIso=date.plusDays(1).toString()}){Text("Siguiente ›")}
         }
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-            listOf("Diaria","Semanal","Mensual","Catálogo").forEach{m->FilterChip(selected=mode==m,onClick={mode=m},label={Text(m)})}
+        LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+            items(listOf("Diaria","Semanal","Mensual","Catálogo")){m->FilterChip(selected=mode==m,onClick={mode=m},label={Text(m)})}
         }
         if(mode!="Catálogo"){
             Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
@@ -107,7 +108,7 @@ internal fun OperationalScreen() {
             }}
             Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Preparar checklist de la jornada")}
             OutlinedTextField(filter,{filter=it},label={Text("Buscar trabajador, zona o función")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-            TextButton(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=rows.isNotEmpty()&&!busy){Text("Exportar período a Excel")}
+            TextButton(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=!busy){Text("Exportar período a Excel")}
             FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
         }
         if(message.isNotBlank())Text(message,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
@@ -170,6 +171,7 @@ internal fun OperationalScreen() {
         var label by remember(t.id){mutableStateOf(t.label)}
         var active by remember(t.id){mutableStateOf(t.active)}
         AlertDialog(onDismissRequest={edit=null},title={Text("Editar función")},text={Column{
+            Text(t.validation,style=MaterialTheme.typography.bodySmall)
             OutlinedTextField(label,{label=it},label={Text("Función")})
             OutlinedTextField(standard,{standard=it},label={Text("Estándar")})
             Row{Checkbox(active,{active=it});Text("Activa")}
