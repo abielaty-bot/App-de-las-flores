@@ -28,6 +28,7 @@ import kotlinx.coroutines.CancellationException
 import pe.lasflores.controlinterno.LasFloresApp
 import pe.lasflores.controlinterno.data.*
 import java.time.LocalDate
+import pe.lasflores.controlinterno.domain.OperationalReporting
 
 @Composable
 internal fun OperationalScreen() {
@@ -49,7 +50,9 @@ internal fun OperationalScreen() {
     var edit by remember{mutableStateOf<OperationalTemplateEntity?>(null)}
     var people by remember{mutableStateOf(emptyList<StaffEntity>())}
     val period=when(mode){"Semanal"->date.minusDays((date.dayOfWeek.value-1).toLong()).toString()+"-W";"Mensual"->dateIso.take(7);else->dateIso}
-    val rows by remember(period){repo.observe(period)}.collectAsState(initial=emptyList())
+    val periodRows by remember(period){repo.observe(period)}.collectAsState(initial=emptyList())
+    val allRows by remember{repo.observeAll()}.collectAsState(initial=emptyList())
+    val rows=if(section=="Reportes")OperationalReporting.periodRows(allRows,date,mode) else periodRows
     val templates by remember{repo.catalog.observe()}.collectAsState(initial=emptyList())
     fun run(action:suspend ()->Unit){if(busy)return;busy=true;scope.launch{
         try{action();message="Guardado automáticamente"}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+(e.message?:"No se pudo guardar")}finally{busy=false}
@@ -80,12 +83,7 @@ internal fun OperationalScreen() {
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){uri->
         if(uri!=null)run{
             withContext(Dispatchers.IO){
-                val start=when(mode){"Semanal"->date.minusDays((date.dayOfWeek.value-1).toLong());"Mensual"->date.withDayOfMonth(1);else->date}
-                val end=when(mode){"Semanal"->start.plusDays(6);"Mensual"->start.plusMonths(1).minusDays(1);else->date}
-                val reportRows=repo.all().filter{r->
-                    val d=runCatching{LocalDate.parse(r.periodKey.removeSuffix("-W"))}.getOrNull()
-                    r.periodKey==period || (d!=null && !d.isBefore(start) && !d.isAfter(end) && (mode=="Mensual" || !r.periodKey.endsWith("-W")))
-                }
+                val reportRows=OperationalReporting.periodRows(repo.all(),date,mode)
                 val output=context.contentResolver.openOutputStream(uri)?:error("No se pudo crear Excel")
                 output.use{ExcelWriter().write(listOf(ExcelSheet("Control operativo","Control operativo Las Flores",period,
                     listOf("Período","Zona","Responsable","Función","Estándar","Resultado inicial","Corrección","Observación","Atribuible"),
@@ -172,6 +170,32 @@ internal fun OperationalScreen() {
                         OperationalMetric("Conformidad final",if(evaluated==0)"—" else "${100*rows.count{it.initialResult=="CONFORMING" || (it.initialResult=="NONCONFORMING" && it.correction=="VERIFIED")}/evaluated}%",Modifier.weight(1f))
                     }
                 }
+                if(section=="Reportes"){
+                    item{
+                        val metrics=OperationalReporting.metrics(rows)
+                        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                            OperationalMetric("Atribuibles",metrics.attributable.toString(),Modifier.weight(1f))
+                            OperationalMetric("Subsanados",metrics.verified.toString()+" / "+metrics.failures,Modifier.weight(1f))
+                        }
+                    }
+                    item{Text("Recurrencia por función",style=MaterialTheme.typography.titleMedium)}
+                    items(rows.filter{it.initialResult=="NONCONFORMING"}.groupBy{it.templateId}.values.sortedByDescending{it.size}.take(10),key={"recurrence:"+it.first().templateId}){failures->
+                        Card(modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
+                            Text(failures.first().labelSnapshot,style=MaterialTheme.typography.titleSmall)
+                            Text("${failures.size} incumplimientos · ${failures.count{it.attributable}} atribuibles",style=MaterialTheme.typography.bodySmall)
+                        }}
+                    }
+                    item{Text("Desempeño por responsable",style=MaterialTheme.typography.titleMedium)}
+                    items(rows.groupBy{it.staffNameSnapshot}.entries.sortedBy{it.key},key={"performance:"+it.key}){g->
+                        val m=OperationalReporting.metrics(g.value)
+                        Card(modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            Text(g.key,style=MaterialTheme.typography.titleMedium)
+                            Text("Cobertura: ${m.reviewed}/${m.total} · Evaluados: ${m.evaluated}")
+                            Text("Inicial: ${m.initial?.let{"$it%"}?:"—"} · Final: ${m.final?.let{"$it%"}?:"—"}")
+                            Text("Incumplimientos atribuibles: ${m.attributable}",style=MaterialTheme.typography.bodySmall)
+                        }}
+                    }
+                }
                 item{
                     if(section=="Inicio"){
                         Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(if(rows.isEmpty())"Preparar jornada" else "Preparar controles faltantes")}
@@ -179,7 +203,7 @@ internal fun OperationalScreen() {
                     }else Button(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Exportar período a Excel")}
                     Text("Estaciones de trabajo",style=MaterialTheme.typography.titleMedium)
                 }
-                items(groups.entries.toList(),key={it.key}){g->
+                if(section=="Inicio")items(groups.entries.toList(),key={it.key}){g->
                     val done=g.value.count{it.initialResult!="UNREVIEWED"}
                     Card(onClick={owner=g.key;section="Revisión";filter=""},modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
                         Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
