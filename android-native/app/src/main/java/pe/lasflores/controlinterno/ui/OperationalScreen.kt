@@ -1,6 +1,8 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,6 +36,9 @@ internal fun OperationalScreen() {
     var dateIso by rememberSaveable{mutableStateOf(LocalDate.now().toString())}
     val date=LocalDate.parse(dateIso)
     var mode by rememberSaveable{mutableStateOf("Diaria")}
+    var section by rememberSaveable{mutableStateOf("Inicio")}
+    var groupByZone by rememberSaveable{mutableStateOf(false)}
+    var owner by rememberSaveable{mutableStateOf("")}
     var filter by rememberSaveable{mutableStateOf("")}
     var pendingOnly by rememberSaveable{mutableStateOf(false)}
     var message by remember{mutableStateOf("")}
@@ -84,51 +89,133 @@ internal fun OperationalScreen() {
         }
     }
     LaunchedEffect(dateIso){try{repo.catalog.initialize();people=repo.available(date)}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+e.message}}
-    val visible=rows.filter{(!pendingOnly || it.initialResult=="UNREVIEWED" || it.correction in setOf("PENDING","REPORTED","REOPENED")) && (filter.isBlank() || listOf(it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot).any{s->s.contains(filter,true)})}
+    val openStates=setOf("PENDING","REPORTED","REOPENED")
     val reviewed=rows.count{it.initialResult!="UNREVIEWED"}
     val conform=rows.count{it.initialResult=="CONFORMING"}
     val evaluated=rows.count{it.initialResult in setOf("CONFORMING","NONCONFORMING")}
-    Column(Modifier.fillMaxSize().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+    val groups=rows.groupBy{if(groupByZone)it.locationSnapshot else it.staffNameSnapshot}.toSortedMap()
+    val activeOwner=owner.takeIf{it in groups}?:groups.keys.firstOrNull().orEmpty()
+    val visible=rows.filter{(section!="Seguimiento" || it.correction in openStates) &&
+        (section!="Revisión" || (if(groupByZone)it.locationSnapshot else it.staffNameSnapshot)==activeOwner) &&
+        (!pendingOnly || it.initialResult=="UNREVIEWED" || it.correction in openStates) &&
+        (filter.isBlank() || listOf(it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot).any{s->s.contains(filter,true)})}
+    val burgundy=Color(0xFF381F2B)
+    val champagne=Color(0xFFE5CDA7)
+    Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
             TextButton(onClick={dateIso=date.minusDays(1).toString()}){Text("‹ Anterior")}
             Text(dateIso,style=MaterialTheme.typography.titleMedium)
             TextButton(onClick={dateIso=date.plusDays(1).toString()}){Text("Siguiente ›")}
         }
         LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-            items(listOf("Diaria","Semanal","Mensual","Catálogo")){m->FilterChip(selected=mode==m,onClick={mode=m},label={Text(m)})}
+            items(listOf("Inicio","Revisión","Seguimiento","Reportes","Catálogo")){m->FilterChip(selected=section==m,onClick={section=m;filter="";pendingOnly=false},label={Text(m)})}
         }
-        if(mode!="Catálogo"){
-            Card(Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
-                Text("Supervisión operativa",style=MaterialTheme.typography.titleLarge)
-                Text("Revisados: $reviewed / ${rows.size} · Sin asignar: ${rows.count{it.staffNameSnapshot=="Sin asignar"}}")
-                Text("Cumplimiento inicial: "+if(evaluated==0)"Sin datos" else "${100*conform/evaluated}%")
-                Text("Cumplimiento final: "+if(evaluated==0)"Sin datos" else "${100*rows.count{it.initialResult=="CONFORMING" || (it.initialResult=="NONCONFORMING" && it.correction=="VERIFIED")}/evaluated}%")
-                Text("Correcciones abiertas: ${rows.count{it.correction in setOf("PENDING","REPORTED","REOPENED")}}")
-                LinearProgressIndicator(progress={if(rows.isEmpty())0f else reviewed.toFloat()/rows.size},modifier=Modifier.fillMaxWidth())
-            }}
-            Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Preparar checklist de la jornada")}
-            OutlinedTextField(filter,{filter=it},label={Text("Buscar trabajador, zona o función")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-            TextButton(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=!busy){Text("Exportar período a Excel")}
-            FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
-        }
-        if(message.isNotBlank())Text(message,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-        LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
-            if(mode=="Catálogo")items(templates,key={it.id}){t->
-                Card(onClick={edit=t},modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
-                    Text(t.label,style=MaterialTheme.typography.titleMedium)
-                    Text("${t.groupName} · ${t.location} · ${t.frequency}")
-                    Text("Estándar: ${t.standard} · v${t.version}")
-                    Text(if(t.active)"Activa" else "Desactivada")
-                }}
-            }else items(visible,key={it.id}){row->
-                Card(onClick={selected=row},modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
-                    Text(row.locationSnapshot+" · "+row.staffNameSnapshot,style=MaterialTheme.typography.labelMedium)
-                    Text(row.labelSnapshot,style=MaterialTheme.typography.titleMedium)
-                    Text("Estándar: "+row.standardSnapshot)
-                    Text(label(row.initialResult)+" · "+label(row.correction),color=if(row.initialResult=="NONCONFORMING"||row.initialResult=="BLOCKED")MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                }}
+        if(section!="Catálogo"){
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                items(listOf("Diaria","Semanal","Mensual")){m->FilterChip(selected=mode==m,onClick={mode=m;owner=""},label={Text(m)})}
             }
         }
+        if(message.isNotBlank())Text(message,style=MaterialTheme.typography.labelMedium,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+        if(section=="Revisión"){
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                FilterChip(selected=!groupByZone,onClick={groupByZone=false;owner=""},label={Text("Por trabajador")})
+                FilterChip(selected=groupByZone,onClick={groupByZone=true;owner=""},label={Text("Por zona")})
+            }
+            OutlinedTextField(filter,{filter=it},label={Text("Buscar función")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
+        }
+        if(section=="Seguimiento")OutlinedTextField(filter,{filter=it},label={Text("Buscar corrección")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+        LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
+            if(section=="Inicio" || section=="Reportes"){
+                item{
+                    Card(colors=CardDefaults.cardColors(containerColor=burgundy),modifier=Modifier.fillMaxWidth()){
+                        Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                            Text("LAS FLORES · OPERACIONES",color=champagne,style=MaterialTheme.typography.labelMedium)
+                            Text(if(section=="Inicio")"Supervisión de la jornada" else "Inteligencia operativa",color=Color.White,style=MaterialTheme.typography.headlineSmall)
+                            Text("$reviewed / ${rows.size} revisados",color=Color.White,style=MaterialTheme.typography.headlineMedium)
+                            LinearProgressIndicator(progress={if(rows.isEmpty())0f else reviewed.toFloat()/rows.size},modifier=Modifier.fillMaxWidth(),color=champagne,trackColor=Color(0xFF76505D))
+                            Text("Conformes: $conform · Pendientes: ${rows.size-reviewed}",color=champagne)
+                        }
+                    }
+                }
+                item{
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        OperationalMetric("Sin asignar",rows.count{it.staffNameSnapshot=="Sin asignar"}.toString(),Modifier.weight(1f))
+                        OperationalMetric("Por corregir",rows.count{it.correction in openStates}.toString(),Modifier.weight(1f))
+                    }
+                }
+                item{
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                        OperationalMetric("Conformidad inicial",if(evaluated==0)"—" else "${100*conform/evaluated}%",Modifier.weight(1f))
+                        OperationalMetric("Conformidad final",if(evaluated==0)"—" else "${100*rows.count{it.initialResult=="CONFORMING" || (it.initialResult=="NONCONFORMING" && it.correction=="VERIFIED")}/evaluated}%",Modifier.weight(1f))
+                    }
+                }
+                item{
+                    if(section=="Inicio"){
+                        Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(if(rows.isEmpty())"Preparar jornada" else "Actualizar asignaciones de jornada")}
+                        OutlinedButton(onClick={section="Revisión"},modifier=Modifier.fillMaxWidth()){Text("Continuar inspección")}
+                    }else Button(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Exportar período a Excel")}
+                    Text("Estaciones de trabajo",style=MaterialTheme.typography.titleMedium)
+                }
+                items(groups.entries.toList(),key={it.key}){g->
+                    val done=g.value.count{it.initialResult!="UNREVIEWED"}
+                    Card(onClick={owner=g.key;section="Revisión";filter=""},modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
+                        Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(g.key,style=MaterialTheme.typography.titleMedium);Text("$done / ${g.value.size}",color=MaterialTheme.colorScheme.primary)}
+                            Text(g.value.map{it.locationSnapshot}.distinct().joinToString(" · "),style=MaterialTheme.typography.bodySmall)
+                            LinearProgressIndicator(progress={done.toFloat()/g.value.size},modifier=Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            }else if(section=="Catálogo"){
+                items(templates,key={it.id}){t->
+                    Card(onClick={edit=t},modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){
+                        Text(t.label,style=MaterialTheme.typography.titleMedium)
+                        Text("${t.groupName} · ${t.location} · ${t.frequency}")
+                        if(t.standard!=t.label)Text(t.standard)
+                        Text(if(t.active)"Activa" else "Desactivada")
+                    }}
+                }
+            }else{
+                if(section=="Revisión")item{
+                    val assigned=groups[activeOwner].orEmpty()
+                    Card(colors=CardDefaults.cardColors(containerColor=burgundy),modifier=Modifier.fillMaxWidth()){
+                        Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                            Text("ESTACIÓN DE INSPECCIÓN",color=champagne,style=MaterialTheme.typography.labelMedium)
+                            Text(activeOwner.ifBlank{"Sin controles"},color=Color.White,style=MaterialTheme.typography.headlineSmall)
+                            Text("${assigned.count{it.initialResult!="UNREVIEWED"}} / ${assigned.size} revisados",color=champagne)
+                            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                                items(groups.keys.toList()){g->FilterChip(selected=activeOwner==g,onClick={owner=g},label={Text(g)},colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=champagne,labelColor=burgundy,selectedLabelColor=burgundy))}
+                            }
+                        }
+                    }
+                }
+                if(visible.isEmpty())item{Text("No hay controles para mostrar",modifier=Modifier.padding(16.dp))}
+                items(visible,key={it.id}){row->
+                    Card(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
+                        Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                            Row(verticalAlignment=Alignment.CenterVertically){
+                                Column(Modifier.weight(1f)){
+                                    Text(row.labelSnapshot,style=MaterialTheme.typography.titleMedium)
+                                    Text(if(section=="Seguimiento")row.staffNameSnapshot+" · "+row.locationSnapshot else row.locationSnapshot,style=MaterialTheme.typography.labelSmall)
+                                }
+                                TextButton(onClick={selected=row}){Text("Detalle")}
+                            }
+                            if(row.initialResult=="UNREVIEWED"){
+                                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                    Button(onClick={run{repo.review(row.id,"CONFORMING","")}},enabled=!busy,modifier=Modifier.weight(1f).heightIn(min=48.dp),colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF317253),contentColor=Color.White)){Text("✓ Cumple")}
+                                    OutlinedButton(onClick={selected=row},enabled=!busy,modifier=Modifier.weight(1f).heightIn(min=48.dp)){Text("✕ No cumple",color=MaterialTheme.colorScheme.error)}
+                                }
+                            }else{
+                                Text(label(row.initialResult)+(if(row.correction=="NONE")"" else " · "+label(row.correction)),color=if(row.initialResult=="CONFORMING")Color(0xFF317253) else MaterialTheme.colorScheme.error,style=MaterialTheme.typography.labelLarge)
+                                if(row.note.isNotBlank())Text(row.note,style=MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(section=="Revisión" && groups.isNotEmpty())Button(onClick={val keys=groups.keys.toList();owner=keys[(keys.indexOf(activeOwner)+1)%keys.size];filter=""},modifier=Modifier.fillMaxWidth()){Text("Siguiente estación ›")}
     }
     selected?.let{row->
         var linkedSummary by remember(row.id){mutableStateOf<String?>(null)}
@@ -176,6 +263,15 @@ internal fun OperationalScreen() {
             OutlinedTextField(standard,{standard=it},label={Text("Estándar")})
             Row{Checkbox(active,{active=it});Text("Activa")}
         }},confirmButton={Button(enabled=label.isNotBlank()&&standard.isNotBlank()&&!busy,onClick={run{repo.catalog.edit(t.copy(label=label,standard=standard,active=active));edit=null}}){Text("Guardar")}},dismissButton={TextButton(onClick={edit=null}){Text("Cancelar")}})
+    }
+}
+@Composable
+private fun OperationalMetric(title:String,value:String,modifier:Modifier=Modifier){
+    Card(modifier,colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
+        Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+            Text(title,style=MaterialTheme.typography.labelMedium)
+            Text(value,style=MaterialTheme.typography.headlineSmall,color=MaterialTheme.colorScheme.primary)
+        }
     }
 }
 private fun label(s:String)=when(s){"UNREVIEWED"->"Sin revisar";"CONFORMING"->"Conforme";"NONCONFORMING"->"No conforme";"BLOCKED"->"Bloqueado";"NOT_APPLICABLE"->"No aplica";"PENDING"->"Corrección pendiente";"REPORTED"->"Corrección reportada";"VERIFIED"->"Subsanado";"REOPENED"->"Reabrir";"NONE"->"Sin corrección";else->s}
