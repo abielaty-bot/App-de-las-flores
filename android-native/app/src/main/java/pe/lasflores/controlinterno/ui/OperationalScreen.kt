@@ -53,9 +53,12 @@ internal fun OperationalScreen() {
     fun run(action:suspend ()->Unit){if(busy)return;busy=true;scope.launch{
         try{action();message="Guardado automáticamente"}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+(e.message?:"No se pudo guardar")}finally{busy=false}
     }}
+    var photoGroup by remember{mutableStateOf(emptyList<String>())}
     var photoId by rememberSaveable{mutableStateOf<String?>(null)}
     val photo=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
         val id=photoId
+        val group=photoGroup
+        photoGroup=emptyList()
         photoId=null
         if(uri!=null && id!=null)run{
             val encoded=withContext(Dispatchers.IO){
@@ -70,7 +73,7 @@ internal fun OperationalScreen() {
                 try{bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,75,bytes)}finally{bitmap.recycle()}
                 android.util.Base64.encodeToString(bytes.toByteArray(),android.util.Base64.NO_WRAP)
             }
-            repo.evidence(id,encoded)
+            if(group.isEmpty())repo.evidence(id,encoded) else repo.groupedEvidence(group,encoded)
         }
     }
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){uri->
@@ -225,18 +228,25 @@ internal fun OperationalScreen() {
         var note by remember(row.id){mutableStateOf(row.note)}
         var attributable by remember(row.id){mutableStateOf(row.attributable)}
         var assigning by remember(row.id){mutableStateOf(false)}
+        var planning by remember(row.id){mutableStateOf(false)}
+        var grouping by remember(row.id){mutableStateOf(false)}
+        var groupIds by remember(row.id){mutableStateOf(setOf(row.id))}
+        val plan=history.lastOrNull{it.action=="PLAN"}?.let{runCatching{org.json.JSONObject(it.afterValue)}.getOrNull()}
         AlertDialog(onDismissRequest={selected=null},title={Text(row.labelSnapshot)},text={
             Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
                 Text(row.standardSnapshot)
                 linkedSummary?.let{Text(it,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)}
                 Text("Responsable: "+row.staffNameSnapshot)
                 TextButton(onClick={photoId=row.id;photo.launch("image/*")},enabled=!busy){Text("Adjuntar foto")}
+                TextButton(onClick={grouping=true}){Text("Evidencia para varias funciones")}
                 Text("Evidencias: "+history.count{it.action=="PHOTO"})
+                plan?.let{Text("Corrección: "+it.optString("responsible")+" · "+it.optString("deadline")+" · "+it.optString("priority"),style=MaterialTheme.typography.bodySmall);Text(it.optString("cause"))}
+                if(row.correction in openStates)TextButton(onClick={planning=true}){Text("Definir responsable y plazo")}
                 history.filter{it.action=="PHOTO"}.forEach{e->
                     val bitmap=remember(e.id){runCatching{val bytes=android.util.Base64.decode(e.afterValue,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)?.asImageBitmap()}.getOrNull()}
                     bitmap?.let{Image(it,contentDescription="Evidencia de la función",modifier=Modifier.fillMaxWidth().heightIn(max=200.dp))}
                 }
-                history.filter{it.action!="PHOTO"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
+                history.filter{it.action!="PHOTO" && it.action!="PLAN"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
                 if(row.initialResult=="UNREVIEWED"){
                     Row{Checkbox(attributable,{attributable=it});Text("Incumplimiento atribuible")}
@@ -250,6 +260,26 @@ internal fun OperationalScreen() {
                 if(row.initialResult=="UNREVIEWED")TextButton(onClick={assigning=true}){Text("Asignar responsable")}
             }
         },confirmButton={TextButton(onClick={selected=null}){Text("Cerrar")}})
+        if(grouping)AlertDialog(onDismissRequest={grouping=false},title={Text("Funciones de la misma zona")},text={
+            LazyColumn(Modifier.heightIn(max=360.dp)){items(rows.filter{it.locationSnapshot==row.locationSnapshot},key={it.id}){candidate->
+                Row(verticalAlignment=Alignment.CenterVertically){Checkbox(candidate.id in groupIds,{checked->groupIds=if(checked)groupIds+candidate.id else groupIds-candidate.id});Text(candidate.labelSnapshot)}
+            }}
+        },confirmButton={Button(enabled=groupIds.isNotEmpty() && groupIds.size<=50,onClick={photoGroup=groupIds.toList();photoId=row.id;grouping=false;photo.launch("image/*")}){Text("Elegir fotografía")}},dismissButton={TextButton(onClick={grouping=false}){Text("Cancelar")}})
+        if(planning){
+            var responsible by remember(row.id){mutableStateOf<StaffEntity?>(people.firstOrNull{it.id==row.staffId})}
+            var deadline by remember(row.id){mutableStateOf("")}
+            var priority by remember(row.id){mutableStateOf("NORMAL")}
+            var cause by remember(row.id){mutableStateOf(row.note)}
+            AlertDialog(onDismissRequest={planning=false},title={Text("Plan de corrección")},text={
+                Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                    Text("Responsable: "+(responsible?.fullName?:"Maître"))
+                    LazyRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){item{FilterChip(selected=responsible==null,onClick={responsible=null},label={Text("Maître")})};items(people,key={it.id}){p->FilterChip(selected=responsible?.id==p.id,onClick={responsible=p},label={Text(p.fullName)})}}
+                    OutlinedTextField(deadline,{deadline=it},label={Text("Plazo AAAA-MM-DDTHH:MM")})
+                    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=priority=="NORMAL",onClick={priority="NORMAL"},label={Text("Normal")});FilterChip(selected=priority=="URGENT",onClick={priority="URGENT"},label={Text("Urgente")})}
+                    OutlinedTextField(cause,{cause=it},label={Text("Causa / acción requerida")})
+                }
+            },confirmButton={Button(enabled=cause.isNotBlank() && runCatching{java.time.LocalDateTime.parse(deadline)}.isSuccess && !busy,onClick={run{repo.correctionPlan(row.id,responsible,deadline,priority,cause);planning=false}}){Text("Guardar plan")}},dismissButton={TextButton(onClick={planning=false}){Text("Cancelar")}})
+        }
         if(assigning)AlertDialog(onDismissRequest={assigning=false},title={Text("Personal disponible")},text={
             LazyColumn(Modifier.heightIn(max=320.dp)){items(people,key={it.id}){person->TextButton(onClick={run{repo.assign(row.id,person,date);assigning=false;selected=null}}){Text(person.fullName)}}}
         },confirmButton={TextButton(onClick={assigning=false}){Text("Cancelar")}})
