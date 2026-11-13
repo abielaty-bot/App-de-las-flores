@@ -13,6 +13,7 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
     fun observe(period:String)=dao.observePeriod(period)
     fun events(id:String)=dao.observeEvents(id)
     suspend fun all()=dao.allInstances()
+    fun observeAll()=dao.observeAllInstances()
     /** Read-only references: never manufacture a compliance result from another module. */
     suspend fun linkedSummary(templateId:String,date:LocalDate):String? {
         val day=date.toString()
