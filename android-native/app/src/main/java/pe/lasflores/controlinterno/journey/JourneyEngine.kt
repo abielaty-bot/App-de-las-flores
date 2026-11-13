@@ -54,7 +54,7 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
             database.briefingDao().observeSessions().map{Unit},database.briefingDao().observeHistory().map{Unit},
             database.functionDao().observeChecks().map{Unit},database.incidentDao().observeIncidents().map{Unit},
             dao.observePreferences().map{Unit},dao.observeReminders().map{Unit},
-            dao.observeOccurrences().map{Unit},dao.observeNotifications().map{Unit},database.phoneDao().observeChecks().map{Unit})
+            dao.observeOccurrences().map{Unit},dao.observeNotifications().map{Unit},database.phoneDao().observeChecks().map{Unit},database.operationalDao().observeAllInstances().map{Unit},database.operationalDao().observeCorrectionPlans().map{Unit})
         scope.launch{
             merge(*flows.toTypedArray()).debounce(250).catch{error->
                 _state.value=_state.value.copy(error=error.message?:"No se pudo observar la jornada")
@@ -99,7 +99,18 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
                 communicationRequired=mesa>0||pending.isNotEmpty(),phoneTotal=phones.total,phoneReviewed=phones.reviewed,
                 noPhoneReview=activity.any{it.module=="celulares"&&it.status=="NO_REALIZADA"})
         }
-        val tasks=JourneyRules.build(today,zone,prefs,defs,data(today),occurrences)
+        val plans=database.operationalDao().correctionPlans().associateBy{it.instanceId}
+        val corrections=database.operationalDao().allInstances().mapNotNull{row->
+            if(row.correction !in setOf("PENDING","REPORTED","REOPENED"))return@mapNotNull null
+            val plan=plans[row.id]?:return@mapNotNull null
+            val payload=runCatching{org.json.JSONObject(plan.afterValue)}.getOrNull()?:return@mapNotNull null
+            val due=runCatching{LocalDateTime.parse(payload.getString("deadline")).atZone(zone).toInstant().toEpochMilli()}.getOrNull()?:return@mapNotNull null
+            val date=Instant.ofEpochMilli(due).atZone(zone).toLocalDate().toString()
+            JourneyTask("correction:"+row.id,date,if(row.correction=="REPORTED")"Verificar corrección" else "Corrección pendiente",
+                row.locationSnapshot+" · "+row.labelSnapshot,"operativo",due,due-15*60_000L,
+                notify=prefs.functionAlerts,priority=if(payload.optString("priority")=="URGENT")"HIGH" else "NORMAL")
+        }
+        val tasks=JourneyRules.build(today,zone,prefs,defs,data(today),occurrences)+corrections
         val future=JourneyRules.build(tomorrow,zone,prefs,defs,data(tomorrow),occurrences)
         // Una tarea única pasada sigue visible como pendiente, sin revivir alarmas antiguas.
         val overdue=defs.filter{it.enabled&&it.recurrence=="ONCE"&&it.startDateIso<today.toString()}.mapNotNull{r->
