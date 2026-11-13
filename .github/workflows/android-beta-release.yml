@@ -78,7 +78,7 @@ jobs:
           cd dist
           sha256sum las-flores-beta.apk > las-flores-beta.apk.sha256
       - name: Verificar certificado de la versión anterior
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40014' || env.LF_RELEASE_TAG == 'android-beta-v40015' || env.LF_RELEASE_TAG == 'android-beta-v40016' || env.LF_RELEASE_TAG == 'android-beta-v40017' || env.LF_RELEASE_TAG == 'android-beta-v40018' || env.LF_RELEASE_TAG == 'android-beta-v40019' || env.LF_RELEASE_TAG == 'android-beta-v40020' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40023' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026' || env.LF_RELEASE_TAG == 'android-beta-v40027'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -111,6 +111,8 @@ jobs:
             PREVIOUS_TAG=android-beta-v40024
           elif [[ "$LF_RELEASE_TAG" == "android-beta-v40026" ]]; then
             PREVIOUS_TAG=android-beta-v40025
+          elif [[ "$LF_RELEASE_TAG" == "android-beta-v40027" ]]; then
+            PREVIOUS_TAG=android-beta-v40026
           fi
           gh release download "$PREVIOUS_TAG" --dir dist/previous --pattern 'las-flores-beta.apk*'
           (cd dist/previous && sha256sum -c las-flores-beta.apk.sha256)
@@ -124,13 +126,13 @@ jobs:
           test "$PREVIOUS_CERT" = "$NEW_CERT"
           rm -f "$LF_KEYSTORE_PATH"
       - name: Habilitar KVM para la prueba de actualización
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026' || env.LF_RELEASE_TAG == 'android-beta-v40027'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Probar la actualización firmada en Android
-        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026'
+        if: env.LF_RELEASE_TAG == 'android-beta-v40008' || env.LF_RELEASE_TAG == 'android-beta-v40021' || env.LF_RELEASE_TAG == 'android-beta-v40022' || env.LF_RELEASE_TAG == 'android-beta-v40024' || env.LF_RELEASE_TAG == 'android-beta-v40025' || env.LF_RELEASE_TAG == 'android-beta-v40026' || env.LF_RELEASE_TAG == 'android-beta-v40027'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: 35
