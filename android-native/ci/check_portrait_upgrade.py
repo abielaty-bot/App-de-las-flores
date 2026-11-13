@@ -164,6 +164,14 @@ def main():
             find_text("Requisitos de uniformes")
             print("Editor de requisitos y navegación verificados.", flush=True)
             check_update_notification_switch()
+        if code == 40027:
+            open_menu_item("Control operativo")
+            find_text("Supervisión de la jornada")
+            tap("Revisión")
+            find_text("ESTACIÓN DE INSPECCIÓN")
+            tap("Inicio")
+            find_text("Supervisión de la jornada")
+            print("Centro operativo y navegación de inspección verificados.", flush=True)
         if code == 40022:
             open_menu_item("Incidentes")
             find_text("Resumen del mes")
