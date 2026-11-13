@@ -18,7 +18,7 @@ data class JourneyData(
 )
 object JourneyRules{
     val RECURRENCES=setOf("ONCE","DAILY","WEEKLY","MONTHLY")
-    val MODULES=setOf("inicio","personal","briefings","uniformes","funciones","incidentes","reportes","backups","notifications","celulares")
+    val MODULES=setOf("inicio","personal","briefings","uniformes","funciones","incidentes","reportes","backups","notifications","celulares","operativo")
     val PRIORITIES=setOf("NORMAL","HIGH")
     fun validPreferences(p:JourneyPreferencesEntity):Boolean=p.id==1 &&
         listOf(p.startTime,p.endTime,p.uniformsTime,p.informTime,p.functionsTime,p.summaryTime,p.quietStart,p.quietEnd,p.phoneTime).all(BriefingRules::validTime) &&
