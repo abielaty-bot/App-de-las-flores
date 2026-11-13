@@ -44,6 +44,26 @@ internal fun OperationalScreen() {
     fun run(action:suspend ()->Unit){if(busy)return;busy=true;scope.launch{
         try{action();message="Guardado automáticamente"}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+(e.message?:"No se pudo guardar")}finally{busy=false}
     }}
+    var photoId by rememberSaveable{mutableStateOf<String?>(null)}
+    val photo=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+        val id=photoId
+        photoId=null
+        if(uri!=null && id!=null)run{
+            val encoded=withContext(Dispatchers.IO){
+                val resolver=context.contentResolver
+                val bounds=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+                resolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,bounds)}
+                require(bounds.outWidth>0 && bounds.outHeight>0){"Imagen inválida"}
+                var sample=1
+                while(maxOf(bounds.outWidth,bounds.outHeight)/sample>1200)sample*=2
+                val bitmap=resolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,android.graphics.BitmapFactory.Options().apply{inSampleSize=sample})}?:error("No se pudo leer la foto")
+                val bytes=java.io.ByteArrayOutputStream()
+                try{bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG,75,bytes)}finally{bitmap.recycle()}
+                android.util.Base64.encodeToString(bytes.toByteArray(),android.util.Base64.NO_WRAP)
+            }
+            repo.evidence(id,encoded)
+        }
+    }
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){uri->
         if(uri!=null)run{
             withContext(Dispatchers.IO){
@@ -101,6 +121,7 @@ internal fun OperationalScreen() {
         }
     }
     selected?.let{row->
+        val history by remember(row.id){repo.events(row.id)}.collectAsState(initial=emptyList())
         var note by remember(row.id){mutableStateOf(row.note)}
         var attributable by remember(row.id){mutableStateOf(row.attributable)}
         var assigning by remember(row.id){mutableStateOf(false)}
@@ -108,6 +129,9 @@ internal fun OperationalScreen() {
             Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
                 Text(row.standardSnapshot)
                 Text("Responsable: "+row.staffNameSnapshot)
+                TextButton(onClick={photoId=row.id;photo.launch("image/*")},enabled=!busy){Text("Adjuntar foto")}
+                Text("Evidencias: "+history.count{it.action=="PHOTO"})
+                history.filter{it.action!="PHOTO"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
                 if(row.initialResult=="UNREVIEWED"||row.correction in setOf("NONE","PENDING")){
                     Row{Checkbox(attributable,{attributable=it});Text("Incumplimiento atribuible")}
