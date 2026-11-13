@@ -16,8 +16,8 @@ import androidx.sqlite.execSQL
         BriefingPreferencesEntity::class,
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
         IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class,
-        JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class, PhoneCheckEntity::class],
-    version = 11,
+        JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class, PhoneCheckEntity::class, OperationalTemplateEntity::class, OperationalInstanceEntity::class, OperationalEventEntity::class],
+    version = 12,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -30,6 +30,7 @@ abstract class LasFloresDatabase : RoomDatabase() {
     abstract fun incidentDao(): IncidentDao
     abstract fun journeyDao(): JourneyDao
     abstract fun phoneDao(): PhoneDao
+    abstract fun operationalDao(): OperationalDao
 }
 
 val MIGRATION_1_2 = Migration(1, 2) { connection ->
@@ -390,4 +391,27 @@ val MIGRATION_10_11 = Migration(10,11) { connection ->
     connection.execSQL("CREATE INDEX IF NOT EXISTS index_phone_checks_staffId ON phone_checks(staffId)")
     connection.execSQL("ALTER TABLE journey_preferences ADD COLUMN phoneAlerts INTEGER NOT NULL DEFAULT 1")
     connection.execSQL("ALTER TABLE journey_preferences ADD COLUMN phoneTime TEXT NOT NULL DEFAULT '12:30'")
+}
+
+val MIGRATION_11_12 = Migration(11,12) { connection ->
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS operational_templates (
+        id TEXT NOT NULL PRIMARY KEY, version INTEGER NOT NULL, groupName TEXT NOT NULL,
+        titular TEXT NOT NULL, location TEXT NOT NULL, frequency TEXT NOT NULL,
+        deadline TEXT NOT NULL, label TEXT NOT NULL, evaluation TEXT NOT NULL,
+        standard TEXT NOT NULL, priority TEXT NOT NULL, evidencePolicy TEXT NOT NULL,
+        source TEXT NOT NULL, validation TEXT NOT NULL, active INTEGER NOT NULL
+    )""")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS operational_instances (
+        id TEXT NOT NULL PRIMARY KEY, periodKey TEXT NOT NULL, templateId TEXT NOT NULL,
+        templateVersion INTEGER NOT NULL, labelSnapshot TEXT NOT NULL, standardSnapshot TEXT NOT NULL,
+        locationSnapshot TEXT NOT NULL, staffId TEXT, staffNameSnapshot TEXT NOT NULL,
+        initialResult TEXT NOT NULL, correction TEXT NOT NULL, note TEXT NOT NULL,
+        attributable INTEGER NOT NULL, reviewedAtMillis INTEGER, updatedAtMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_operational_instances_periodKey ON operational_instances(periodKey)")
+    connection.execSQL("""CREATE TABLE IF NOT EXISTS operational_events (
+        id TEXT NOT NULL PRIMARY KEY, instanceId TEXT NOT NULL, action TEXT NOT NULL,
+        beforeValue TEXT NOT NULL, afterValue TEXT NOT NULL, note TEXT NOT NULL, atMillis INTEGER NOT NULL
+    )""")
+    connection.execSQL("CREATE INDEX IF NOT EXISTS index_operational_events_instanceId ON operational_events(instanceId)")
 }
