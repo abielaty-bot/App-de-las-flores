@@ -98,6 +98,26 @@ class BriefingMigrationTest(unittest.TestCase):
             db.execute("INSERT INTO phone_checks VALUES ('2026-11-12','p','Prueba','Mozo','NO','','',101)")
         db.close()
 
+    def test_operational_migration_preserves_existing_data(self):
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE staff(id TEXT PRIMARY KEY, fullName TEXT)")
+        db.execute("INSERT INTO staff VALUES ('p','Prueba')")
+        db.execute("CREATE TABLE phone_checks(dateIso TEXT,staffId TEXT,status TEXT)")
+        db.execute("INSERT INTO phone_checks VALUES ('2026-11-13','p','YES')")
+        for sql in sql_for("MIGRATION_11_12"):
+            db.execute(sql)
+        self.assertEqual(db.execute("SELECT * FROM staff").fetchall(),[("p","Prueba")])
+        self.assertEqual(db.execute("SELECT * FROM phone_checks").fetchall(),[("2026-11-13","p","YES")])
+        for table in ("operational_templates","operational_instances","operational_events"):
+            self.assertEqual(db.execute("SELECT count(*) FROM "+table).fetchone()[0],0)
+        row=("task:2026-11-13","2026-11-13","task",1,"Función","Estándar","OF-1","p","Prueba","NONCONFORMING","PENDING","Motivo",1,100,100)
+        db.execute("INSERT INTO operational_instances VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",row)
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO operational_instances VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",row)
+        db.execute("UPDATE operational_instances SET correction='VERIFIED' WHERE id=?",(row[0],))
+        self.assertEqual(db.execute("SELECT initialResult,correction FROM operational_instances").fetchone(),("NONCONFORMING","VERIFIED"))
+        db.close()
+
     def test_staff_delete_guard_checks_all_links_and_only_pristine_phone_rows(self):
         dao=(SOURCE.parent / "StaffDao.kt").read_text(encoding="utf-8")
         guard=dao.split('@Query("""SELECT \'Uniformes\'',1)[1].split('""")',1)[0]
