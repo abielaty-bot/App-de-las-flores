@@ -39,6 +39,7 @@ internal fun OperationalScreen() {
     val date=LocalDate.parse(dateIso)
     var mode by rememberSaveable{mutableStateOf("Diaria")}
     var section by rememberSaveable{mutableStateOf("Inicio")}
+    var phaseFilter by rememberSaveable{mutableStateOf("Todas")}
     var groupByZone by rememberSaveable{mutableStateOf(false)}
     var owner by rememberSaveable{mutableStateOf("")}
     var filter by rememberSaveable{mutableStateOf("")}
@@ -98,7 +99,8 @@ internal fun OperationalScreen() {
     val evaluated=rows.count{it.initialResult in setOf("CONFORMING","NONCONFORMING")}
     val groups=rows.groupBy{if(groupByZone)it.locationSnapshot else it.staffNameSnapshot}.toSortedMap()
     val activeOwner=owner.takeIf{it in groups}?:groups.keys.firstOrNull().orEmpty()
-    val visible=rows.filter{(section!="Seguimiento" || it.correction in openStates) &&
+    val phaseById=templates.associate{it.id to repo.phase(it)}
+    val visible=rows.filter{(section!="Revisión" || phaseFilter=="Todas" || phaseById[it.templateId]==phaseFilter) && (section!="Seguimiento" || it.correction in openStates) &&
         (section!="Revisión" || (if(groupByZone)it.locationSnapshot else it.staffNameSnapshot)==activeOwner) &&
         (!pendingOnly || it.initialResult=="UNREVIEWED" || it.correction in openStates) &&
         (filter.isBlank() || listOf(it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot).any{s->s.contains(filter,true)})}
@@ -125,6 +127,7 @@ internal fun OperationalScreen() {
                 FilterChip(selected=!groupByZone,onClick={groupByZone=false;owner=""},label={Text("Por trabajador")})
                 FilterChip(selected=groupByZone,onClick={groupByZone=true;owner=""},label={Text("Por zona")})
             }
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("Todas")+repo.phases){p->FilterChip(selected=phaseFilter==p,onClick={phaseFilter=p},label={Text(p)})}}
             OutlinedTextField(filter,{filter=it},label={Text("Buscar función")},modifier=Modifier.fillMaxWidth(),singleLine=true)
             FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
         }
@@ -219,6 +222,7 @@ internal fun OperationalScreen() {
                         Text(t.label,style=MaterialTheme.typography.titleMedium)
                         Text("${t.groupName} · ${t.location} · ${t.frequency}")
                         if(t.standard!=t.label)Text(t.standard)
+                        Text("Etapa: "+repo.phase(t))
                         Text(if(t.active)"Activa" else "Desactivada")
                     }}
                 }
@@ -282,14 +286,14 @@ internal fun OperationalScreen() {
                 Text("Responsable: "+row.staffNameSnapshot)
                 TextButton(onClick={photoId=row.id;photo.launch("image/*")},enabled=!busy){Text("Adjuntar foto")}
                 TextButton(onClick={grouping=true}){Text("Evidencia para varias funciones")}
-                Text("Evidencias: "+history.count{it.action=="PHOTO"})
+                Text("Evidencias: "+history.count{it.action in setOf("PHOTO","PHOTO_REF")})
                 plan?.let{Text("Corrección: "+it.optString("responsible")+" · "+it.optString("deadline")+" · "+it.optString("priority"),style=MaterialTheme.typography.bodySmall);Text(it.optString("cause"))}
                 if(row.correction in openStates)TextButton(onClick={planning=true}){Text("Definir responsable y plazo")}
-                history.filter{it.action=="PHOTO"}.forEach{e->
-                    val bitmap=remember(e.id){runCatching{val bytes=android.util.Base64.decode(e.afterValue,android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)?.asImageBitmap()}.getOrNull()}
+                history.filter{it.action in setOf("PHOTO","PHOTO_REF")}.forEach{e->
+                    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null,e.id){value=withContext(Dispatchers.IO){runCatching{val bytes=android.util.Base64.decode(repo.photoContent(e)?:error("Foto no disponible"),android.util.Base64.DEFAULT);android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size)?.asImageBitmap()}.getOrNull()}}
                     bitmap?.let{Image(it,contentDescription="Evidencia de la función",modifier=Modifier.fillMaxWidth().heightIn(max=200.dp))}
                 }
-                history.filter{it.action!="PHOTO" && it.action!="PLAN"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
+                history.filter{it.action !in setOf("PHOTO","PHOTO_REF","PLAN")}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
                 if(row.initialResult=="UNREVIEWED"){
                     Row{Checkbox(attributable,{attributable=it});Text("Incumplimiento atribuible")}
@@ -331,12 +335,15 @@ internal fun OperationalScreen() {
         var standard by remember(t.id){mutableStateOf(t.standard)}
         var label by remember(t.id){mutableStateOf(t.label)}
         var active by remember(t.id){mutableStateOf(t.active)}
+        var phase by remember(t.id){mutableStateOf(repo.phase(t))}
         AlertDialog(onDismissRequest={edit=null},title={Text("Editar función")},text={Column{
-            Text(t.validation,style=MaterialTheme.typography.bodySmall)
+            Text(t.validation.substringBefore("\n[ETAPA:"),style=MaterialTheme.typography.bodySmall)
+            Text("Etapa de jornada")
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){items(repo.phases){p->FilterChip(selected=phase==p,onClick={phase=p},label={Text(p)})}}
             OutlinedTextField(label,{label=it},label={Text("Función")})
             OutlinedTextField(standard,{standard=it},label={Text("Estándar")})
             Row{Checkbox(active,{active=it});Text("Activa")}
-        }},confirmButton={Button(enabled=label.isNotBlank()&&standard.isNotBlank()&&!busy,onClick={run{repo.catalog.edit(t.copy(label=label,standard=standard,active=active));edit=null}}){Text("Guardar")}},dismissButton={TextButton(onClick={edit=null}){Text("Cancelar")}})
+        }},confirmButton={Button(enabled=label.isNotBlank()&&standard.isNotBlank()&&!busy,onClick={run{repo.setPhase(t.copy(label=label,standard=standard,active=active),phase);edit=null}}){Text("Guardar")}},dismissButton={TextButton(onClick={edit=null}){Text("Cancelar")}})
     }
 }
 @Composable
