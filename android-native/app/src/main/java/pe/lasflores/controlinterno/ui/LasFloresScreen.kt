@@ -160,6 +160,7 @@ fun LasFloresScreen(
                         "uniformes"->UniformScreen(people,uniformVm,vm)
                         "celulares"->PhoneScreen(people,vm,phoneVm)
                         "briefings"->BriefingScreen(briefingVm,vm)
+                        "operativo"->OperationalScreen()
                         "funciones"->FunctionScreen(functionVm,vm)
                         "incidentes"->IncidentScreen(incidentVm,vm)
                         "reportes"->ReportScreen(reportRepository,vm,requestedDate?.takeIf{it.module=="reportes"}?.dateIso,{requestedDate=null})
