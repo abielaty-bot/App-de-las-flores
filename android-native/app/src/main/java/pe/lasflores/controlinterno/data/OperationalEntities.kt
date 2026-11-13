@@ -47,6 +47,8 @@ interface OperationalDao {
     @Query("SELECT * FROM operational_instances") fun observeAllInstances():Flow<List<OperationalInstanceEntity>>
     @Query("SELECT * FROM operational_instances") suspend fun allInstances():List<OperationalInstanceEntity>
     @Query("SELECT * FROM operational_events WHERE id=:id") suspend fun eventById(id:String):OperationalEventEntity?
+    @Query("SELECT * FROM operational_events WHERE action='PLAN' ORDER BY atMillis, id") suspend fun correctionPlans():List<OperationalEventEntity>
+    @Query("SELECT * FROM operational_events WHERE action='PLAN' ORDER BY atMillis, id") fun observeCorrectionPlans():Flow<List<OperationalEventEntity>>
     @Query("SELECT * FROM operational_events") suspend fun allEvents():List<OperationalEventEntity>
     @Query("DELETE FROM operational_events") suspend fun clearEvents()
     @Query("DELETE FROM operational_instances") suspend fun clearInstances()
