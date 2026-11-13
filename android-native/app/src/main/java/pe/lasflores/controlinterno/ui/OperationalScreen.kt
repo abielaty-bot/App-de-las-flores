@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
@@ -103,6 +104,7 @@ internal fun OperationalScreen() {
         (section!="Revisión" || (if(groupByZone)it.locationSnapshot else it.staffNameSnapshot)==activeOwner) &&
         (!pendingOnly || it.initialResult=="UNREVIEWED" || it.correction in openStates) &&
         (filter.isBlank() || listOf(it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot).any{s->s.contains(filter,true)})}
+    val wide=LocalConfiguration.current.screenWidthDp>=840
     val burgundy=Color(0xFF381F2B)
     val champagne=Color(0xFFE5CDA7)
     Column(Modifier.fillMaxSize().padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -129,7 +131,23 @@ internal fun OperationalScreen() {
             FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
         }
         if(section=="Seguimiento")OutlinedTextField(filter,{filter=it},label={Text("Buscar corrección")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-        LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(8.dp)){
+        Row(Modifier.weight(1f).fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        if(wide && section=="Revisión"){
+            LazyColumn(Modifier.width(240.dp).fillMaxHeight(),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                item{Text("Estaciones",style=MaterialTheme.typography.titleMedium)}
+                items(groups.entries.toList(),key={it.key}){g->
+                    val done=g.value.count{it.initialResult!="UNREVIEWED"}
+                    Card(onClick={owner=g.key;filter=""},colors=CardDefaults.cardColors(containerColor=if(activeOwner==g.key)MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)){
+                        Column(Modifier.fillMaxWidth().padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            Text(g.key,style=MaterialTheme.typography.titleSmall)
+                            Text("$done / ${g.value.size} revisados",style=MaterialTheme.typography.bodySmall)
+                            LinearProgressIndicator(progress={done.toFloat()/g.value.size},modifier=Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            }
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxHeight(),verticalArrangement=Arrangement.spacedBy(8.dp)){
             if(section=="Inicio" || section=="Reportes"){
                 item{
                     Card(colors=CardDefaults.cardColors(containerColor=burgundy),modifier=Modifier.fillMaxWidth()){
@@ -188,7 +206,7 @@ internal fun OperationalScreen() {
                             Text("ESTACIÓN DE INSPECCIÓN",color=champagne,style=MaterialTheme.typography.labelMedium)
                             Text(activeOwner.ifBlank{"Sin controles"},color=Color.White,style=MaterialTheme.typography.headlineSmall)
                             Text("${assigned.count{it.initialResult!="UNREVIEWED"}} / ${assigned.size} revisados",color=champagne)
-                            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                            if(!wide)LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
                                 items(groups.keys.toList()){g->FilterChip(selected=activeOwner==g,onClick={owner=g},label={Text(g)},colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=champagne,labelColor=burgundy,selectedLabelColor=burgundy))}
                             }
                         }
@@ -218,6 +236,7 @@ internal fun OperationalScreen() {
                     }
                 }
             }
+        }
         }
         if(section=="Revisión" && groups.isNotEmpty())Button(onClick={val keys=groups.keys.toList();owner=keys[(keys.indexOf(activeOwner)+1)%keys.size];filter=""},modifier=Modifier.fillMaxWidth()){Text("Siguiente estación ›")}
     }
