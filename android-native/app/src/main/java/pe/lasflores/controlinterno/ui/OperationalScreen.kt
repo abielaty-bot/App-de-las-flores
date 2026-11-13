@@ -130,6 +130,8 @@ internal fun OperationalScreen() {
         }
     }
     selected?.let{row->
+        var linkedSummary by remember(row.id){mutableStateOf<String?>(null)}
+        LaunchedEffect(row.id,dateIso){linkedSummary=repo.linkedSummary(row.templateId,date)}
         val history by remember(row.id){repo.events(row.id)}.collectAsState(initial=emptyList())
         var note by remember(row.id){mutableStateOf(row.note)}
         var attributable by remember(row.id){mutableStateOf(row.attributable)}
@@ -137,6 +139,7 @@ internal fun OperationalScreen() {
         AlertDialog(onDismissRequest={selected=null},title={Text(row.labelSnapshot)},text={
             Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
                 Text(row.standardSnapshot)
+                linkedSummary?.let{Text(it,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)}
                 Text("Responsable: "+row.staffNameSnapshot)
                 TextButton(onClick={photoId=row.id;photo.launch("image/*")},enabled=!busy){Text("Adjuntar foto")}
                 Text("Evidencias: "+history.count{it.action=="PHOTO"})
