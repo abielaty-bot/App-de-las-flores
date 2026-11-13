@@ -131,7 +131,7 @@ internal fun OperationalScreen() {
     }
     selected?.let{row->
         var linkedSummary by remember(row.id){mutableStateOf<String?>(null)}
-        LaunchedEffect(row.id,dateIso){linkedSummary=repo.linkedSummary(row.templateId,date)}
+        LaunchedEffect(row.id,dateIso){linkedSummary=listOfNotNull(repo.linkedSummary(row.templateId,date),repo.relatedFunctions(row,date)).joinToString("\n").ifBlank{null}}
         val history by remember(row.id){repo.events(row.id)}.collectAsState(initial=emptyList())
         var note by remember(row.id){mutableStateOf(row.note)}
         var attributable by remember(row.id){mutableStateOf(row.attributable)}
