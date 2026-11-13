@@ -323,6 +323,7 @@ class OfflineBackupManager(
         root.put("phoneChecks",arr(database.phoneDao().allChecks()){x->obj(
             "dateIso" to x.dateIso,"staffId" to x.staffId,"nameSnapshot" to x.nameSnapshot,"roleSnapshot" to x.roleSnapshot,
             "status" to x.status,"reason" to x.reason,"note" to x.note,"updatedAtMillis" to x.updatedAtMillis)})
+        root.put("operational",OperationalBackup.export(database.operationalDao()))
         root.toString(2)
     }
 
@@ -430,6 +431,7 @@ class OfflineBackupManager(
             payload.journeyOccurrences.forEach{journey.saveOccurrence(it)}
             payload.journeyNotifications.forEach{journey.saveNotification(it)}
             payload.phoneChecks.forEach{database.phoneDao().save(it)}
+            JSONObject(json).optJSONObject("operational")?.let{OperationalBackup.restore(it,database.operationalDao())}
             }
         } catch (error: Exception) {
             runCatching { archiveWrite(formerArchive) }
