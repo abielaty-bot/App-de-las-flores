@@ -52,8 +52,21 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
         require(ids.isNotEmpty() && ids.size<=50 && encoded.length in 1..2000000)
         val controls=ids.distinct().map{dao.instance(it)?:error("Control inexistente")}
         require(controls.map{it.periodKey}.distinct().size==1 && controls.map{it.locationSnapshot}.distinct().size==1){"Selecciona controles de la misma zona y período"}
-        val group=UUID.randomUUID().toString()
-        controls.forEach{event(it.id,"PHOTO",group,encoded,"Evidencia agrupada")}
+        val photoId=UUID.randomUUID().toString()
+        dao.addEvent(OperationalEventEntity(photoId,controls.first().id,"PHOTO","",encoded,"Evidencia agrupada",System.currentTimeMillis()))
+        controls.drop(1).forEach{event(it.id,"PHOTO_REF","",photoId,"Evidencia agrupada")}
+    }
+    suspend fun photoContent(e:OperationalEventEntity):String?=when(e.action){
+        "PHOTO"->e.afterValue
+        "PHOTO_REF"->dao.eventById(e.afterValue)?.takeIf{it.action=="PHOTO"}?.afterValue
+        else->null
+    }
+    fun phase(t:OperationalTemplateEntity):String=t.validation.substringAfter("\n[ETAPA:", "").substringBefore("]").takeIf{it in phases} ?: "Sin clasificar"
+    val phases=listOf("Sin clasificar","Apertura","Abastecimiento","Servicio","Cierre")
+    suspend fun setPhase(t:OperationalTemplateEntity,phase:String){
+        require(phase in phases)
+        val original=t.validation.substringBefore("\n[ETAPA:")
+        catalog.edit(t.copy(validation=original+"\n[ETAPA:"+phase+"]"))
     }
     suspend fun correctionPlan(id:String,person:StaffEntity?,deadline:String,priority:String,cause:String)=db.withWriteTransaction {
         val old=dao.instance(id)?:error("Control inexistente")
