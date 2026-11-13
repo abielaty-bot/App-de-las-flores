@@ -44,6 +44,7 @@ interface OperationalDao {
     suspend fun insertInstance(row:OperationalInstanceEntity):Long
     @Upsert suspend fun saveInstance(row:OperationalInstanceEntity)
     @Insert suspend fun addEvent(row:OperationalEventEntity)
+    @Query("SELECT * FROM operational_instances") fun observeAllInstances():Flow<List<OperationalInstanceEntity>>
     @Query("SELECT * FROM operational_instances") suspend fun allInstances():List<OperationalInstanceEntity>
     @Query("SELECT * FROM operational_events") suspend fun allEvents():List<OperationalEventEntity>
     @Query("DELETE FROM operational_events") suspend fun clearEvents()
