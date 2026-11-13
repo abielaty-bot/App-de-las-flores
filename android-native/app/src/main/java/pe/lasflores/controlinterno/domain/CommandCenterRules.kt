@@ -8,6 +8,7 @@ object CommandCenterRules {
     fun lane(task:JourneyTask, occurrence:JourneyOccurrenceEntity?, now:Long):Lane = when {
         task.completed -> Lane.FOLLOWUP
         occurrence?.snoozedUntilMillis?.let{it>now}==true -> Lane.NEXT
+        task.key.startsWith("correction:") && task.title=="Verificar corrección" -> Lane.NOW
         task.dueAtMillis<=now -> Lane.NOW
         else -> Lane.NEXT
     }
