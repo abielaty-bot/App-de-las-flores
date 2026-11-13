@@ -13,6 +13,26 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
     fun observe(period:String)=dao.observePeriod(period)
     fun events(id:String)=dao.observeEvents(id)
     suspend fun all()=dao.allInstances()
+    /** Read-only references: never manufacture a compliance result from another module. */
+    suspend fun linkedSummary(templateId:String,date:LocalDate):String? {
+        val day=date.toString()
+        return when(templateId){
+            "MAI-15-1" -> {
+                val rows=db.uniformDao().allInspections().filter{it.dateIso==day}
+                val finalized=rows.count{it.workflow=="FINALIZED"}
+                "Uniformes: $finalized revisiones finalizadas de ${rows.size} registradas. Confirma la cobertura antes de marcar conforme."
+            }
+            "MAI-17-1" -> {
+                val rows=db.phoneDao().dayChecks(day)
+                "Celulares: ${rows.count{it.status=="YES"}} entregados, ${rows.count{it.status=="NO"}} no entregados, ${rows.count{it.status=="PENDING"}} pendientes, ${rows.count{it.status=="NA"}} no aplican."
+            }
+            "MAI-18-1" -> {
+                val sessions=db.briefingDao().sessionsForDay(day)
+                "Briefings: ${sessions.size} sesiones registradas. "+sessions.joinToString(" · "){it.scheduledTime+": "+it.status}
+            }
+            else -> null
+        }
+    }
     suspend fun evidence(id:String,encoded:String)=db.withWriteTransaction {
         require(dao.instance(id)!=null && encoded.length in 1..2000000)
         event(id,"PHOTO","",encoded,"Evidencia fotográfica")
