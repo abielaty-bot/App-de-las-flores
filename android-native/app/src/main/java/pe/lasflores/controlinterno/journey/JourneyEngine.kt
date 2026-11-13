@@ -197,7 +197,7 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
     }}
     suspend fun snoozeNow(key:String,minutes:Int){
         lock.withLock{
-            require(minutes in setOf(5,10,30))
+            require(minutes in setOf(5,10,15,30))
             val computed=calculate()
             val task=(computed.state.tasks+computed.future).firstOrNull{it.key==key&&it.applicable&&!it.completed&&it.notify}
                 ?:return@withLock
@@ -282,6 +282,10 @@ internal object JourneyAlerts{
                 .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_lf_bell).setContentTitle(task.title)
                 .setContentText(task.detail).setStyle(Notification.BigTextStyle().bigText(task.detail))
                 .setContentIntent(open(context,log)).setAutoCancel(true).setOnlyAlertOnce(true)
+                .setVisibility(Notification.VISIBILITY_PRIVATE)
+                .setPublicVersion(Notification.Builder(context,channel)
+                    .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_lf_bell)
+                    .setContentTitle("Las Flores").setContentText("Tienes una actividad operativa pendiente").build())
                 .addAction(Notification.Action.Builder(null,"Posponer 10 min",snooze).build())
             if(task.manual){
                 val complete=PendingIntent.getBroadcast(context,4024,Intent(context,JourneyReceiver::class.java).setAction(COMPLETE)
