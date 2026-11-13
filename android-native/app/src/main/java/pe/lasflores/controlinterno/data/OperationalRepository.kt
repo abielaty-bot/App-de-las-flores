@@ -47,6 +47,22 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
         require(dao.instance(id)!=null && encoded.length in 1..2000000)
         event(id,"PHOTO","",encoded,"Evidencia fotográfica")
     }
+    suspend fun groupedEvidence(ids:List<String>,encoded:String)=db.withWriteTransaction {
+        require(ids.isNotEmpty() && ids.size<=50 && encoded.length in 1..2000000)
+        val controls=ids.distinct().map{dao.instance(it)?:error("Control inexistente")}
+        require(controls.map{it.periodKey}.distinct().size==1 && controls.map{it.locationSnapshot}.distinct().size==1){"Selecciona controles de la misma zona y período"}
+        val group=UUID.randomUUID().toString()
+        controls.forEach{event(it.id,"PHOTO",group,encoded,"Evidencia agrupada")}
+    }
+    suspend fun correctionPlan(id:String,person:StaffEntity?,deadline:String,priority:String,cause:String)=db.withWriteTransaction {
+        val old=dao.instance(id)?:error("Control inexistente")
+        require(old.correction in setOf("PENDING","REPORTED","REOPENED"))
+        require(priority in setOf("NORMAL","URGENT") && cause.isNotBlank())
+        require(runCatching{java.time.LocalDateTime.parse(deadline)}.isSuccess){"Plazo inválido"}
+        if(person!=null)require(db.staffDao().allStaff().any{it.id==person.id})
+        val payload=org.json.JSONObject().put("staffId",person?.id ?: "").put("responsible",person?.fullName ?: "Maître").put("deadline",deadline).put("priority",priority).put("cause",cause).toString()
+        event(id,"PLAN","",payload,"Plan de corrección")
+    }
     fun period(t:OperationalTemplateEntity,date:LocalDate):String=when(t.frequency){
         "Semanal"->date.minusDays((date.dayOfWeek.value-1).toLong()).toString()+"-W"
         "Mensual"->date.toString().take(7)
