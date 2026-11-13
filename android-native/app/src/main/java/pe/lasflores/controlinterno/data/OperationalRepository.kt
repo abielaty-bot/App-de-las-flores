@@ -30,8 +30,18 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
                 val sessions=db.briefingDao().sessionsForDay(day)
                 "Briefings: ${sessions.size} sesiones registradas. "+sessions.joinToString(" · "){it.scheduledTime+": "+it.status}
             }
+            "MAI-16-1" -> {
+                val incidents=db.incidentDao().allIncidents().filter{it.occurredDate==day && it.voidedAtMillis==null}
+                "Incidentes registrados: ${incidents.size}. "+incidents.joinToString(" · "){it.code+": "+it.status}+". Confirma si existen incidentes aún no registrados."
+            }
             else -> null
         }
+    }
+    suspend fun relatedFunctions(row:OperationalInstanceEntity,date:LocalDate):String? {
+        val staffId=row.staffId ?: return null
+        val checks=db.functionDao().allChecks().filter{it.dateIso==date.toString() && it.staffId==staffId && it.voidedAtMillis==null}
+        if(checks.isEmpty())return null
+        return "Funciones registradas del responsable (referencia, no equivalencia): "+checks.joinToString(" · "){it.taskLabelSnapshot+": "+it.result}
     }
     suspend fun evidence(id:String,encoded:String)=db.withWriteTransaction {
         require(dao.instance(id)!=null && encoded.length in 1..2000000)
