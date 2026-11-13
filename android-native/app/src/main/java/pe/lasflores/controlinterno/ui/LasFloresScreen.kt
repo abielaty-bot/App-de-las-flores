@@ -57,7 +57,7 @@ fun LasFloresScreen(
             "uniformes"->uniformVm.setDate(route.dateIso)
             "celulares"->phoneVm.setDate(route.dateIso)
             "funciones"->functionVm.setDate(route.dateIso)
-            "personal","reportes"->requestedDate=route
+            "personal","reportes","operativo"->requestedDate=route
         }
         if(route.notificationId.isNotBlank())journey.read(route.notificationId)
         screen=route.module
@@ -160,7 +160,7 @@ fun LasFloresScreen(
                         "uniformes"->UniformScreen(people,uniformVm,vm)
                         "celulares"->PhoneScreen(people,vm,phoneVm)
                         "briefings"->BriefingScreen(briefingVm,vm)
-                        "operativo"->OperationalScreen()
+                        "operativo"->OperationalScreen(requestedDate?.takeIf{it.module=="operativo"},{requestedDate=null})
                         "funciones"->FunctionScreen(functionVm,vm)
                         "incidentes"->IncidentScreen(incidentVm,vm)
                         "reportes"->ReportScreen(reportRepository,vm,requestedDate?.takeIf{it.module=="reportes"}?.dateIso,{requestedDate=null})
