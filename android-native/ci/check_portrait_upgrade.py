@@ -172,6 +172,16 @@ def main():
             tap("Inicio")
             find_text("Supervisión de la jornada")
             print("Centro operativo y navegación de inspección verificados.", flush=True)
+        if code == 40028:
+            open_menu_item("Notificaciones")
+            find_text("Centro de Mando")
+            tap("Próximas")
+            find_text("Tu agenda operativa")
+            tap("Seguimiento")
+            find_text("Actividades completadas")
+            tap("Ahora")
+            find_text("Requieren tu atención")
+            print("Centro de Mando y navegación de prioridades verificados.", flush=True)
         if code == 40022:
             open_menu_item("Incidentes")
             find_text("Resumen del mes")
