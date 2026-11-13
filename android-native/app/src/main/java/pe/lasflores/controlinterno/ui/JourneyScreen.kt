@@ -27,6 +27,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlinx.coroutines.delay
 import pe.lasflores.controlinterno.data.*
+import pe.lasflores.controlinterno.domain.CommandCenterRules
 import pe.lasflores.controlinterno.domain.JourneyRules
 import pe.lasflores.controlinterno.domain.JourneyTask
 import pe.lasflores.controlinterno.journey.JourneyAlerts
@@ -79,40 +80,53 @@ internal fun JourneyDashboardCard(engine:JourneyEngine,onOpen:(JourneyNavigation
 internal fun JourneyScreen(engine:JourneyEngine,onOpen:(JourneyNavigation)->Unit,onUpdates:()->Unit){
     val s by engine.state.collectAsState()
     var section by rememberSaveable{mutableStateOf("today")}
-    var filter by rememberSaveable{mutableStateOf("pending")}
+    var filter by rememberSaveable{mutableStateOf("NOW")}
     var edit by remember{mutableStateOf<JourneyReminderEntity?>(null)}
     var adding by remember{mutableStateOf(false)}
     var removing by remember{mutableStateOf<JourneyReminderEntity?>(null)}
     var now by remember{mutableStateOf(System.currentTimeMillis())}
     LaunchedEffect(s.dateIso){while(true){now=System.currentTimeMillis();if(LocalDate.now().toString()!=s.dateIso)engine.refresh();delay(30_000)}}
     Column(Modifier.fillMaxSize()){
-        SectionControls(listOf("today" to "Mi jornada","reminders" to "Recordatorios","history" to "Historial","settings" to "Ajustes"),section,{section=it})
+        SectionControls(listOf("today" to "Centro de Mando","reminders" to "Recordatorios","history" to "Historial","settings" to "Ajustes"),section,{section=it})
         if(s.error.isNotBlank())Text("Error: "+s.error,modifier=Modifier.padding(10.dp),color=MaterialTheme.colorScheme.error)
         when(section){
             "today"->{
                 val today=s.tasks.filter{JourneyRules.isProgressTask(it)}
-                val pending=today.count{!it.completed}
-                val visible=today.filter{when(filter){"pending"->!it.completed;"done"->it.completed;else->true}}
-                    .sortedWith(compareBy<JourneyTask>{it.completed}.thenBy{if(it.priority=="HIGH")0 else 1}.thenBy{it.dueAtMillis})
-                LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
+                val occurrences=s.occurrences.associateBy{it.taskKey}
+                val lanes=today.groupBy{CommandCenterRules.lane(it,occurrences[it.key],now).name}
+                val visible=lanes[filter].orEmpty().sortedWith(compareBy<JourneyTask>{CommandCenterRules.priority(it,now)}.thenBy{it.dueAtMillis})
+                val radar=CommandCenterRules.radar(today,now)
+                LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
                     item{
-                        Text("Centro de pendientes",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-                        Text("Pendientes: "+pending+" · Completadas: "+today.count{it.completed})
-                        if(!s.loaded)Text("Cargando…")
-                        Row(horizontalArrangement=Arrangement.spacedBy(5.dp)){
-                            listOf("pending" to "Pendientes","done" to "Completadas","all" to "Todas").forEach{(code,label)->
-                                FilterChip(selected=filter==code,onClick={filter=code},label={Text(label)})
+                        Card(colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF381F2B)),modifier=Modifier.fillMaxWidth()){
+                            Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+                                Text("LAS FLORES · OPERACIONES",color=androidx.compose.ui.graphics.Color(0xFFE5CDA7),style=MaterialTheme.typography.labelMedium)
+                                Text("Centro de Mando",color=androidx.compose.ui.graphics.Color.White,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+                                Text(if(lanes["NOW"].isNullOrEmpty())"Sin actividades vencidas" else "Tu atención es necesaria",color=androidx.compose.ui.graphics.Color.White)
+                                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+                                    listOf("NOW" to "Intervenir","NEXT" to "Próximas","FOLLOWUP" to "Completadas").forEach{(key,label)->
+                                        Column{Text(lanes[key].orEmpty().size.toString(),color=androidx.compose.ui.graphics.Color.White,style=MaterialTheme.typography.headlineMedium);Text(label,color=androidx.compose.ui.graphics.Color(0xFFE5CDA7),style=MaterialTheme.typography.labelSmall)}
+                                    }
+                                }
                             }
                         }
-                        Text("Los registros de los módulos completan automáticamente sus actividades. Una notificación leída no equivale a una tarea realizada.",style=MaterialTheme.typography.bodySmall)
+                        if(!s.loaded)Text("Cargando…")
                     }
-                    items(visible,key={it.key}){task->
-                        TaskCard(task,s.occurrences.firstOrNull{it.taskKey==task.key},now,engine,onOpen)
-                    }
-                    if(visible.isEmpty()&&s.loaded)item{Text("No hay actividades en esta categoría.")}
                     item{
-                        TextButton(onClick={section="reminders"}){Text("Crear actividad personalizada")}
+                        SectionControls(listOf("NOW" to "Ahora","NEXT" to "Próximas","FOLLOWUP" to "Seguimiento"),filter,{filter=it})
+                        Text(when(filter){"NOW"->"Requieren tu atención";"NEXT"->"Tu agenda operativa";else->"Actividades completadas"},style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
                     }
+                    if(radar.isNotEmpty())item{
+                        Card(Modifier.fillMaxWidth()){
+                            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+                                Text("Radar · próximos 60 minutos",fontWeight=FontWeight.Bold)
+                                radar.take(4).forEach{task->TextButton(onClick={onOpen(task.route())}){Text(timeLabel(task.dueAtMillis)+" · "+task.title)}}
+                            }
+                        }
+                    }
+                    items(visible,key={it.key}){task->TaskCard(task,occurrences[task.key],now,engine,onOpen)}
+                    if(visible.isEmpty()&&s.loaded)item{Text("No hay actividades en esta categoría.")}
+                    item{TextButton(onClick={section="reminders"}){Text("Crear actividad personalizada")}}
                 }
             }
             "reminders"->{
@@ -204,7 +218,7 @@ private fun TaskCard(task:JourneyTask,occurrence:JourneyOccurrenceEntity?,now:Lo
             if(!task.completed&&task.notify){
                 Text("Posponer aviso",style=MaterialTheme.typography.labelSmall)
                 FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
-                    listOf(5,10,30).forEach{mins->TextButton(onClick={engine.snooze(task.key,mins)}){Text(mins.toString()+" min")}}
+                    listOf(5,10,15,30).forEach{mins->TextButton(onClick={engine.snooze(task.key,mins)}){Text(mins.toString()+" min")}}
                 }
             }
         }
@@ -236,7 +250,7 @@ private fun ReminderDialog(existing:JourneyReminderEntity?,onDismiss:()->Unit,on
         "12:00","ONCE",123,0,true,"NORMAL","inicio",true,0))}
     val repeats=listOf("ONCE" to "Una sola vez","DAILY" to "Todos los días","WEEKLY" to "Días específicos","MONTHLY" to "Cada mes")
     val modules=listOf("inicio" to "Inicio","personal" to "Personal","briefings" to "Briefings","uniformes" to "Uniformes",
-        "celulares" to "Celulares","funciones" to "Funciones","incidentes" to "Incidentes","reportes" to "Reportes","backups" to "Respaldos","notifications" to "Notificaciones")
+        "celulares" to "Celulares","funciones" to "Funciones","operativo" to "Control operativo","incidentes" to "Incidentes","reportes" to "Reportes","backups" to "Respaldos","notifications" to "Notificaciones")
     AlertDialog(onDismissRequest=onDismiss,title={Text(if(existing==null)"Nuevo recordatorio" else "Editar recordatorio")},
         text={Column(Modifier.heightIn(max=520.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
             OutlinedTextField(item.title,{item=item.copy(title=it.take(140))},label={Text("Actividad")},modifier=Modifier.fillMaxWidth())
@@ -292,6 +306,9 @@ private fun JourneyPreferencesEditor(engine:JourneyEngine,saved:JourneyPreferenc
                 if(!exact&&Build.VERSION.SDK_INT>=31)OutlinedButton(onClick={
                     settings.launch(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,Uri.parse("package:"+context.packageName)))
                 }){Text("Permitir alarmas puntuales")}
+                val power=context.getSystemService(android.os.PowerManager::class.java)
+                Text(if(power.isIgnoringBatteryOptimizations(context.packageName))"Batería: sin optimización para Las Flores." else "Batería: optimización del sistema activa; puede retrasar avisos.",style=MaterialTheme.typography.bodySmall)
+                Text("Privacidad: detalles operativos ocultos en la pantalla bloqueada.",style=MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick=engine::test){Text("Enviar notificación de prueba")}
                 TextButton(onClick={settings.launch(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,context.packageName))}){Text("Sonido y canales de Android")}
                 Text("Las alarmas dependen de permisos, batería y del sistema. Forzar la detención de la aplicación puede impedir avisos.",style=MaterialTheme.typography.bodySmall)
