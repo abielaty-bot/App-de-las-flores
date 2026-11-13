@@ -61,6 +61,7 @@ class LasFloresApp : Application() {
     val backupManager: OfflineBackupManager by lazy {
         OfflineBackupManager(applicationContext, database, database.staffDao(), database.uniformDao(), database.catalogDao(), database.materialDao(), database.briefingDao(), database.functionDao(), database.incidentDao())
     }
+    val operationalRepository by lazy { pe.lasflores.controlinterno.data.OperationalRepository(this,database) }
     val phoneRepository by lazy { OfflinePhoneRepository(database) }
     val reportRepository by lazy { ReportRepository(database) }
     val staffRepository: StaffRepository by lazy { OfflineStaffRepository(database) }
