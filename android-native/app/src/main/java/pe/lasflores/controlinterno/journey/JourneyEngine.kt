@@ -122,7 +122,8 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
             JourneyTask(key,day.toString(),r.title,"Actividad de una fecha anterior",r.module,due,due-r.leadMinutes*60_000L,
                 manual=true,notify=false,priority=r.priority)
         }
-        Computed(JourneyState(today.toString(),prefs,defs,tasks+overdue,occurrences,
+        val extraOccurrences=corrections.mapNotNull{dao.occurrence(it.key)}
+        Computed(JourneyState(today.toString(),prefs,defs,tasks+overdue,(occurrences+extraOccurrences).distinctBy{it.taskKey},
             dao.allNotifications().sortedByDescending{it.atMillis},loaded=true),future)
     }
     private suspend fun reconcile(){
