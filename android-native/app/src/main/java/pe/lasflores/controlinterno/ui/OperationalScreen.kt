@@ -101,6 +101,7 @@ internal fun OperationalScreen() {
                 Text("Supervisión operativa",style=MaterialTheme.typography.titleLarge)
                 Text("Revisados: $reviewed / ${rows.size} · Sin asignar: ${rows.count{it.staffNameSnapshot=="Sin asignar"}}")
                 Text("Cumplimiento inicial: "+if(evaluated==0)"Sin datos" else "${100*conform/evaluated}%")
+                Text("Cumplimiento final: "+if(evaluated==0)"Sin datos" else "${100*rows.count{it.initialResult=="CONFORMING" || (it.initialResult=="NONCONFORMING" && it.correction=="VERIFIED")}/evaluated}%")
                 Text("Correcciones abiertas: ${rows.count{it.correction in setOf("PENDING","REPORTED","REOPENED")}}")
                 LinearProgressIndicator(progress={if(rows.isEmpty())0f else reviewed.toFloat()/rows.size},modifier=Modifier.fillMaxWidth())
             }}
@@ -145,12 +146,13 @@ internal fun OperationalScreen() {
                 }
                 history.filter{it.action!="PHOTO"}.takeLast(5).forEach{e->Text(label(e.beforeValue)+" → "+label(e.afterValue)+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
-                if(row.initialResult=="UNREVIEWED"||row.correction in setOf("NONE","PENDING")){
+                if(row.initialResult=="UNREVIEWED"){
                     Row{Checkbox(attributable,{attributable=it});Text("Incumplimiento atribuible")}
-                    listOf("CONFORMING","NONCONFORMING","BLOCKED","NOT_APPLICABLE","UNREVIEWED").forEach{v->
+                    listOf("CONFORMING","NONCONFORMING","BLOCKED","NOT_APPLICABLE").forEach{v->
                         OutlinedButton(onClick={run{repo.review(row.id,v,note,attributable);selected=null}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(label(v))}
                     }
                 }
+                if(row.initialResult!="UNREVIEWED" && row.correction in setOf("NONE","PENDING")) TextButton(onClick={run{repo.review(row.id,"UNREVIEWED",note);selected=null}},enabled=!busy && note.isNotBlank()){Text("Anular revisión con motivo")}
                 val next=when(row.correction){"PENDING","REOPENED"->listOf("REPORTED");"REPORTED"->listOf("VERIFIED","REOPENED");"VERIFIED"->listOf("REOPENED");else->emptyList()}
                 next.forEach{v->Button(onClick={run{repo.correct(row.id,v,note);selected=null}},enabled=!busy){Text(label(v))}}
                 if(row.initialResult=="UNREVIEWED")TextButton(onClick={assigning=true}){Text("Asignar responsable")}
