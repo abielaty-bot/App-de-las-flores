@@ -175,7 +175,7 @@ def main():
         if code == 40028:
             open_menu_item("Notificaciones")
             find_text("Centro de Mando")
-            tap("Próximas")
+            tap("Próximas", last=True)  # The header metric repeats this label; select the actual lane control.
             find_text("Tu agenda operativa")
             tap("Seguimiento")
             find_text("Actividades completadas")
