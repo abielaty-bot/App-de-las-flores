@@ -1,6 +1,14 @@
 package pe.lasflores.controlinterno.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import pe.lasflores.controlinterno.report.ExcelWriter
+import pe.lasflores.controlinterno.report.ExcelSheet
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -36,6 +44,16 @@ internal fun OperationalScreen() {
     fun run(action:suspend ()->Unit){if(busy)return;busy=true;scope.launch{
         try{action();message="Guardado automáticamente"}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+(e.message?:"No se pudo guardar")}finally{busy=false}
     }}
+    val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){uri->
+        if(uri!=null)run{
+            withContext(Dispatchers.IO){
+                val output=context.contentResolver.openOutputStream(uri)?:error("No se pudo crear Excel")
+                output.use{ExcelWriter().write(listOf(ExcelSheet("Control operativo","Control operativo Las Flores",period,
+                    listOf("Período","Zona","Responsable","Función","Estándar","Resultado inicial","Corrección","Observación","Atribuible"),
+                    rows.map{listOf(it.periodKey,it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot,it.standardSnapshot,label(it.initialResult),label(it.correction),it.note,it.attributable)})),it)}
+            }
+        }
+    }
     LaunchedEffect(dateIso){try{repo.catalog.initialize();people=repo.available(date)}catch(e:CancellationException){throw e}catch(e:Exception){message="Error: "+e.message}}
     val visible=rows.filter{(!pendingOnly || it.initialResult=="UNREVIEWED" || it.correction in setOf("PENDING","REPORTED","REOPENED")) && (filter.isBlank() || listOf(it.locationSnapshot,it.staffNameSnapshot,it.labelSnapshot).any{s->s.contains(filter,true)})}
     val reviewed=rows.count{it.initialResult!="UNREVIEWED"}
@@ -60,6 +78,7 @@ internal fun OperationalScreen() {
             }}
             Button(onClick={run{repo.generate(date)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Preparar checklist de la jornada")}
             OutlinedTextField(filter,{filter=it},label={Text("Buscar trabajador, zona o función")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            TextButton(onClick={export.launch("Las_Flores_Control_"+period+".xlsx")},enabled=rows.isNotEmpty()&&!busy){Text("Exportar período a Excel")}
             FilterChip(selected=pendingOnly,onClick={pendingOnly=!pendingOnly},label={Text("Solo pendientes")})
         }
         if(message.isNotBlank())Text(message,color=if(message.startsWith("Error"))MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
@@ -86,7 +105,7 @@ internal fun OperationalScreen() {
         var attributable by remember(row.id){mutableStateOf(row.attributable)}
         var assigning by remember(row.id){mutableStateOf(false)}
         AlertDialog(onDismissRequest={selected=null},title={Text(row.labelSnapshot)},text={
-            Column(Modifier.heightIn(max=480.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+            Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(6.dp)){
                 Text(row.standardSnapshot)
                 Text("Responsable: "+row.staffNameSnapshot)
                 OutlinedTextField(note,{note=it},label={Text("Observación / motivo")})
