@@ -35,6 +35,7 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
             val people=available(date)
             for(t in dao.templates().filter{it.active}) {
                 val day=date.dayOfWeek.value
+                if(day in 3..5 && t.id in setOf("SAL-14-1","SAL-15-1","SAL-16-1","LIM-19-1","LIM-20-1","LIM-21-1","LIM-22-1","LIM-25-1","LIM-26-1","LIM-27-1"))continue
                 if(t.frequency.contains("Mié",true) && day !in 3..5)continue
                 if(t.deadline.contains("Mié/Jue/Vie",true) && day !in 3..5)continue
                 val target=when {
@@ -48,7 +49,7 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
                     else -> t.titular
                 }
                 val person=people.filter{norm(it.fullName).startsWith(norm(target)+" ") || norm(it.fullName)==norm(target)}.singleOrNull()
-                if(t.titular=="Edith" && day in 3..5 && t.id in setOf("OFI-05-1","OFI-07-1","OFI-08-1","OFI-09-1","OFI-10-1","OFI-11-1","OFI-12-1","OFI-13-1","OFI-14-1","OFI-15-1"))continue
+                // Keep the canonical office control; the overlapping support template is suppressed below.
                 val key=period(t,date)
                 dao.insertInstance(OperationalInstanceEntity(t.id+":"+key,key,t.id,t.version,t.label,t.standard,t.location,person?.id,person?.fullName ?: if(target=="Maître")"Maître" else "Sin asignar","UNREVIEWED","NONE","",false,null,System.currentTimeMillis()))
             }
@@ -65,7 +66,8 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
         require(result in setOf("UNREVIEWED","CONFORMING","NONCONFORMING","BLOCKED","NOT_APPLICABLE"))
         require(result !in setOf("BLOCKED","NOT_APPLICABLE","NONCONFORMING") || note.isNotBlank())
         val old=dao.instance(id)?:error("Control inexistente")
-        require(old.correction=="NONE" || old.correction=="PENDING"){"La revisión tiene una corrección en curso"}
+        require(old.initialResult=="UNREVIEWED" || result=="UNREVIEWED" && old.correction in setOf("NONE","PENDING")){"Conserva el resultado inicial y utiliza el seguimiento de correcciones"}
+        require(result!="UNREVIEWED" || note.isNotBlank()){"Indica el motivo de anulación"}
         dao.saveInstance(old.copy(initialResult=result,correction=if(result=="NONCONFORMING"||result=="BLOCKED")"PENDING" else "NONE",note=note,attributable=attributable && result=="NONCONFORMING" && old.staffId!=null,reviewedAtMillis=if(result=="UNREVIEWED")null else System.currentTimeMillis(),updatedAtMillis=System.currentTimeMillis()))
         event(id,"REVIEW",old.initialResult,result,note)
     }
