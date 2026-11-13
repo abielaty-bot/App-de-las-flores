@@ -23,6 +23,13 @@ internal object OperationalBackup {
         require(events.map{it.id}.distinct().size==events.size)
         require(instances.all{r->templates.any{it.id==r.templateId}})
         require(events.all{e->instances.any{it.id==e.instanceId}})
+        val byId=events.associateBy{it.id}
+        val controls=instances.associateBy{it.id}
+        require(events.filter{it.action=="PHOTO_REF"}.all{e->
+            val source=byId[e.afterValue]
+            val a=controls[e.instanceId];val b=source?.let{controls[it.instanceId]}
+            source?.action=="PHOTO" && a!=null && b!=null && a.periodKey==b.periodKey && a.locationSnapshot==b.locationSnapshot
+        }){"Referencia de evidencia inválida"}
         dao.clearEvents();dao.clearInstances();dao.clearTemplates()
         templates.forEach{dao.saveTemplate(it)}
         instances.forEach{dao.saveInstance(it)}
