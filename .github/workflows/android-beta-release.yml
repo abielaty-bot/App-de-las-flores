@@ -200,6 +200,9 @@ jobs:
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40026" ]]; then
               NOTES=$(printf '%s\n' '## Control operativo' '- Catálogo de checklist, inspecciones, asignaciones, correcciones y fotografías.' '- Consultas a módulos existentes, exportación Excel y respaldos.' '- Migración Room 11→12. Exporta un respaldo antes de actualizar; no desinstales la aplicación.')
             fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40027" ]]; then
+              NOTES=$(printf '%s\n' '## Control Operativo Pro' '- Centro operativo, inspección rápida por trabajador o zona y diseño adaptativo.' '- Planes de corrección, evidencias compartidas y clasificación editable por etapas.' '- Reportes por período, recurrencia y desempeño individual.' '- Conserva Room v12. Exporta un respaldo antes de actualizar; no desinstales la aplicación.')
+            fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
               dist/las-flores-beta.apk \
