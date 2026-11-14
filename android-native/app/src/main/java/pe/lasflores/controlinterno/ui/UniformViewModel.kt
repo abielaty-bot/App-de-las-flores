@@ -126,6 +126,10 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
     fun deleteMistakenInspection(record:UniformInspectionEntity)=perform("Revisión eliminada"){
         repository.deleteMistakenInspection(record.dateIso,record.staffId,record.id,record.updatedAtMillis)
     }
+    fun supplement(staffId:String,requirementId:String,value:String,quantity:Int?,reason:String){
+        val date=_dateIso.value
+        perform { repository.supplement(date,staffId,requirementId,value,quantity,reason) }
+    }
     fun finalize(staffId:String) {val date=_dateIso.value;perform{repository.finalize(date,staffId)}}
     fun correct(staffId:String,requirementId:String,verifier:String) {
         val date=_dateIso.value;perform{repository.correct(date,staffId,requirementId,verifier)}
