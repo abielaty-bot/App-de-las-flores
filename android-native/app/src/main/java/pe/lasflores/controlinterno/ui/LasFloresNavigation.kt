@@ -106,7 +106,7 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
     val title=destinations.firstOrNull{it.id==screen}?.title?:workspaceFor(screen)?.title?:"Las Flores"
     val dark=LocalLasFloresDark.current
     BackHandler(enabled=drawer.isOpen || screen!="inicio") {
-        if(drawer.isOpen)scope.launch{drawer.close()} else onNavigate(workspaceFor(screen)?.takeIf{it.id!=screen&&it.id!="jornada"}?.id?:"inicio")
+        if(drawer.isOpen)scope.launch{drawer.close()} else onNavigate(workspaceFor(screen)?.takeIf{it.id!=screen}?.id?:"inicio")
     }
     BoxWithConstraints(Modifier.fillMaxSize()){
         val drawerWidth=minOf(340.dp,maxWidth*0.68f).coerceAtLeast(minOf(240.dp,maxWidth))
@@ -123,7 +123,7 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
                         TextButton(onClick={scope.launch{drawer.close()}}){Text("Cerrar menú",color=LasFloresPalette.NightChampagne)}
                         workspaces.forEach{w->
                             NavigationDrawerItem(label={Text(w.title)},selected=workspaceFor(screen)?.id==w.id,
-                                onClick={onNavigate(if(w.id=="jornada")"inicio" else w.id);scope.launch{drawer.close()}},
+                                onClick={onNavigate(w.id);scope.launch{drawer.close()}},
                                 icon={Icon(painterResource(w.icon),contentDescription=null)},
                                 colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=Color(0xFFF0DAC2),selectedTextColor=LasFloresPalette.DeepPlum,selectedIconColor=LasFloresPalette.DeepPlum,unselectedTextColor=Color.White,unselectedIconColor=LasFloresPalette.NightChampagne))
                         }
