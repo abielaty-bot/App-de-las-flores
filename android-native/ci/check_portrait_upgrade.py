@@ -41,10 +41,12 @@ def open_menu_item(title):
             left, top, right, bottom = map(int, re.findall(r"\d+", menu.attrib["bounds"]))
             adb("shell", "input", "tap", str((left+right)//2), str((top+bottom)//2))
             if re.search(r"\bversionCode=40031\b", adb("shell", "dumpsys", "package", PACKAGE)):
-                hubs = {"Personal":"Equipo", "Control operativo":"Calidad y cumplimiento", "Celulares":"Equipo", "Reportes":"Inteligencia operativa", "Respaldos":"Administración", "Configuración":"Administración", "Actualizaciones":"Administración"}
+                hubs = {"Personal":"Equipo", "Uniformes":"Equipo", "Briefings":"Equipo", "Funciones":"Servicio", "Incidentes":"Calidad y cumplimiento", "Control operativo":"Calidad y cumplimiento", "Celulares":"Equipo", "Reportes":"Inteligencia operativa", "Respaldos":"Administración", "Configuración":"Administración", "Actualizaciones":"Administración"}
                 if title in hubs:
                     tap(hubs[title], last=True)
-                if title == "Notificaciones": title = "Centro de Mando"
+                if title == "Notificaciones":
+                    tap("Mi jornada", last=True)
+                    title = "Centro de Mando"
             tap(title, last=True)
             return
         time.sleep(1)
