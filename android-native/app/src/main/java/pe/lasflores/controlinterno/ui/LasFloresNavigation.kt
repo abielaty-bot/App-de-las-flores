@@ -35,6 +35,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -61,11 +66,40 @@ private val destinations=listOf(
     AppDestination("funciones","Funciones",R.drawable.ic_lf_funciones),
     AppDestination("incidentes","Incidentes",R.drawable.ic_lf_incidentes),
     AppDestination("reportes","Reportes",R.drawable.ic_lf_reportes),
-    AppDestination("notifications","Notificaciones",R.drawable.ic_lf_bell),
+    AppDestination("notifications","Centro de Mando",R.drawable.ic_lf_bell),
     AppDestination("backups","Respaldos",R.drawable.ic_lf_backups),
     AppDestination("settings","Configuración",R.drawable.ic_lf_settings),
     AppDestination("updates","Actualizaciones",R.drawable.ic_lf_updates)
 )
+
+internal data class Workspace(val id:String,val title:String,val description:String,val icon:Int,val modules:List<String>)
+internal val workspaces=listOf(
+    Workspace("jornada","Mi jornada","Resumen, prioridades y recordatorios",R.drawable.ic_lf_home,listOf("inicio","notifications")),
+    Workspace("equipo","Equipo","Personas, presentación y comunicación",R.drawable.ic_lf_personal,listOf("personal","uniformes","celulares","briefings")),
+    Workspace("servicio","Servicio","Funciones y entrega de responsabilidades",R.drawable.ic_lf_funciones,listOf("funciones")),
+    Workspace("calidad","Calidad y cumplimiento","Inspecciones e incidentes",R.drawable.ic_lf_incidentes,listOf("operativo","incidentes")),
+    Workspace("inteligencia","Inteligencia operativa","Reportes y exportaciones",R.drawable.ic_lf_reportes,listOf("reportes")),
+    Workspace("administracion","Administración","Configuración, datos y mantenimiento",R.drawable.ic_lf_settings,listOf("settings","backups","updates"))
+)
+internal fun workspaceFor(screen:String)=workspaces.firstOrNull{screen==it.id||screen in it.modules}
+@Composable
+internal fun WorkspaceScreen(id:String,onNavigate:(String)->Unit){
+    val w=workspaces.firstOrNull{it.id==id}?:return
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        Text(w.title,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+        Text(w.description,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        w.modules.forEach{module->
+            val d=destinations.first{it.id==module}
+            OutlinedCard(onClick={onNavigate(module)},modifier=Modifier.fillMaxWidth()){
+                Row(Modifier.fillMaxWidth().padding(18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)){
+                    Icon(painterResource(d.icon),contentDescription=null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(28.dp))
+                    Text(d.title,modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
+                    Text("›",style=MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+    }
+}
 
 /** Cajón modal: cerrado no ocupa anchura; el contenido no se desmonta al abrirlo. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,10 +107,11 @@ private val destinations=listOf(
 internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNotifications:Int=0,content:@Composable ()->Unit) {
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
-    val title=destinations.firstOrNull{it.id==screen}?.title?:"Las Flores"
+    val title=destinations.firstOrNull{it.id==screen}?.title?:workspaceFor(screen)?.title?:"Las Flores"
+    var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     val dark=LocalLasFloresDark.current
     BackHandler(enabled=drawer.isOpen || screen!="inicio") {
-        if(drawer.isOpen)scope.launch{drawer.close()} else onNavigate("inicio")
+        if(drawer.isOpen)scope.launch{drawer.close()} else onNavigate(workspaceFor(screen)?.takeIf{it.id!=screen&&it.id!="jornada"}?.id?:"inicio")
     }
     BoxWithConstraints(Modifier.fillMaxSize()){
         val drawerWidth=minOf(340.dp,maxWidth*0.68f).coerceAtLeast(minOf(240.dp,maxWidth))
@@ -91,7 +126,14 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
                         Text("CONTROL INTERNO",color=LasFloresPalette.NightChampagne,
                             style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(start=14.dp,bottom=15.dp))
                         TextButton(onClick={scope.launch{drawer.close()}}){Text("Cerrar menú",color=LasFloresPalette.NightChampagne)}
-                        destinations.forEach{d->
+                        workspaces.forEach{w->
+                            NavigationDrawerItem(label={Text(w.title)},selected=workspaceFor(screen)?.id==w.id,
+                                onClick={expanded=if(expanded==w.id)null else w.id;onNavigate(if(w.id=="jornada")"inicio" else w.id);scope.launch{drawer.close()}},
+                                icon={Icon(painterResource(w.icon),contentDescription=null)},
+                                colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=Color(0xFFF0DAC2),selectedTextColor=LasFloresPalette.DeepPlum,selectedIconColor=LasFloresPalette.DeepPlum,unselectedTextColor=Color.White,unselectedIconColor=LasFloresPalette.NightChampagne))
+                        }
+                        Text("ACCESOS DIRECTOS",color=LasFloresPalette.NightChampagne,style=MaterialTheme.typography.labelSmall,modifier=Modifier.padding(start=14.dp,top=12.dp))
+                        destinations.filter{it.id in listOf("uniformes","briefings","funciones","incidentes","notifications")}.forEach{d->
                             NavigationDrawerItem(label={Text(d.title)},selected=screen==d.id,
                                 onClick={onNavigate(d.id);scope.launch{drawer.close()}},
                                 icon={Icon(painterResource(d.icon),contentDescription=null)},
