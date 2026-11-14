@@ -40,7 +40,7 @@ def open_menu_item(title):
         if menu is not None:
             left, top, right, bottom = map(int, re.findall(r"\d+", menu.attrib["bounds"]))
             adb("shell", "input", "tap", str((left+right)//2), str((top+bottom)//2))
-            if "android-beta-v40031" in sys.argv:
+            if re.search(r"\bversionCode=40031\b", adb("shell", "dumpsys", "package", PACKAGE)):
                 hubs = {"Personal":"Equipo", "Control operativo":"Calidad y cumplimiento", "Celulares":"Equipo", "Reportes":"Inteligencia operativa", "Respaldos":"Administración", "Configuración":"Administración", "Actualizaciones":"Administración"}
                 if title in hubs:
                     tap(hubs[title], last=True)
