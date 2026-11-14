@@ -34,6 +34,7 @@ object IncidentRules {
         "baja"->"Baja";"media"->"Media";"alta"->"Alta";"critica"->"Crítica";else->v
     }
     fun actionName(v:String)=when(v){
+        "edicion"->"Edición de información"
         "correccion"->"Corrección";"comunicacion"->"Comunicación"
         "investigacion"->"Investigación";"prevencion"->"Prevención"
         "verificacion"->"Verificación";"reapertura"->"Reapertura"
