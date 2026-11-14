@@ -35,10 +35,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -108,7 +104,6 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
     val drawer=rememberDrawerState(DrawerValue.Closed)
     val scope=rememberCoroutineScope()
     val title=destinations.firstOrNull{it.id==screen}?.title?:workspaceFor(screen)?.title?:"Las Flores"
-    var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     val dark=LocalLasFloresDark.current
     BackHandler(enabled=drawer.isOpen || screen!="inicio") {
         if(drawer.isOpen)scope.launch{drawer.close()} else onNavigate(workspaceFor(screen)?.takeIf{it.id!=screen&&it.id!="jornada"}?.id?:"inicio")
@@ -128,7 +123,7 @@ internal fun LasFloresAppShell(screen:String,onNavigate:(String)->Unit,unreadNot
                         TextButton(onClick={scope.launch{drawer.close()}}){Text("Cerrar menú",color=LasFloresPalette.NightChampagne)}
                         workspaces.forEach{w->
                             NavigationDrawerItem(label={Text(w.title)},selected=workspaceFor(screen)?.id==w.id,
-                                onClick={expanded=if(expanded==w.id)null else w.id;onNavigate(if(w.id=="jornada")"inicio" else w.id);scope.launch{drawer.close()}},
+                                onClick={onNavigate(if(w.id=="jornada")"inicio" else w.id);scope.launch{drawer.close()}},
                                 icon={Icon(painterResource(w.icon),contentDescription=null)},
                                 colors=NavigationDrawerItemDefaults.colors(selectedContainerColor=Color(0xFFF0DAC2),selectedTextColor=LasFloresPalette.DeepPlum,selectedIconColor=LasFloresPalette.DeepPlum,unselectedTextColor=Color.White,unselectedIconColor=LasFloresPalette.NightChampagne))
                         }
