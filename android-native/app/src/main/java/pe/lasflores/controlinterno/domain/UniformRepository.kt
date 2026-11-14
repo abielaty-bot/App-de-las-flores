@@ -55,6 +55,7 @@ interface UniformRepository {
     suspend fun requirementDeletionBlocker(id:String):String?
     suspend fun deleteUnusedRequirement(id:String,expectedUpdatedAt:Long)
     suspend fun deleteMistakenInspection(dateIso:String,staffId:String,inspectionId:String,expectedUpdatedAt:Long)
+    suspend fun supplement(dateIso:String,staffId:String,requirementId:String,value:String,quantity:Int?,reason:String)
     suspend fun finalize(dateIso: String, staffId: String)
     suspend fun correct(dateIso: String, staffId: String, requirementId: String, verifier: String)
     suspend fun rectify(dateIso: String, staffId: String, requirementId: String, verifier: String, reason: String)
