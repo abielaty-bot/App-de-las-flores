@@ -40,7 +40,35 @@ class OfflineUniformRepository(
             dao.observeDayEvents(dateIso)
         ) { inspections, answers, activity, requirements, events ->
             UniformDaySnapshot(dateIso, inspections, answers, activity, requirements, events)
+        }.onStart { if(dateIso == java.time.LocalDate.now().toString()) database.withWriteTransaction { syncOpenInspections() } }
+
+    /** Refresh only open inspections; evaluated requirements retain their original
+     * standard when removed or materially changed. Finalized history is immutable. */
+    private suspend fun syncDraft(inspection: UniformInspectionEntity, worker: StaffEntity): UniformInspectionEntity {
+        if (inspection.workflow != "DRAFT") return inspection
+        val existing = catalogDao.forInspection(inspection.id)
+        val answers = dao.getAnswers(inspection.id).associateBy { it.requirementId }
+        val current = catalogDao.allRequirements().filter { it.appliesTo(worker.role) }
+        val desired = current.map { item ->
+            val old = existing.firstOrNull { it.requirementId == item.id }
+            if (old != null && answers[item.id] != null) old.copy(labelSnapshot=item.label, categorySnapshot=item.category)
+            else InspectionRequirementEntity(inspection.id,item.id,item.label,item.category,item.minQty,item.appliesToProfile(worker.uniformProfile))
+        } + existing.filter { old -> current.none { it.id == old.requirementId } && answers[old.requirementId] != null }
+        if (existing.toSet() != desired.toSet()) {
+            catalogDao.deleteForInspection(inspection.id)
+            desired.forEach { catalogDao.upsertSnapshot(it) }
+            dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,"","SINCRONIZAR_REQUISITOS",null,null,"","Catálogo actualizado; respuestas existentes conservadas",System.currentTimeMillis()))
         }
+        val updated = inspection.copy(roleSnapshot=worker.role,uniformProfileSnapshot=worker.uniformProfile)
+        if (updated != inspection) dao.upsertInspection(updated.copy(updatedAtMillis=System.currentTimeMillis()))
+        return updated
+    }
+
+    private suspend fun syncOpenInspections() {
+        dao.allInspections().filter { it.workflow == "DRAFT" && it.dateIso == java.time.LocalDate.now().toString() }.forEach { inspection ->
+            staffDao.getById(inspection.staffId)?.let { syncDraft(inspection,it) }
+        }
+    }
 
     override suspend fun saveRequirement(
         id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>
@@ -67,6 +95,7 @@ class OfflineUniformRepository(
                 } ?: 0),
                 System.currentTimeMillis(), UniformRules.profilesCsv(profiles)
             ))
+            syncOpenInspections()
         }
     }
 
@@ -75,6 +104,7 @@ class OfflineUniformRepository(
             if(catalogDao.allRequirements().isEmpty())defaultRequirements().forEach{catalogDao.upsertRequirement(it)}
             val plan=pe.lasflores.controlinterno.domain.UniformRoleRules.proposal(role,catalogDao.allRequirements(),System.currentTimeMillis()){UUID.randomUUID().toString()}
             plan.forEach{catalogDao.upsertRequirement(it)}
+            syncOpenInspections()
         }
     }
 
@@ -83,6 +113,7 @@ class OfflineUniformRepository(
             val prev = catalogDao.getRequirement(id) ?: error("Requisito no encontrado.")
             catalogDao.upsertRequirement(prev.copy(isActive = active,
                 updatedAtMillis = System.currentTimeMillis()))
+            syncOpenInspections()
         }
     }
 
@@ -136,6 +167,7 @@ class OfflineUniformRepository(
                 }
             }
             check(inspection.workflow == "DRAFT") { "La inspección ya fue finalizada." }
+            inspection = syncDraft(inspection,worker)
             val requirement = catalogDao.forInspection(inspection.id)
                 .firstOrNull { it.requirementId == requirementId }
                 ?: error("Este requisito no pertenece a la revisión.")
@@ -186,7 +218,9 @@ class OfflineUniformRepository(
 
     override suspend fun finalize(dateIso: String, staffId: String) {
         database.withWriteTransaction {
-            val inspection = dao.getInspection(dateIso, staffId) ?: error("No se inició la revisión")
+            val original = dao.getInspection(dateIso, staffId) ?: error("No se inició la revisión")
+            val worker = staffDao.getById(staffId) ?: error("Trabajador no encontrado")
+            val inspection = syncDraft(original,worker)
             check(inspection.workflow == "DRAFT") { "Ya se finalizó esta inspección" }
             val requirements = catalogDao.forInspection(inspection.id)
             require(requirements.isNotEmpty()) { "La inspección no tiene requisitos." }
