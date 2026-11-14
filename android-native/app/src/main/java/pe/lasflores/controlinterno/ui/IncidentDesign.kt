@@ -109,7 +109,7 @@ internal fun IncidentDesignedListCard(case:IncidentEntity,onOpen:(String)->Unit,
 }
 @Composable
 internal fun IncidentDesignedDashboard(incidents:List<IncidentEntity>,selected:IncidentEntity?,actions:List<IncidentActionEntity>,
-    onNew:()->Unit,onOpen:(String)->Unit,onHistory:()->Unit,onClose:()->Unit,onFollowup:()->Unit,onVoid:()->Unit){
+    onNew:()->Unit,onOpen:(String)->Unit,onHistory:()->Unit,onClose:()->Unit,onFollowup:()->Unit,onVoid:()->Unit,onEdit:()->Unit){
     val month=LocalDate.now().toString().take(7)
     val stats=IncidentRules.stats(incidents.filter{it.occurredDate.startsWith(month)})
     val open=incidents.filter(IncidentRules::isOpen).sortedWith(compareByDescending<IncidentEntity>{it.priority=="critica"}
@@ -169,7 +169,7 @@ internal fun IncidentDesignedDashboard(incidents:List<IncidentEntity>,selected:I
                 TextButton(onClick=onHistory,modifier=Modifier.align(Alignment.End)){Text("Ver seguimiento e historial")}
             }
         }
-        if(selected!=null)item(key="detail-"+selected.id){IncidentDetailCard(selected,actions,onClose,onFollowup,onVoid)}
+        if(selected!=null)item(key="detail-"+selected.id){IncidentDetailCard(selected,actions,onClose,onFollowup,onVoid,onEdit)}
     }
 }
 @Composable
@@ -204,7 +204,7 @@ private fun IncidentDetailRow(label:String,value:String,res:Int){
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun IncidentDetailCard(case:IncidentEntity,actions:List<IncidentActionEntity>,
-    onDismiss:()->Unit,onFollowup:()->Unit,onVoid:()->Unit){
+    onDismiss:()->Unit,onFollowup:()->Unit,onVoid:()->Unit,onEdit:()->Unit){
     IncidentDesignCard{
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically){
             Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer,RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center){
@@ -286,6 +286,7 @@ internal fun IncidentDetailCard(case:IncidentEntity,actions:List<IncidentActionE
         HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
         FlowRow(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp),verticalArrangement=Arrangement.spacedBy(6.dp),itemVerticalAlignment=Alignment.CenterVertically){
             TextButton(onClick=onDismiss){Text("Cerrar")}
+            if(case.status!=IncidentRules.ANULADO)OutlinedButton(onClick=onEdit){Text("Editar información")}
             if(IncidentRules.isOpen(case))OutlinedButton(onClick=onVoid){Text("Anular")}
             if(case.status!=IncidentRules.ANULADO)Button(onClick=onFollowup,colors=ButtonDefaults.buttonColors(containerColor=LasFloresPalette.Burgundy,contentColor=Color.White)){
                 Text(if(case.status==IncidentRules.CERRADO)"Reabrir caso" else "+ Registrar seguimiento",fontWeight=FontWeight.Bold)
