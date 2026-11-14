@@ -210,6 +210,9 @@ jobs:
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40028" ]]; then
               NOTES=$(printf '%s\n' '## Command Center' '- Centro de Mando, radar y clasificación de actividades.' '- Correcciones vinculadas a registros operativos, privacidad y diagnóstico.' '- Conserva Room v12. Exporta un respaldo antes de actualizar; no desinstales la aplicación.')
             fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40029" ]]; then
+              NOTES=$(printf '%s\n' '## Uniformes: sincronización de requisitos' '- Actualiza requisitos de inspecciones abiertas y puestos asignados.' '- Revisión complementaria de requisitos nuevos en inspecciones finalizadas de hoy.' '- Conserva los resultados originales y Room v12.')
+            fi
             gh release create "$LF_RELEASE_TAG" \
               --target "$GITHUB_SHA" \
               dist/las-flores-beta.apk \
