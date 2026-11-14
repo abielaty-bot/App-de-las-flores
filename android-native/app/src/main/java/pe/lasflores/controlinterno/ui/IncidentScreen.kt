@@ -76,8 +76,9 @@ fun IncidentScreen(vm:IncidentViewModel,staffVm:StaffViewModel) {
     var detailsId by rememberSaveable {mutableStateOf<String?>(null)}
     var followupId by remember {mutableStateOf<String?>(null)}
     var voidId by remember {mutableStateOf<String?>(null)}
+    var editRecord by remember {mutableStateOf<IncidentEntity?>(null)}
     val selected=incidents.firstOrNull{it.id==detailsId}
-    BackHandler(enabled=detailsId!=null && !newDialog && followupId==null && voidId==null){detailsId=null}
+    BackHandler(enabled=detailsId!=null && !newDialog && followupId==null && voidId==null && editRecord==null){detailsId=null}
     Column(Modifier.fillMaxSize()) {
         LazyRow(contentPadding=PaddingValues(horizontal=12.dp,vertical=4.dp),
             horizontalArrangement=Arrangement.spacedBy(7.dp)) {
@@ -105,15 +106,16 @@ fun IncidentScreen(vm:IncidentViewModel,staffVm:StaffViewModel) {
                 onNew={newDialog=true},onDetails={detailsId=it})
             else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp)){
                 IncidentDetailCard(selected,actions.filter{it.incidentId==selected.id},
-                    onDismiss={detailsId=null},onFollowup={followupId=selected.id},onVoid={voidId=selected.id})
+                    onDismiss={detailsId=null},onFollowup={followupId=selected.id},onVoid={voidId=selected.id},onEdit={editRecord=selected})
             }
             "analisis"->IncidentAnalysisPanel(incidents)
             "tipos"->IncidentCatalogPanel(vm,types)
             else->IncidentDesignedDashboard(incidents,selected,actions.filter{it.incidentId==detailsId},
                 onNew={newDialog=true},onOpen={detailsId=it},onHistory={tab="seguimiento";detailsId=null},
-                onClose={detailsId=null},onFollowup={followupId=detailsId},onVoid={voidId=detailsId})
+                onClose={detailsId=null},onFollowup={followupId=detailsId},onVoid={voidId=detailsId},onEdit={editRecord=selected})
         }
     }
+    editRecord?.let { record -> IncidentNewDialog(types,people,onDismiss={editRecord=null},onSubmit={},record=record,onEdit={value,reason,actor,success,failure->vm.edit(record,value,reason,actor,success,failure)}) }
     if(newDialog) IncidentNewDialog(types,people,
         onDismiss={newDialog=false},
         onSubmit={vm.create(it);newDialog=false})
@@ -204,31 +206,37 @@ private fun IncidentFormSection(title:String,description:String){
 
 @Composable
 private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEntity>,
-    onDismiss:()->Unit,onSubmit:(OfflineIncidentRepository.NewIncident)->Unit) {
-    var date by remember {mutableStateOf(LocalDate.now().toString())}
-    var time by remember {mutableStateOf(LocalTime.now().format(
-        DateTimeFormatter.ofPattern("HH:mm")))}
-    var category by remember {mutableStateOf(IncidentRules.PRODUCTO)}
-    var detected by remember {mutableStateOf("Cocina")}
-    var probable by remember {mutableStateOf("")}
-    var product by remember {mutableStateOf("")}
-    var typeId by remember {mutableStateOf("")}
-    var otherType by remember {mutableStateOf("")}
-    var description by remember {mutableStateOf("")}
-    var priority by remember {mutableStateOf("media")}
-    var reporter by remember {mutableStateOf("")}
-    var impact by remember {mutableStateOf("No determinado")}
-    var immediate by remember {mutableStateOf("")}
-    var staffId by remember {mutableStateOf("")}
-    val available=types.filter{it.isActive&&it.category==category}
-    val valid=IncidentRules.validDateTime(date,time) &&
+    onDismiss:()->Unit,onSubmit:(OfflineIncidentRepository.NewIncident)->Unit,record:IncidentEntity?=null,
+    onEdit:((OfflineIncidentRepository.NewIncident,String,String,()->Unit,(String)->Unit)->Unit)?=null) {
+    var date by remember {mutableStateOf(record?.occurredDate?:LocalDate.now().toString())}
+    var time by remember {mutableStateOf(record?.occurredTime?:LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))}
+    var category by remember {mutableStateOf(record?.category?:IncidentRules.PRODUCTO)}
+    var detected by remember {mutableStateOf(record?.detectedArea?:"Cocina")}
+    var probable by remember {mutableStateOf(record?.originArea?:"")}
+    var product by remember {mutableStateOf(record?.productOrProcess?:"")}
+    var typeId by remember {mutableStateOf(record?.typeId?:"")}
+    var otherType by remember {mutableStateOf(record?.typeLabelSnapshot?:"")}
+    var description by remember {mutableStateOf(record?.description?:"")}
+    var priority by remember {mutableStateOf(record?.priority?:"media")}
+    var reporter by remember {mutableStateOf(record?.reporter?:"")}
+    var impact by remember {mutableStateOf(record?.impact?:"No determinado")}
+    var immediate by remember {mutableStateOf(record?.immediateAction?:"")}
+    var staffId by remember {mutableStateOf(record?.assignedStaffId?:"")}
+    var reason by remember {mutableStateOf("")}
+    var actor by remember {mutableStateOf("")}
+    var saving by remember {mutableStateOf(false)}
+    var error by remember {mutableStateOf("")}
+    val available=types.filter{it.category==category&&(it.isActive||it.id==record?.typeId)}
+    val typeOptions=available.map{it.id to it.label} + (if(record!=null&&record.category==category&&record.typeId.isNotBlank()&&available.none{it.id==record.typeId}) listOf(record.typeId to record.typeLabelSnapshot) else emptyList())
+    val valid=!saving && (record==null||(reason.trim().length>=5&&actor.trim().length>=2)) && IncidentRules.validDateTime(date,time) &&
         product.trim().length in 2..140 && description.trim().length in 10..1500 &&
         immediate.trim().length in 5..850 && reporter.trim().length in 2..90 &&
-        (typeId.isNotBlank()&&available.any{it.id==typeId} ||
+        (typeId.isNotBlank()&&typeOptions.any{it.first==typeId} ||
             typeId.isBlank()&&otherType.trim().length in 3..120)
-    IncidentForm("Nuevo incidente","Completa los campos obligatorios (*)",valid,onDismiss,
-        onSubmit={onSubmit(OfflineIncidentRepository.NewIncident(date,time,category,detected,probable,product,typeId,otherType,
-            description,priority,reporter,impact,immediate,staffId))},submitLabel="Registrar incidente") {
+    IncidentForm(if(record==null)"Nuevo incidente" else "Editar incidente",record?.code?:"Completa los campos obligatorios (*)",valid,{if(!saving)onDismiss()},
+        onSubmit={val value=OfflineIncidentRepository.NewIncident(date,time,category,detected,probable,product,typeId,otherType,description,priority,reporter,impact,immediate,staffId)
+            if(record==null)onSubmit(value) else {saving=true;error="";onEdit?.invoke(value,reason,actor,{saving=false;onDismiss()},{saving=false;error=it})}},submitLabel=if(saving)"Guardando…" else if(record==null)"Registrar incidente" else "Guardar cambios") {
+                if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error)
                 Text("Ante un riesgo sanitario, retén el producto y comunica el problema " +
                     "de inmediato. El registro no reemplaza el procedimiento de seguridad.",
                     style=MaterialTheme.typography.bodySmall,
@@ -247,7 +255,7 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
                     modifier=Modifier.fillMaxWidth())
                 IncidentChoiceRow("Tipo de incidente *",
                     listOf("" to "Otro (especificar)")+
-                        available.map{it.id to it.label},typeId,{typeId=it})
+                        typeOptions,typeId,{typeId=it})
                 if(typeId.isBlank()) OutlinedTextField(otherType,{
                     otherType=it.take(120)},label={Text("Especifica el tipo *")},
                     modifier=Modifier.fillMaxWidth())
@@ -270,8 +278,13 @@ private fun IncidentNewDialog(types:List<IncidentTypeEntity>,people:List<StaffEn
                     minLines=2,modifier=Modifier.fillMaxWidth())
                 IncidentChoiceRow("Responsable del seguimiento",
                     listOf("" to "Sin asignar")+
-                        people.filter {it.isActive}.map{it.id to it.fullName},
+                        people.filter {it.isActive||it.id==record?.assignedStaffId}.map{it.id to it.fullName},
                     staffId,{staffId=it})
+                if(record!=null){
+                    IncidentFormSection("4. Control de cambios","El código y el historial se conservan.")
+                    OutlinedTextField(reason,{reason=it.take(500)},label={Text("Motivo de edición *")},modifier=Modifier.fillMaxWidth())
+                    OutlinedTextField(actor,{actor=it.take(90)},label={Text("Editado por *")},modifier=Modifier.fillMaxWidth())
+                }
                 Text("El origen definitivo solo se atribuye después de verificarlo.",
                     style=MaterialTheme.typography.bodySmall)
     }
