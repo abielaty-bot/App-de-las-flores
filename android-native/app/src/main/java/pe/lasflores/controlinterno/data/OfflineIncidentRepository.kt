@@ -130,6 +130,39 @@ class OfflineIncidentRepository(
         }
     }
 
+    suspend fun edit(id:String,expectedUpdatedAt:Long,v:NewIncident,reason:String,actor:String) {
+        require(reason.trim().length in 5..500 && actor.trim().length in 2..90) { "Indica motivo y responsable." }
+        require(IncidentRules.validDateTime(v.date,v.time))
+        require(v.category in IncidentRules.CATEGORIES && v.detectedArea in IncidentRules.AREAS)
+        require(v.originArea.isBlank()||v.originArea in IncidentRules.AREAS)
+        require(v.priority in IncidentRules.PRIORITIES && v.impact in IncidentRules.IMPACTS)
+        require(v.productOrProcess.trim().length in 2..140 && v.description.trim().length in 10..1500)
+        require(v.reporter.trim().length in 2..90 && v.immediateAction.trim().length in 5..850)
+        db.withWriteTransaction {
+            val old=dao.getIncident(id)?:error("Incidente no encontrado.")
+            require(old.status!=IncidentRules.ANULADO && old.updatedAtMillis==expectedUpdatedAt) { "El caso cambió o fue anulado. Vuelve a abrirlo." }
+            val type=v.typeId.takeIf{it.isNotBlank()}?.let{dao.getType(it)}
+            val keepType=v.typeId==old.typeId && v.category==old.category && v.typeId.isNotBlank()
+            require(v.typeId.isBlank()||keepType||(type!=null&&type.isActive&&type.category==v.category))
+            val label=if(keepType)old.typeLabelSnapshot else type?.label?:v.otherType.trim()
+            require(label.length in 3..120)
+            val person=v.assignedStaffId.takeIf{it.isNotBlank()}?.let{staff.getById(it)}
+            require(v.assignedStaffId.isBlank()||person!=null||v.assignedStaffId==old.assignedStaffId)
+            val now=System.currentTimeMillis()
+            val next=old.copy(category=v.category,occurredDate=v.date,occurredTime=v.time,detectedArea=v.detectedArea,originArea=v.originArea,productOrProcess=v.productOrProcess.trim(),typeId=v.typeId,typeLabelSnapshot=label,description=v.description.trim(),priority=v.priority,reporter=v.reporter.trim(),impact=v.impact,immediateAction=v.immediateAction.trim(),assignedStaffId=v.assignedStaffId,assignedStaffNameSnapshot=person?.fullName?:if(v.assignedStaffId==old.assignedStaffId)old.assignedStaffNameSnapshot else "",updatedAtMillis=now)
+            val changes=listOf(
+                Triple("Nombre",old.productOrProcess,next.productOrProcess),Triple("Fecha",old.occurredDate,next.occurredDate),Triple("Hora",old.occurredTime,next.occurredTime),
+                Triple("Categoría",old.category,next.category),Triple("Tipo",old.typeLabelSnapshot,next.typeLabelSnapshot),Triple("ID tipo",old.typeId,next.typeId),
+                Triple("Detección",old.detectedArea,next.detectedArea),Triple("Origen probable",old.originArea,next.originArea),Triple("Descripción",old.description,next.description),
+                Triple("Prioridad",old.priority,next.priority),Triple("Reportado por",old.reporter,next.reporter),Triple("Impacto",old.impact,next.impact),
+                Triple("Medida inmediata",old.immediateAction,next.immediateAction),Triple("Responsable",old.assignedStaffNameSnapshot,next.assignedStaffNameSnapshot),Triple("ID responsable",old.assignedStaffId,next.assignedStaffId)
+            ).filter{it.second!=it.third}
+            require(changes.isNotEmpty()) { "No hay cambios que guardar." }
+            dao.upsertIncident(next)
+            dao.upsertAction(IncidentActionEntity(UUID.randomUUID().toString(),id,"edicion", "Motivo: "+reason.trim()+"\n"+changes.joinToString("\n"){(field,before,after)->field+": "+before+" → "+after},actor.trim(),now,old.status,old.status,old.confirmedOrigin,next.assignedStaffId))
+        }
+    }
+
     data class FollowUp(
         val id:String,
         val nextStatus:String,
