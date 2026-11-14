@@ -86,6 +86,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
     var verifier by rememberSaveable { mutableStateOf("") }
     var requiredQty by rememberSaveable { mutableStateOf("") }
     var reason by rememberSaveable { mutableStateOf("") }
+    var supplementValue by rememberSaveable { mutableStateOf(UniformRules.OK) }
     val vacations by staffVm.vacations.collectAsState()
     val overrides by staffVm.overrides.collectAsState()
     val busy=saved=="Guardando…" || snapshot.dateIso!=dateIso
@@ -117,6 +118,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
         if(next!=null)scope.launch{listState.animateScrollToItem(visible.indexOf(next)+1)}
     }
     val showChecklist:@Composable (WorkerInspection)->Unit = { row ->
+        Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         UniformChecklist(row,hideExempt,busy||isNoReview,
             onAnswer={req,value->
                 dialogStaff=row.staff.id;dialogRequirement=req.id
@@ -131,6 +133,29 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             onRectify={req->dialogStaff=row.staff.id;dialogRequirement=req.id;verifier="";reason="";dialog="RECTIFY"},
             onFinalize={dialogStaff=row.staff.id;dialog="FINALIZE"},
             onNext={selectNext(row)},onClose={expandedId=""},onDelete={deletingInspection=row.inspection})
+        if(row.inspection?.workflow=="FINALIZED" && dateIso==java.time.LocalDate.now().toString()){
+            val original=row.requirements.filter{it.applicable}.map{it.id}.toSet()
+            val additional=catalog.filter{it.appliesTo(row.staff.role)&&it.appliesToProfile(row.staff.uniformProfile)&&it.id !in original}
+            if(additional.isNotEmpty()) Card(Modifier.fillMaxWidth()){
+                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                    Text("Revisión complementaria",fontWeight=FontWeight.Bold)
+                    Text("Nuevos requisitos del catálogo. No modifican el resultado inicial.",style=MaterialTheme.typography.bodySmall)
+                    additional.forEach{item->
+                        val last=validSnapshot.events.filter{it.inspectionId==row.inspection.id&&it.requirementId==item.id&&it.action=="REVISION_COMPLEMENTARIA"}.maxByOrNull{it.atMillis}
+                        Text(item.label,fontWeight=FontWeight.SemiBold)
+                        Text(when(last?.toStatus){UniformRules.OK->"Cumple";UniformRules.BAD->"No cumple";UniformRules.NA->"No aplica";else->"Pendiente"},style=MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                            listOf(UniformRules.OK to "Sí",UniformRules.BAD to "No",UniformRules.NA to "No aplica").forEach{(value,label)->
+                                FilterChip(selected=last?.toStatus==value,enabled=!busy,onClick={
+                                    dialogStaff=row.staff.id;dialogRequirement=item.id;supplementValue=value;requiredQty="";reason="";dialog="SUPPLEMENT"
+                                },label={Text(label)})
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        }
     }
     val controls:@Composable ()->Unit = {
         Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
@@ -204,6 +229,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
         val action = dialog
         AlertDialog(onDismissRequest = { dialog = "" },
             title = { Text(when(action) {
+                "SUPPLEMENT" -> "Revisión complementaria"
                 "NO_REVIEW" -> "No se realizó revisión"
                 "QUANTITY" -> "Verificar cantidad mínima"
                 "FINALIZE" -> "Finalizar inspección"
@@ -214,6 +240,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when(action) {
+                        "SUPPLEMENT" -> Text("Se registra por separado; no cambia la inspección original.")
                         "NO_REVIEW" -> Text("No podrás declararlo si ya existen inspecciones iniciadas.")
                         "QUANTITY" -> Text("Introduce la cantidad comprobada antes de marcar Cumple.")
                         "FINALIZE" -> Text("Se guardará el resultado inicial. Después no podrás desmarcar las faltas sin dejar constancia.")
@@ -221,7 +248,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                         "RECTIFY" -> Text("El requisito estaba mal marcado. Esta rectificación conservará un evento de auditoría.")
                         "NA" -> Text("Este requisito normalmente corresponde. Indica por qué no aplica en esta inspección. Quedará en auditoría y no contará como cumplimiento.")
                     }
-                    if (action == "QUANTITY") {
+                    if (action == "QUANTITY" || (action=="SUPPLEMENT" && supplementValue==UniformRules.OK && (catalog.firstOrNull{it.id==dialogRequirement}?.minQty?:0)>0)) {
                         OutlinedTextField(value = requiredQty, onValueChange = {
                             requiredQty = it.filter(Char::isDigit).take(3)
                         }, label = { Text("Cantidad encontrada") }, singleLine = true)
@@ -230,7 +257,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                         OutlinedTextField(value = verifier, onValueChange = { verifier = it.take(90) },
                             label = { Text("Verificado por") }, singleLine = true)
                     }
-                    if (action == "NO_REVIEW" || action == "RECTIFY" || action=="NA") {
+                    if (action == "NO_REVIEW" || action == "RECTIFY" || action=="NA" || (action=="SUPPLEMENT" && supplementValue==UniformRules.NA)) {
                         OutlinedTextField(value = reason, onValueChange = { reason = it.take(250) },
                             label = { Text("Motivo") }, minLines = 2)
                     }
@@ -239,6 +266,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             confirmButton = {
                 Button(onClick = {
                     when(action) {
+                        "SUPPLEMENT" -> vm.supplement(dialogStaff,dialogRequirement,supplementValue,requiredQty.toIntOrNull(),reason)
                         "NO_REVIEW" -> vm.markNotPerformed(reason)
                         "QUANTITY" -> vm.choose(dialogStaff, dialogRequirement, UniformRules.OK, requiredQty.toIntOrNull())
                         "FINALIZE" -> vm.finalize(dialogStaff)
@@ -248,6 +276,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                     }
                     dialog = ""
                 }, enabled = when(action) {
+                    "SUPPLEMENT" -> when(supplementValue){UniformRules.NA->reason.trim().length>=5;UniformRules.OK->(catalog.firstOrNull{it.id==dialogRequirement}?.minQty?:0).let{it==0||(requiredQty.toIntOrNull()?:0) in it..100};else->true}
                     "NO_REVIEW" -> reason.trim().length >= 3
                     "QUANTITY" -> (requiredQty.toIntOrNull() ?: 0) in 1..100
                     "CORRECT" -> verifier.trim().length >= 2
@@ -315,7 +344,7 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             Text("Revisados: "+row.reviewed+"/"+row.applicableCount+
                 if(row.reviewed>0)" · Cumplimiento evaluado: "+(100*row.ok/row.reviewed)+"%" else " · Sin evaluaciones",
                 style=MaterialTheme.typography.bodySmall)
-            if(row.profile=="SIN_DEFINIR")Text("Selecciona el perfil en Personal. Los requisitos ya congelados no cambian.",
+            if(row.profile=="SIN_DEFINIR")Text("Selecciona el perfil en Personal. Las revisiones finalizadas conservan su configuración original.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.tertiary)
             HorizontalDivider()
             row.requirements.filter{!hideExempt || (it.applicable && row.answers[it.id]?.status!=UniformRules.NA)}.forEach{req->
