@@ -216,6 +216,22 @@ class OfflineUniformRepository(
         }
     }
 
+    override suspend fun supplement(dateIso:String,staffId:String,requirementId:String,value:String,quantity:Int?,reason:String) {
+        database.withWriteTransaction {
+            require(dateIso==java.time.LocalDate.now().toString()) { "Solo se complementa la revisión de hoy." }
+            val inspection=dao.getInspection(dateIso,staffId) ?: error("Inspección no encontrada")
+            require(inspection.workflow=="FINALIZED")
+            val worker=staffDao.getById(staffId) ?: error("Trabajador no encontrado")
+            val item=catalogDao.getRequirement(requirementId) ?: error("Requisito no encontrado")
+            require(item.appliesTo(worker.role)&&item.appliesToProfile(worker.uniformProfile))
+            require(catalogDao.forInspection(inspection.id).none{it.requirementId==requirementId&&it.applicable}) { "El requisito ya pertenece a la revisión original." }
+            require(value in setOf(UniformRules.OK,UniformRules.BAD,UniformRules.NA))
+            if(value==UniformRules.OK&&item.minQty>0) require(quantity!=null&&quantity in item.minQty..100) { "Cantidad insuficiente." }
+            if(value==UniformRules.NA) require(reason.trim().length>=5) { "Justifica No aplica." }
+            dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,item.id,"REVISION_COMPLEMENTARIA",null,value,"",item.label+" · "+item.category+" · mínimo "+item.minQty+(quantity?.let{" · cantidad "+it}?:"")+(if(reason.isNotBlank())" · "+reason.trim() else ""),System.currentTimeMillis()))
+        }
+    }
+
     override suspend fun finalize(dateIso: String, staffId: String) {
         database.withWriteTransaction {
             val original = dao.getInspection(dateIso, staffId) ?: error("No se inició la revisión")
