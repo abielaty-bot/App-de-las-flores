@@ -37,6 +37,14 @@ class IncidentViewModel(private val repo:OfflineIncidentRepository):ViewModel() 
 
     fun create(value:OfflineIncidentRepository.NewIncident) =
         runSave { "Incidente "+repo.create(value)+" registrado." }
+    fun edit(record:IncidentEntity,value:OfflineIncidentRepository.NewIncident,reason:String,actor:String,onSaved:()->Unit,onError:(String)->Unit){
+        viewModelScope.launch {
+            _message.value="Guardando…"
+            try { repo.edit(record.id,record.updatedAtMillis,value,reason,actor);_message.value="Incidente actualizado.";onSaved() }
+            catch(e:CancellationException){throw e}
+            catch(e:Exception){val msg=e.message?:"No se guardó el cambio";_message.value="Error: "+msg;onError(msg)}
+        }
+    }
     fun followUp(value:OfflineIncidentRepository.FollowUp) =
         runSave {repo.followUp(value);"Seguimiento guardado."}
     fun void(id:String,reason:String,actor:String) =
