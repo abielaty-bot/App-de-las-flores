@@ -56,12 +56,12 @@ import pe.lasflores.controlinterno.domain.StaffScheduleRules
 /** Ficha única de personal: programación diaria, descansos, apoyos y vacaciones. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={},reportRepository:ReportRepository?=null) {
+fun StaffManagementScreen(people: List<StaffEntity>, vm: StaffViewModel,openDate:String?=null,onDateOpened:()->Unit={},reportRepository:ReportRepository?=null,uniformVm:UniformViewModel?=null) {
     var profileId by rememberSaveable {mutableStateOf<String?>(null)}
     val profilePerson=people.firstOrNull{it.id==profileId}
     BackHandler(enabled=profilePerson!=null){profileId=null}
     if(profilePerson!=null && reportRepository!=null){
-        WorkerProfileScreen(profilePerson,reportRepository,onBack={profileId=null})
+        WorkerProfileScreen(profilePerson,reportRepository,onBack={profileId=null},uniformVm=uniformVm,staffVm=vm)
         return
     }
     val vacations by vm.vacations.collectAsState()
