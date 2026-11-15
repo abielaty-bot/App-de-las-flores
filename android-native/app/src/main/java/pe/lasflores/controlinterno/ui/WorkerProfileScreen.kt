@@ -27,7 +27,10 @@ import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,onBack:()->Unit){
+internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,onBack:()->Unit,uniformVm:UniformViewModel?=null,staffVm:StaffViewModel?=null){
+    var intelligence by rememberSaveable(person.id){mutableStateOf(false)}
+    androidx.activity.compose.BackHandler(enabled=intelligence){intelligence=false}
+    if(intelligence&&uniformVm!=null){UniformIntelligenceScreen(listOf(person),uniformVm,staffVm,person.id){intelligence=false};return}
     var monthText by rememberSaveable(person.id){mutableStateOf(YearMonth.now().toString())}
     val month=YearMonth.parse(monthText)
     val selection=ReportSelection(ReportPeriod.MONTH,month.atDay(1),person.id)
@@ -109,7 +112,7 @@ internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,
                 item{WorkerMetric("Materiales",snapshot.currentDeliveryUnits.toString(),"Unidades entregadas vigentes en este período"){tab="materiales"}}
             }
             "uniformes"->{
-                item{Text("Inspecciones de uniforme",style=MaterialTheme.typography.titleMedium);if(snapshot.inspections.isEmpty())Text("Sin inspecciones en este período.")}
+                item{if(uniformVm!=null)Button(onClick={intelligence=true},modifier=Modifier.fillMaxWidth()){Text("Abrir Uniform Intelligence")};Text("Inspecciones de uniforme",style=MaterialTheme.typography.titleMedium);if(snapshot.inspections.isEmpty())Text("Sin inspecciones en este período.")}
                 items(snapshot.inspections,key={it.id}){i->
                     val ans=snapshot.answers.filter{it.inspectionId==i.id}
                     val result=UniformDaySnapshot(i.dateIso,answers=ans,events=snapshot.events.filter{it.inspectionId==i.id}).statusFor(i)
@@ -122,7 +125,7 @@ internal fun WorkerProfileScreen(person:StaffEntity,repository:ReportRepository,
                 items(snapshot.briefings,key={it.id}){a->WorkerHistoryRow(a.dateIso,BriefingRules.label(a.presence),BriefingRules.communicationLabel(a),listOfNotNull(a.communicationNote.takeIf{it.isNotBlank()}))}
             }
             "celulares"->{
-                item{Text("Entrega de celulares",style=MaterialTheme.typography.titleMedium);if(snapshot.phones.isEmpty())Text("Sin registros en este período.")}
+                item{Text("Entrega voluntaria: "+rate(snapshot.phoneStats.initialPercent)+" · Con recordatorio: "+snapshot.phoneStats.reminded+" · Modalidad desconocida: "+snapshot.phoneStats.unknown);Text("Entrega de celulares",style=MaterialTheme.typography.titleMedium);if(snapshot.phones.isEmpty())Text("Sin registros en este período.")}
                 items(snapshot.phones,key={it.dateIso}){a->WorkerHistoryRow(a.dateIso,PhoneRules.label(a.status),a.reason,listOfNotNull(a.note.takeIf{it.isNotBlank()}))}
             }
             "funciones"->{
