@@ -27,7 +27,7 @@ import pe.lasflores.controlinterno.domain.*
 import pe.lasflores.controlinterno.report.*
 
 @Composable
-fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
+fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel,staffVm:StaffViewModel?=null,initialWorker:String="",onBack:(()->Unit)?=null){
     val history by vm.history.collectAsState()
     val audit by vm.auditHistory.collectAsState()
     var snapshot by remember{mutableStateOf<UniformDaySnapshot?>(null)}
@@ -40,7 +40,9 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
     }
     val s=snapshot
     if(s==null){Column(Modifier.padding(16.dp)){Text(if(error.isBlank())"Cargando historial…" else error);if(error.isNotBlank())Button(onClick={reload++}){Text("Reintentar")}};return}
-    var worker by rememberSaveable{mutableStateOf("")}
+    var worker by rememberSaveable(initialWorker){mutableStateOf(initialWorker)}
+    val vacations=staffVm?.vacations?.collectAsState()?.value.orEmpty()
+    val overrides=staffVm?.overrides?.collectAsState()?.value.orEmpty()
     var query by rememberSaveable{mutableStateOf("")}
     var period by rememberSaveable{mutableStateOf("Mes")}
     var anchor by rememberSaveable{mutableStateOf(LocalDate.now().toString())}
@@ -73,7 +75,7 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
     fun move(delta:Long){anchor=when(period){"Semana"->date.plusWeeks(delta);"Mes"->date.plusMonths(delta);"Año"->date.plusYears(delta);else->date}.toString();selectedDay=""}
     LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
         item{
-            if(worker.isNotEmpty())TextButton(onClick={worker="";tab="Resumen";selectedDay=""}){Text("‹ Todos los trabajadores")}
+            if(onBack!=null)TextButton(onClick=onBack){Text("‹ Ficha integral")} else if(worker.isNotEmpty())TextButton(onClick={worker="";tab="Resumen";selectedDay=""}){Text("‹ Todos los trabajadores")}
             Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF321D28)),modifier=Modifier.fillMaxWidth()){
                 Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
                     Text("UNIFORM INTELLIGENCE",color=Color(0xFFE8D1B1),style=MaterialTheme.typography.labelMedium)
@@ -120,6 +122,9 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
             if(tab=="Resumen"){
                 item{
                     Card(Modifier.fillMaxWidth()){Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        val coverage=UniformIntelligence.coverage(rows,overrides.filter{it.staffId==worker},start.toString(),end.toString())
+                        Text("Cobertura verificable: "+UniformIntelligence.label(coverage.rate)+" · "+coverage.reviewed+" de "+coverage.expected+" jornadas documentadas")
+                        Text("Solo inspecciones y jornadas de trabajo/apoyo explícitamente registradas; no estima asistencia histórica.",style=MaterialTheme.typography.bodySmall)
                         Text("Racha de inspecciones conformes: "+UniformIntelligence.streak(rows),fontWeight=FontWeight.Bold)
                         val times=detail.filter{it.corrected&&it.correctedAt!=null}.mapNotNull{d->s.events.filter{it.inspectionId==d.inspection.id&&it.requirementId==d.requirementId&&it.action=="CORREGIR"}.minByOrNull{it.atMillis}?.let{(it.atMillis-d.inspection.createdAtMillis).coerceAtLeast(0)/60000.0}}
                         Text("Tiempo medio desde inicio de inspección hasta corrección: "+if(times.isEmpty())"Sin datos" else "%.0f min".format(times.average()))
@@ -163,14 +168,14 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
                             if(d<=0)Spacer(Modifier.weight(1f))else{
                                 val iso=month.atDay(d).toString()
                                 val i=s.inspections.firstOrNull{it.staffId==worker&&it.dateIso==iso}
-                                val status=UniformIntelligence.dayStatus(s,worker,iso)
+                                val status=UniformIntelligence.dayStatus(s,worker,iso,overrides,vacations)
                                 val color=when(status){"Conforme"->semanticForeground("success");"Corregido","Rectificado"->MaterialTheme.colorScheme.primary;"En revisión","Corrección parcial"->MaterialTheme.colorScheme.tertiary;"Observado"->MaterialTheme.colorScheme.error;else->MaterialTheme.colorScheme.onSurfaceVariant}
                                 TextButton(onClick={selectedDay=iso},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text(d.toString(),color=color,fontWeight=if(selectedDay==iso)FontWeight.Bold else FontWeight.Normal)}
                             }
                         };repeat(7-week.size){Spacer(Modifier.weight(1f))}}
                     }
                     Text("Verde: conforme · Rojo: observado · Gris: sin registro/no hubo revisión · Dorado: pendiente · Primario: corregido/rectificado",style=MaterialTheme.typography.bodySmall)
-                    if(selectedDay.isNotBlank()){Text(selectedDay,fontWeight=FontWeight.Bold);Text(UniformIntelligence.dayStatus(s,worker,selectedDay));s.inspections.filter{it.staffId==worker&&it.dateIso==selectedDay}.forEach{inspection->UniformIntelligence.details(s,listOf(inspection)).forEach{d->Text(d.label+" · "+d.initial+if(d.corrected)" · Corregido" else if(d.rectified)" · Rectificado" else "")}}}
+                    if(selectedDay.isNotBlank()){Text(selectedDay,fontWeight=FontWeight.Bold);Text(UniformIntelligence.dayStatus(s,worker,selectedDay,overrides,vacations));s.inspections.filter{it.staffId==worker&&it.dateIso==selectedDay}.forEach{inspection->UniformIntelligence.details(s,listOf(inspection)).forEach{d->Text(d.label+" · "+d.initial+if(d.corrected)" · Corregido" else if(d.rectified)" · Rectificado" else "")}}}
                 }}
             }
             if(tab=="Historial")items(rows,key={it.id}){i->
