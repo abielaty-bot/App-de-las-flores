@@ -223,7 +223,7 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
     fun read(id:String)=action{dao.readNotification(id,System.currentTimeMillis())}
     fun readAll()=action{dao.readAll(System.currentTimeMillis())}
     fun test(){
-        val sent=JourneyAlerts.test(context)
+        val sent=PulseSensory.test(context)
         if(!sent)_state.value=_state.value.copy(error="Android no permite notificaciones. Revisa los permisos.")
     }
 }
@@ -240,6 +240,7 @@ internal object JourneyAlerts{
     private const val NOTIFICATION_ID=4019
     private fun manager(context:Context)=context.getSystemService(NotificationManager::class.java)
     fun setup(context:Context){
+        PulseSensory.setup(context)
         manager(context).createNotificationChannel(NotificationChannel(NORMAL,"Recordatorios operativos",NotificationManager.IMPORTANCE_DEFAULT))
         manager(context).createNotificationChannel(NotificationChannel(HIGH,"Briefings y avisos prioritarios",NotificationManager.IMPORTANCE_HIGH))
         manager(context).createNotificationChannel(NotificationChannel(QUIET,"Recordatorios silenciosos",NotificationManager.IMPORTANCE_LOW).apply{
@@ -283,7 +284,7 @@ internal object JourneyAlerts{
     fun post(context:Context,task:JourneyTask,log:JourneyNotificationEntity,p:JourneyPreferencesEntity):Boolean{
         setup(context)
         if(!allowed(context))return false
-        val channel=if(task.priority=="HIGH")HIGH else if(JourneyRules.quiet(log.atMillis,p,ZoneId.systemDefault()))QUIET else NORMAL
+        val channel=PulseSensory.select(context,task,p,log.atMillis)
         if(manager(context).getNotificationChannel(channel)?.importance==NotificationManager.IMPORTANCE_NONE)return false
         val snooze=PendingIntent.getBroadcast(context,4022,
             Intent(context,JourneyReceiver::class.java).setAction(SNOOZE)
@@ -291,12 +292,12 @@ internal object JourneyAlerts{
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return runCatching{
             val builder=Notification.Builder(context,channel)
-                .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_lf_bell).setContentTitle(task.title)
+                .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_pulse_tulip).setContentTitle(task.title)
                 .setContentText(task.detail).setStyle(Notification.BigTextStyle().bigText(task.detail))
                 .setContentIntent(open(context,log)).setAutoCancel(true).setOnlyAlertOnce(true)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setPublicVersion(Notification.Builder(context,channel)
-                    .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_lf_bell)
+                    .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_pulse_tulip)
                     .setContentTitle("Las Flores").setContentText("Tienes una actividad operativa pendiente").build())
                 .addAction(Notification.Action.Builder(null,"Posponer 10 min",snooze).build())
             if(task.manual){
@@ -315,7 +316,7 @@ internal object JourneyAlerts{
         if(manager(context).getNotificationChannel(NORMAL)?.importance==NotificationManager.IMPORTANCE_NONE)return false
         return runCatching{
             manager(context).notify(4023,Notification.Builder(context,NORMAL)
-                .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_lf_bell).setContentTitle("Las Flores · Notificación de prueba")
+                .setSmallIcon(pe.lasflores.controlinterno.R.drawable.ic_pulse_tulip).setContentTitle("Las Flores · Notificación de prueba")
                 .setContentText("Los avisos operativos están funcionando.").setAutoCancel(true).build())
             true
         }.getOrDefault(false)
