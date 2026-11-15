@@ -19,6 +19,17 @@ class PhoneRulesTest{
         assertEquals(4,c.total)
         assertNull(PhoneRules.counts(listOf(row("NA"))).percent)
     }
+    @Test fun disciplinePreservesLegacyAndCorrection(){
+        val corrected=PhoneRules.toggle(row("NO"),PhoneRules.VOLUNTARY,now=20)
+        assertEquals(PhoneRules.REMINDED,corrected.status)
+        assertEquals(PhoneRules.REMINDED,PhoneRules.toggle(corrected,PhoneRules.VOLUNTARY,now=21).status)
+        val c=PhoneRules.counts(listOf(row("YES"),row("VOLUNTARY","a"),corrected.copy(staffId="b"),row("NO","c")))
+        assertEquals(75,c.percent)
+        assertEquals(33,c.initialPercent)
+        assertEquals(1,c.unknown)
+        assertEquals(1,c.reminded)
+        assertNull(PhoneRules.counts(listOf(row("YES"))).initialPercent)
+    }
     @Test fun toggleAndException(){
         val yes=PhoneRules.toggle(row(),PhoneRules.YES,now=10)
         assertEquals(PhoneRules.YES,yes.status)
@@ -51,7 +62,7 @@ class PhoneRulesTest{
         val sheets=PhoneReports.build(records,days,ReportSelection(ReportPeriod.MONTH,LocalDate.parse(date)))
         val summary=sheets.first().rows.single()
         assertEquals(1,summary[2]);assertEquals(1,summary[3]);assertEquals(1,summary[4]);assertEquals(0,summary[5])
-        assertEquals("50%",summary[7]);assertEquals("2026-11-13",summary[8])
+        assertEquals("50%",summary[11]);assertEquals("2026-11-13",summary[12])
         assertEquals(4,sheets.last().rows.size)
         val bytes=java.io.ByteArrayOutputStream()
         ExcelWriter().write(sheets,bytes)
