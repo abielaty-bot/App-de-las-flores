@@ -57,9 +57,10 @@ private data class WorkerInspection(val staff:StaffEntity,val inspection:Uniform
     val requirements:List<UniformRequirement>,val answers:Map<String,UniformAnswerEntity>,
     val status:String,val scheduled:Boolean) {
     val applicableCount get()=requirements.count{it.applicable && answers[it.id]?.status!=UniformRules.NA}
-    val reviewed get()=requirements.count{it.applicable && UniformRules.evaluated(answers[it.id]?.status)}
+    fun validAnswer(req:UniformRequirement):Boolean { val a=answers[req.id]; return UniformRules.evaluated(a?.status) && (a?.status!=UniformRules.OK || req.minQty==0 || (a.quantity?:0)>=req.minQty) }
+    val reviewed get()=requirements.count{it.applicable && validAnswer(it)}
     val exempt get()=requirements.count{!it.applicable || answers[it.id]?.status==UniformRules.NA}
-    val ok get()=requirements.count{it.applicable && answers[it.id]?.status==UniformRules.OK}
+    val ok get()=requirements.count{it.applicable && answers[it.id]?.status==UniformRules.OK && validAnswer(it)}
     val bad get()=requirements.count{it.applicable && answers[it.id]?.status==UniformRules.BAD}
     val profile get()=inspection?.uniformProfileSnapshot?:staff.uniformProfile
     val complete get()=reviewed==applicableCount && applicableCount>0
@@ -377,6 +378,7 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
     val status=when{
         auto || answer?.status==UniformRules.NA -> "No aplica"
         answer==null -> "Sin revisar"
+        answer.status==UniformRules.OK && !finalized && requirement.minQty>0 && (answer.quantity?:0)<requirement.minQty -> "Cantidad pendiente · desmarca y vuelve a evaluar"
         answer.status==UniformRules.OK -> "Cumple"
         answer.correctedAtMillis!=null -> "Corregido"
         else -> "No cumple"
@@ -388,7 +390,7 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
             val details:@Composable ()->Unit={
                 Text(requirement.label,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
                 Text((if(requirement.minQty>0)"Mínimo: "+requirement.minQty+" · " else "")+
-                    (if(auto)"No aplica al perfil" else status),
+                    (if(auto)"No aplica al perfil · revisa la configuración del requisito" else status),
                     style=MaterialTheme.typography.labelSmall,color=statusColor(status))
             }
             val buttons:@Composable ()->Unit={
