@@ -1,3 +1,6 @@
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -83,7 +86,7 @@ val generatePulseSounds = tasks.register("generatePulseSounds") {
             val step = if(name=="resolved") 0.11 else 0.16
             val duration = if(name=="critical") 0.20 else 0.27
             val count = ((step*(notes.size-1)+duration)*rate).toInt()
-            val buf = java.nio.ByteBuffer.allocate(44+count*2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            val buf = ByteBuffer.allocate(44+count*2).order(ByteOrder.LITTLE_ENDIAN)
             buf.put("RIFF".toByteArray()); buf.putInt(36+count*2); buf.put("WAVEfmt ".toByteArray())
             buf.putInt(16); buf.putShort(1); buf.putShort(1); buf.putInt(rate); buf.putInt(rate*2)
             buf.putShort(2); buf.putShort(16); buf.put("data".toByteArray()); buf.putInt(count*2)
