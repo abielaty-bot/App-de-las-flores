@@ -109,5 +109,5 @@ val generatePulseSounds = tasks.register("generatePulseSounds") {
         }
     }
 }
-android.sourceSets.getByName("main").res.srcDir(pulseRes)
+android.sourceSets.getByName("main").res.srcDir(pulseRes.get().asFile)
 tasks.named("preBuild").configure { dependsOn(generatePulseSounds) }
