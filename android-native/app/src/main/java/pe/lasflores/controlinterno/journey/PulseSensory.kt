@@ -33,8 +33,7 @@ internal object PulseSensory {
     fun categoryTone(c:Context,category:String)=prefs(c).getString("tone_"+category,"auto")?:"auto"
     fun setCategoryTone(c:Context,category:String,tone:String){require(category in categories && tone in tones+"auto"+"silent");prefs(c).edit().putString("tone_"+category,tone).apply()}
     private fun uri(c:Context,tone:String):Uri {
-        val id=c.resources.getIdentifier("pulse_"+tone,"raw",c.packageName)
-        return Uri.parse("android.resource://"+c.packageName+"/"+id)
+        return Uri.parse("android.resource://"+c.packageName+"/raw/pulse_"+tone)
     }
     private val audio=AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
     fun channel(tone:String,mode:String)="lf_pulse_v1_"+tone+"_"+mode
