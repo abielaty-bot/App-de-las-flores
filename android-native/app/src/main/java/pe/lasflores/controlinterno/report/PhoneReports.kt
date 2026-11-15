@@ -17,14 +17,14 @@ object PhoneReports{
                 items.filter{it.status in setOf(PhoneRules.NO,PhoneRules.REMINDED)}.map{it.dateIso}.sorted().joinToString(", "))
         }.sortedBy{it[0].toString()}
         val detail=rows.sortedWith(compareBy<PhoneCheckEntity>{it.dateIso}.thenBy{it.nameSnapshot}).map{
-            listOf(it.dateIso,it.nameSnapshot,it.roleSnapshot,PhoneRules.label(it.status),it.reason,it.note)
+            listOf(it.dateIso,it.nameSnapshot,it.roleSnapshot,PhoneRules.label(it.status),it.reason,it.note,PhoneRules.audit(it.auditTrail).joinToString("; "){a->java.time.Instant.ofEpochMilli(a.at).toString()+" "+PhoneRules.label(a.from)+" → "+PhoneRules.label(a.to)})
         }+if(selection.staffId==null)noReview.sortedBy{it.dateIso}.map{
-            listOf(it.dateIso,"","","No hubo revisión","",it.reason)
+            listOf(it.dateIso,"","","No hubo revisión","",it.reason,"")
         }else emptyList()
         return listOf(
             ExcelSheet("Celulares resumen","Control de celulares",selection.subtitle+" · Sí/(Sí + No); pendientes y N/A excluidos",
                 listOf("Trabajador","Puesto","Sí","No","No aplica","Sin revisar","Voluntarias","Con recordatorio","Modalidad desconocida","Cumplimiento inicial","Revisados","Cumplimiento final","Fechas de incumplimiento"),summary),
             ExcelSheet("Celulares detalle","Control diario de celulares",selection.subtitle+" · No acredita custodia o devolución",
-                listOf("Fecha","Trabajador","Puesto","Resultado","Motivo","Observación"),detail))
+                listOf("Fecha","Trabajador","Puesto","Resultado","Motivo","Observación","Auditoría (UTC)"),detail))
     }
 }
