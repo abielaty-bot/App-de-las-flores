@@ -17,7 +17,7 @@ class OfflinePhoneRepository(private val db:LasFloresDatabase){
     }
     private suspend fun saveRoster(date:String,rows:List<PhoneCheckEntity>){
         val ids=rows.map{it.staffId}.toSet()
-        dao.dayChecks(date).filter{it.status==PhoneRules.PENDING&&it.staffId !in ids}.forEach{dao.removePending(date,it.staffId)}
+        dao.dayChecks(date).filter{it.status==PhoneRules.PENDING&&it.auditTrail.isBlank()&&it.staffId !in ids}.forEach{dao.removePending(date,it.staffId)}
         rows.forEach{dao.save(it)}
     }
     suspend fun mark(date:String,staffId:String,status:String,reason:String="",note:String="")=db.withWriteTransaction{
@@ -41,7 +41,7 @@ class OfflinePhoneRepository(private val db:LasFloresDatabase){
     suspend fun noReview(date:String,reason:String)=db.withWriteTransaction{
         validDay(date)
         require(reason.trim().length in 3..500){"Indica el motivo de la jornada sin revisión."}
-        require(dao.dayChecks(date).none{it.status!=PhoneRules.PENDING}){"Hay respuestas registradas; no se puede declarar una jornada sin revisión."}
+        require(dao.dayChecks(date).none{it.status!=PhoneRules.PENDING||it.auditTrail.isNotBlank()}){"Hay respuestas registradas; no se puede declarar una jornada sin revisión."}
         db.uniformDao().upsertDayStatus(DailyActivityEntity(date,"celulares","NO_REALIZADA",reason.trim(),System.currentTimeMillis()))
     }
     suspend fun reopen(date:String)=db.withWriteTransaction{validDay(date);dao.reopen(date)}
