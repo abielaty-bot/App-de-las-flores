@@ -14,7 +14,7 @@ data class JourneyData(
     val sessions:List<BriefingSessionEntity> = emptyList(),val noBriefing:Boolean=false,
     val pendingBriefings:Int=0,val functionCount:Int=0,val pendingFunctions:Int=0,
     val openIncidents:Int=0,val urgentIncidents:Int=0,val communicationRequired:Boolean=false,
-    val phoneTotal:Int=0,val phoneReviewed:Int=0,val noPhoneReview:Boolean=false
+    val phoneTotal:Int=0,val phoneReviewed:Int=0,val noPhoneReview:Boolean=false,val criticalIncidents:Int=0
 )
 object JourneyRules{
     val RECURRENCES=setOf("ONCE","DAILY","WEEKLY","MONTHLY")
@@ -91,7 +91,7 @@ object JourneyRules{
         }
         if(work && data.urgentIncidents>0)
             built("incident","Incidentes prioritarios",data.urgentIncidents.toString()+" casos de prioridad alta o crítica abiertos",
-                "incidentes",p.informTime,false,true,p.incidentAlerts,"HIGH")
+                "incidentes",p.informTime,false,true,p.incidentAlerts,if(data.criticalIncidents>0)"CRITICAL" else "HIGH")
         if(work&&p.summaryAlerts){
             val pending=list.count{it.applicable&&!it.completed&&!it.key.startsWith("prep-")}
             built("summary","Revisar pendientes de la jornada",pending.toString()+" actividades pendientes",
