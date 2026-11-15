@@ -7,5 +7,6 @@ import androidx.room3.Index
 @Entity(tableName="phone_checks",primaryKeys=["dateIso","staffId"],indices=[Index(value=["staffId"])])
 data class PhoneCheckEntity(
     val dateIso:String,val staffId:String,val nameSnapshot:String,val roleSnapshot:String,
-    val status:String,val reason:String,val note:String,val updatedAtMillis:Long
+    val status:String,val reason:String,val note:String,val updatedAtMillis:Long,
+    @androidx.room3.ColumnInfo(defaultValue="''") val auditTrail:String=""
 )
