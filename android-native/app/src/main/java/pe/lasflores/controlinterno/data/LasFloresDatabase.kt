@@ -17,7 +17,7 @@ import androidx.sqlite.execSQL
         FunctionTaskEntity::class, FunctionCheckEntity::class, FunctionEvidenceEntity::class, FunctionEventEntity::class,
         IncidentTypeEntity::class, IncidentEntity::class, IncidentActionEntity::class,
         JourneyPreferencesEntity::class, JourneyReminderEntity::class, JourneyOccurrenceEntity::class, JourneyNotificationEntity::class, PhoneCheckEntity::class, OperationalTemplateEntity::class, OperationalInstanceEntity::class, OperationalEventEntity::class],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 abstract class LasFloresDatabase : RoomDatabase() {
@@ -414,4 +414,9 @@ val MIGRATION_11_12 = Migration(11,12) { connection ->
         beforeValue TEXT NOT NULL, afterValue TEXT NOT NULL, note TEXT NOT NULL, atMillis INTEGER NOT NULL
     )""")
     connection.execSQL("CREATE INDEX IF NOT EXISTS index_operational_events_instanceId ON operational_events(instanceId)")
+}
+
+/** v13: append-only phone status history; legacy modality remains unknown. */
+val MIGRATION_12_13 = Migration(12,13) { connection ->
+    connection.execSQL("ALTER TABLE phone_checks ADD COLUMN auditTrail TEXT NOT NULL DEFAULT ''")
 }
