@@ -29,7 +29,7 @@ import pe.lasflores.controlinterno.domain.PhoneRules
 import pe.lasflores.controlinterno.report.*
 
 private fun phoneKind(status:String)=when(status){
-    PhoneRules.YES->"success";PhoneRules.NO->"danger";PhoneRules.PENDING->"warning";else->"neutral"
+    PhoneRules.YES,PhoneRules.VOLUNTARY->"success";PhoneRules.REMINDED->"warning";PhoneRules.NO->"danger";PhoneRules.PENDING->"warning";else->"neutral"
 }
 private fun dayTitle(day:String)=LocalDate.parse(day).format(DateTimeFormatter.ofPattern("d 'de' MMMM",Locale("es","PE")))
 
@@ -79,7 +79,7 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
     val future=date>today
     val rows=PhoneRules.roster(date,people,vacations,overrides,dayRecords,date==today)
     val counts=PhoneRules.counts(rows)
-    val visible=rows.filter{(filter=="all"||it.status==filter)&&it.nameSnapshot.contains(search,true)}
+    val visible=rows.filter{(filter=="all"||it.status==filter||(filter==PhoneRules.YES&&it.status in setOf(PhoneRules.VOLUNTARY,PhoneRules.REMINDED)))&&it.nameSnapshot.contains(search,true)}
     val busy=message=="Guardando…"
     val month=YearMonth.parse(monthText)
     val period=ReportPeriod.valueOf(periodName)
@@ -115,7 +115,7 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
                     item{
                         OutlinedTextField(value=search,onValueChange={search=it},label={Text("Buscar trabajador")},singleLine=true,modifier=Modifier.fillMaxWidth())
                         LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                            items(listOf("all" to "Todos",PhoneRules.PENDING to "Pendientes",PhoneRules.YES to "Entregaron",PhoneRules.NO to "No entregaron",PhoneRules.NA to "N/A")){(v,l)->
+                            items(listOf("all" to "Todos",PhoneRules.PENDING to "Pendientes",PhoneRules.YES to "Entregaron",PhoneRules.VOLUNTARY to "Voluntarias",PhoneRules.REMINDED to "Con recordatorio",PhoneRules.NO to "No entregaron",PhoneRules.NA to "N/A")){(v,l)->
                                 FilterChip(selected=filter==v,onClick={filter=v},label={Text(l)})
                             }
                         }
@@ -186,7 +186,8 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
                             Text(totals.percent?.let{it.toString()+"%"}?:"Sin evaluación",style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold)
                             LinearProgressIndicator(progress={(totals.percent?:0)/100f},modifier=Modifier.fillMaxWidth(),color=semanticForeground("success"))
                             PhoneMetrics(totals)
-                            Text("Sí ÷ (Sí + No). No aplica, sin revisar y jornadas sin revisión no cuentan en el porcentaje.",style=MaterialTheme.typography.bodySmall)
+                            Text("Cumplimiento inicial: "+(totals.initialPercent?.let{"$it%"}?:"Sin datos")+" · Las entregas antiguas no cuentan en este indicador.",style=MaterialTheme.typography.bodySmall)
+                            Text("Cumplimiento final: entregas ÷ evaluados aplicables. N/A y pendientes excluidos.",style=MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -201,11 +202,12 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
                             }
                             LinearProgressIndicator(progress={(c.percent?:0)/100f},modifier=Modifier.fillMaxWidth(),
                                 color=semanticForeground(if(c.no>0)"warning" else "success"))
-                            Text(c.yes.toString()+" entregas · "+c.no+" incumplimientos · "+c.na+" N/A · "+c.pending+" pendientes",style=MaterialTheme.typography.bodySmall)
+                            Text("Inicial: "+(c.initialPercent?.let{"$it%"}?:"Sin datos")+" · "+c.voluntary+" voluntarias · "+c.reminded+" con recordatorio",style=MaterialTheme.typography.bodySmall)
+                            Text(c.yes.toString()+" entregas · "+c.no+" sin entregar · "+c.na+" N/A · "+c.pending+" pendientes",style=MaterialTheme.typography.bodySmall)
                             if(detailId==latest.staffId){
                                 HorizontalDivider()
                                 Text("Fechas de incumplimiento",fontWeight=FontWeight.SemiBold)
-                                val failures=group.filter{it.status==PhoneRules.NO}.sortedByDescending{it.dateIso}
+                                val failures=group.filter{it.status in setOf(PhoneRules.NO,PhoneRules.REMINDED)}.sortedByDescending{it.dateIso}
                                 if(failures.isEmpty())Text("No hay incumplimientos registrados.")
                                 failures.forEach{r->TextButton(onClick={vm.setDate(r.dateIso);tab="registro";search=r.nameSnapshot;filter="all"}){Text(r.dateIso+if(r.note.isNotBlank())" · "+r.note else "")}}
                             }else Text("Toca para ver fechas de incumplimiento",style=MaterialTheme.typography.labelSmall)
@@ -257,7 +259,7 @@ private fun PhoneSummary(c:PhoneRules.Counts){
 }
 @Composable
 private fun PhoneMetrics(c:PhoneRules.Counts){
-    val metrics=listOf(Triple("Entregaron",c.yes,"success"),Triple("No entregaron",c.no,"danger"),
+    val metrics=listOf(Triple("Voluntarias",c.voluntary,"success"),Triple("Con recordatorio",c.reminded,"warning"),Triple("Entregas antiguas",c.unknown,"neutral"),Triple("No entregaron",c.no,"danger"),
         Triple("Pendientes",c.pending,"warning"),Triple("No aplica",c.na,"neutral"))
     Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
         metrics.chunked(2).forEach{line->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
@@ -286,13 +288,14 @@ private fun PhoneWorkerCard(r:PhoneCheckEntity,enabled:Boolean,onMark:(String)->
                 }
                 Text(PhoneRules.label(r.status),color=semanticForeground(phoneKind(r.status)),style=MaterialTheme.typography.labelSmall)
             }
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                listOf(PhoneRules.YES to "Sí",PhoneRules.NO to "No",PhoneRules.NA to "N/A").forEach{(status,label)->
+            Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+                listOf(PhoneRules.VOLUNTARY to "Voluntaria",PhoneRules.REMINDED to "Con recordatorio",PhoneRules.NO to "No entregó",PhoneRules.NA to "N/A").chunked(2).forEach{pair->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){pair.forEach{(status,label)->
                     FilterChip(selected=r.status==status,onClick={onMark(status)},enabled=enabled,modifier=Modifier.weight(1f),
                         label={Text(label)},colors=FilterChipDefaults.filterChipColors(
                             selectedContainerColor=semanticBackground(phoneKind(status)),selectedLabelColor=semanticForeground(phoneKind(status))))
-                }
+                }}}
             }
+            if(r.status==PhoneRules.REMINDED)Text("Incumplimiento inicial corregido",color=semanticForeground("warning"),style=MaterialTheme.typography.bodySmall)
             if(r.reason.isNotBlank())Text(r.reason,style=MaterialTheme.typography.bodySmall)
             if(r.note.isNotBlank())Text(r.note,style=MaterialTheme.typography.bodySmall)
             if(r.status!=PhoneRules.PENDING)TextButton(onClick=onNote,enabled=enabled,contentPadding=PaddingValues(0.dp)){Text("Observación",style=MaterialTheme.typography.labelMedium)}
