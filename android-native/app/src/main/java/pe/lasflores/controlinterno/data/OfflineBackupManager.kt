@@ -824,7 +824,7 @@ class OfflineBackupManager(
         val noPhoneDays=data.activityDays.filter{it.module=="celulares"}
         require(noPhoneDays.all{it.status=="NO_REALIZADA"&&it.reason.trim().length in 3..500&&
             runCatching{StaffScheduleRules.parseDate(it.dateIso)}.isSuccess}&&
-            data.phoneChecks.none{r->r.status!=PhoneRules.PENDING&&noPhoneDays.any{it.dateIso==r.dateIso}}){
+            data.phoneChecks.none{r->(r.status!=PhoneRules.PENDING||r.auditTrail.isNotBlank())&&noPhoneDays.any{it.dateIso==r.dateIso}}){
             "Jornadas de celulares inconsistentes."
         }
         val inspectionIds = data.inspections.map { it.id }.toSet()
