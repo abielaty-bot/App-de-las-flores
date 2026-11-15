@@ -27,6 +27,7 @@ data class RequirementDeletionState(
 )
 
 class UniformViewModel(private val repository: UniformRepository, private val materials: OfflineMaterialRepository) : ViewModel() {
+    suspend fun intelligence() = repository.intelligence()
     val history: StateFlow<List<UniformInspectionEntity>> =
         repository.history.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val auditHistory: StateFlow<List<UniformEventEntity>> =
