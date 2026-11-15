@@ -70,6 +70,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
                 "inspecciones" to "Inspecciones",
                 "requisitos" to "Configurar requisitos",
                 "historial" to "Historial",
+                "inteligencia" to "Inteligencia",
                 "entregas" to "Entregas de materiales"
             ),
             selected = section,
@@ -78,6 +79,7 @@ fun UniformScreen(people: List<StaffEntity>, vm: UniformViewModel, staffVm: Staf
         when(section) {
             "requisitos" -> RequirementsAdmin(vm)
             "historial" -> UniformHistoryAdmin(people, vm)
+            "inteligencia" -> UniformIntelligenceScreen(people,vm)
             "entregas" -> MaterialsAdmin(people, vm)
             else -> UniformInspectionScreen(people, vm, staffVm)
         }
