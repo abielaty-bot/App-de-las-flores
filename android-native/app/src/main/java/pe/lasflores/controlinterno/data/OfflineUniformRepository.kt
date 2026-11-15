@@ -18,7 +18,7 @@ class OfflineUniformRepository(
 ) : UniformRepository {
 
     override suspend fun intelligence(): UniformDaySnapshot = database.withWriteTransaction {
-        UniformDaySnapshot("",dao.allInspections(),dao.allAnswers(),null,catalogDao.allSnapshots(),dao.allEvents())
+        UniformDaySnapshot("",dao.allInspections(),dao.allAnswers(),null,catalogDao.allSnapshots(),dao.allEvents(),dao.allActivityDays())
     }
     override val history: Flow<List<UniformInspectionEntity>> = dao.observeHistory()
     override val auditHistory: Flow<List<UniformEventEntity>> = dao.observeAuditHistory()
