@@ -14,7 +14,8 @@ data class UniformDaySnapshot(
     val answers: List<UniformAnswerEntity> = emptyList(),
     val activity: DailyActivityEntity? = null,
     val requirements: List<InspectionRequirementEntity> = emptyList(),
-    val events: List<UniformEventEntity> = emptyList()
+    val events: List<UniformEventEntity> = emptyList(),
+    val activityDays: List<DailyActivityEntity> = emptyList()
 ) {
     fun requirementsFor(id: String): List<UniformRequirement> =
         requirements.filter { it.inspectionId == id }.map {
