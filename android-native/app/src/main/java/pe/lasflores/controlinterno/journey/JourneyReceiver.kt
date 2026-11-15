@@ -15,7 +15,9 @@ class JourneyReceiver:BroadcastReceiver(){
         val app=context.applicationContext as LasFloresApp
         CoroutineScope(SupervisorJob()+Dispatchers.IO).launch{
             try{
-                if(intent.action==JourneyAlerts.SNOOZE){
+                if(intent.action==PulseSensory.TEST){
+                    PulseSensory.test(context)
+                }else if(intent.action==JourneyAlerts.SNOOZE){
                     val key=intent.getStringExtra("key")
                     if(!key.isNullOrBlank())app.journey.snoozeNow(key,10)
                 }else if(intent.action==JourneyAlerts.COMPLETE){
