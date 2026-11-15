@@ -24,14 +24,20 @@ class UniformIntelligenceTest {
         val s=UniformDaySnapshot("",listOf(i),listOf(answer("a","OK")),events=listOf(e))
         val d=UniformIntelligence.details(s,listOf(i)).single()
         assertEquals("BAD",d.initial);assertTrue(d.rectified);assertFalse(d.corrected)
-        assertEquals(0,UniformIntelligence.metric(s,listOf(i)).corrected)
+        val m=UniformIntelligence.metric(s,listOf(i));assertEquals(0,m.corrected);assertEquals(1,m.rectified);assertEquals(100.0,m.finalRate!!,0.001)
+    }
+    @Test fun calendarDoesNotInventAttendance(){
+        val s=UniformDaySnapshot("",activityDays=listOf(DailyActivityEntity("2026-11-15","uniformes","NO_REALIZADA","Motivo",1)))
+        assertEquals("No hubo revisión",UniformIntelligence.dayStatus(s,"melisa","2026-11-15"))
+        assertEquals("Sin registro",UniformIntelligence.dayStatus(s,"melisa","2026-11-14"))
+        assertEquals(2,UniformIntelligence.streak(listOf(inspection("a","CONFORME"),inspection("b","CONFORME",date="2026-11-14"),inspection("c","OBSERVADO",date="2026-11-13"))))
     }
     @Test fun excludesExemptAndFiltersHistoricalDates(){
         val a=inspection("a","CONFORME")
         val b=inspection("b","CONFORME",staff="other",date="2026-10-01")
         val s=UniformDaySnapshot("",listOf(a,b),listOf(answer("a","NA"),answer("b","OK")))
         val rows=UniformIntelligence.rows(s,"2026-11-01","2026-11-30","melisa")
-        assertEquals(listOf(a),rows);assertTrue(UniformIntelligence.details(s,rows).isEmpty())
+        assertEquals(listOf(a),rows);val q=UniformIntelligence.requirements(UniformIntelligence.details(s,rows)).single();assertEquals(1,q.na);assertNull(q.rate)
         assertNull(UniformIntelligence.metric(s,emptyList()).rate)
         UniformIntelligence.export(s,rows,mapOf("melisa" to "Melisa"),"Noviembre").forEach{sheet->assertTrue(sheet.rows.all{it.size==sheet.headers.size})}
     }
