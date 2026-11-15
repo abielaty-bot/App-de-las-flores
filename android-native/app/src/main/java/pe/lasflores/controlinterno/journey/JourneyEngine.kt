@@ -97,7 +97,7 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
                 functionCount=f.size,pendingFunctions=f.count{it.result=="PENDING"},
                 openIncidents=incidents.size,urgentIncidents=incidents.count{it.priority in setOf("alta","critica")},
                 communicationRequired=mesa>0||pending.isNotEmpty(),phoneTotal=phones.total,phoneReviewed=phones.reviewed,
-                noPhoneReview=activity.any{it.module=="celulares"&&it.status=="NO_REALIZADA"})
+                noPhoneReview=activity.any{it.module=="celulares"&&it.status=="NO_REALIZADA"},criticalIncidents=incidents.count{it.priority=="critica"})
         }
         val plans=database.operationalDao().correctionPlans().associateBy{it.instanceId}
         val corrections=database.operationalDao().allInstances().mapNotNull{row->
