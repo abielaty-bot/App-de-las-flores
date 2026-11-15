@@ -44,6 +44,7 @@ data class UniformDaySnapshot(
 }
 
 interface UniformRepository {
+    suspend fun intelligence(): UniformDaySnapshot
     val history: Flow<List<UniformInspectionEntity>>
     val auditHistory: Flow<List<UniformEventEntity>>
     val catalog: Flow<List<UniformRequirementEntity>>
