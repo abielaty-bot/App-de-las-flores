@@ -40,7 +40,7 @@ class OfflineUniformRepository(
             dao.observeDayEvents(dateIso)
         ) { inspections, answers, activity, requirements, events ->
             UniformDaySnapshot(dateIso, inspections, answers, activity, requirements, events)
-        }.onStart { if(dateIso == java.time.LocalDate.now().toString()) database.withWriteTransaction { syncOpenInspections() } }
+        }.onStart { database.withWriteTransaction { syncOpenInspections(dateIso) } }
 
     /** Refresh only open inspections; evaluated requirements retain their original
      * standard when removed or materially changed. Finalized history is immutable. */
@@ -51,8 +51,13 @@ class OfflineUniformRepository(
         val current = catalogDao.allRequirements().filter { it.appliesTo(worker.role) }
         val desired = current.map { item ->
             val old = existing.firstOrNull { it.requirementId == item.id }
-            if (old != null && answers[item.id] != null) old.copy(labelSnapshot=item.label, categorySnapshot=item.category)
-            else InspectionRequirementEntity(inspection.id,item.id,item.label,item.category,item.minQty,item.appliesToProfile(worker.uniformProfile))
+            val fresh=InspectionRequirementEntity(inspection.id,item.id,item.label,item.category,item.minQty,item.appliesToProfile(worker.uniformProfile))
+            val answer=answers[item.id]
+            if(answer!=null && (old?.applicable!=fresh.applicable || (answer.status==UniformRules.OK && fresh.minQtySnapshot>0 && (answer.quantity?:0)<fresh.minQtySnapshot))){
+                dao.deleteAnswer(inspection.id,item.id)
+                dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,item.id,"REVALIDAR_REQUISITO",answer.status,null,"","Cambio de perfil o cantidad mínima; requiere nueva evaluación",System.currentTimeMillis()))
+            }
+            fresh
         } + existing.filter { old -> current.none { it.id == old.requirementId } && answers[old.requirementId] != null }
         if (existing.toSet() != desired.toSet()) {
             catalogDao.deleteForInspection(inspection.id)
@@ -64,8 +69,8 @@ class OfflineUniformRepository(
         return updated
     }
 
-    private suspend fun syncOpenInspections() {
-        dao.allInspections().filter { it.workflow == "DRAFT" && it.dateIso == java.time.LocalDate.now().toString() }.forEach { inspection ->
+    private suspend fun syncOpenInspections(dateIso:String=java.time.LocalDate.now().toString()) {
+        dao.allInspections().filter { it.workflow == "DRAFT" && it.dateIso == dateIso }.forEach { inspection ->
             staffDao.getById(inspection.staffId)?.let { syncDraft(inspection,it) }
         }
     }
@@ -173,13 +178,13 @@ class OfflineUniformRepository(
                 ?: error("Este requisito no pertenece a la revisión.")
             require(requirement.applicable) { "Este requisito no corresponde al perfil congelado." }
             if (quantity != null) require(quantity in 0..100) { "Cantidad inválida." }
-            if (value == UniformRules.OK && requirement.minQtySnapshot > 0) {
-                require(quantity != null && quantity >= requirement.minQtySnapshot) {
-                    "La cantidad no alcanza el mínimo requerido."
-                }
-            }
             val previous = dao.getAnswer(inspection.id, requirementId)
             val next = UniformRules.toggle(previous?.status, value)
+            if (next == UniformRules.OK && requirement.minQtySnapshot > 0) {
+                require(quantity != null && quantity >= requirement.minQtySnapshot) {
+                    "${requirement.labelSnapshot}: registra al menos ${requirement.minQtySnapshot} unidades."
+                }
+            }
             if(next==UniformRules.NA) require(exemptionReason.trim().length in 5..500) { "Explica por qué no aplica (5 a 500 caracteres)." }
             if (next == null) dao.deleteAnswer(inspection.id, requirementId)
             else dao.upsertAnswer(
@@ -245,7 +250,7 @@ class OfflineUniformRepository(
                 val answer = answers.firstOrNull { it.requirementId == required.requirementId }
                 if (answer?.status == UniformRules.OK && required.minQtySnapshot > 0)
                     require((answer.quantity ?: 0) >= required.minQtySnapshot) {
-                        "Cantidad de implementos insuficiente."
+                        "${required.labelSnapshot}: cantidad mínima ${required.minQtySnapshot}. Vuelve a evaluar este requisito."
                     }
                 answer?.status
             }
