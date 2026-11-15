@@ -191,12 +191,30 @@ def main():
             print("Centro de Mando y navegación de prioridades verificados.", flush=True)
         if code == 40032:
             adb("shell", "pm", "grant", PACKAGE, "android.permission.POST_NOTIFICATIONS")
+            # The section strip scrolls horizontally on a portrait phone.
+            node = find_text("Centro de Mando", last=False)
+            left, top, right, bottom = map(int, re.findall(r"\d+", node.attrib["bounds"]))
+            y = (top + bottom) // 2
+            # Use the actual section chip, not the app title or dashboard heading.
+            adb("shell", "uiautomator", "dump", "/sdcard/las-flores-window.xml")
+            nodes = list(ET.fromstring(adb("shell", "cat", "/sdcard/las-flores-window.xml")).iter("node"))
+            chip = next((n for n in nodes if n.get("text") == "Recordatorios"), None)
+            if chip is not None:
+                _, t, _, bot = map(int, re.findall(r"\d+", chip.attrib["bounds"]))
+                y = (t + bot) // 2
+            adb("shell", "input", "swipe", "650", str(y), "80", str(y), "450")
             tap("Ajustes")
             find_text("Identidad sonora y háptica")
             tap("Abrir Pulse Lab")
             find_text("Pulse Lab")
-            adb("shell", "input", "swipe", "360", "1250", "360", "750", "400")
-            tap("Probar aviso")
+            for _ in range(4):
+                try:
+                    tap("Probar aviso")
+                    break
+                except RuntimeError:
+                    adb("shell", "input", "swipe", "360", "1250", "360", "750", "400")
+            else:
+                raise RuntimeError("No se encontró el botón de prueba Pulse")
             time.sleep(2)
             if not re.search(r"NotificationRecord[^\n]*id=4056", adb("shell", "dumpsys", "notification")):
                 raise RuntimeError("No se publicó el canal Pulse de prueba")
