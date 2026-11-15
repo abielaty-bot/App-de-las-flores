@@ -30,6 +30,17 @@ class PhoneRulesTest{
         assertEquals(1,c.reminded)
         assertNull(PhoneRules.counts(listOf(row("YES"))).initialPercent)
     }
+    @Test fun auditSurvivesUnmarkAndPreventsVoluntaryReclassification(){
+        val no=PhoneRules.toggle(row(),PhoneRules.NO,now=10)
+        val pending=PhoneRules.toggle(no,PhoneRules.NO,now=11)
+        assertEquals(PhoneRules.PENDING,pending.status)
+        val corrected=PhoneRules.toggle(pending,PhoneRules.VOLUNTARY,now=12)
+        assertEquals(PhoneRules.REMINDED,corrected.status)
+        assertEquals(3,PhoneRules.audit(corrected.auditTrail).size)
+        assertTrue(PhoneRules.valid(corrected))
+        assertFalse(PhoneRules.valid(corrected.copy(status=PhoneRules.VOLUNTARY)))
+        assertEquals(listOf(pending),PhoneRules.roster(date,emptyList(),emptyList(),emptyList(),listOf(pending),true))
+    }
     @Test fun toggleAndException(){
         val yes=PhoneRules.toggle(row(),PhoneRules.YES,now=10)
         assertEquals(PhoneRules.YES,yes.status)
