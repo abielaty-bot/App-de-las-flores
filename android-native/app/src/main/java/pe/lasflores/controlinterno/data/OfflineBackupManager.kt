@@ -322,7 +322,7 @@ class OfflineBackupManager(
             "module" to x.module,"sessionSlot" to x.sessionSlot,"atMillis" to x.atMillis,"readAtMillis" to x.readAtMillis)})
         root.put("phoneChecks",arr(database.phoneDao().allChecks()){x->obj(
             "dateIso" to x.dateIso,"staffId" to x.staffId,"nameSnapshot" to x.nameSnapshot,"roleSnapshot" to x.roleSnapshot,
-            "status" to x.status,"reason" to x.reason,"note" to x.note,"updatedAtMillis" to x.updatedAtMillis)})
+            "status" to x.status,"reason" to x.reason,"note" to x.note,"updatedAtMillis" to x.updatedAtMillis,"auditTrail" to x.auditTrail)})
         root.put("operational",OperationalBackup.export(database.operationalDao()))
         root.toString(2)
     }
@@ -741,7 +741,7 @@ class OfflineBackupManager(
                 x.getString("module"),if(x.isNull("sessionSlot"))null else x.getInt("sessionSlot"),x.getLong("atMillis"),nullableLong(x,"readAtMillis"))}else emptyList(),
             phoneChecks=if(version>=3)rows(root,"phoneChecks"){x->PhoneCheckEntity(
                 x.getString("dateIso"),x.getString("staffId"),x.getString("nameSnapshot"),x.getString("roleSnapshot"),
-                x.getString("status"),x.getString("reason"),x.getString("note"),x.getLong("updatedAtMillis"))}else emptyList(),
+                x.getString("status"),x.getString("reason"),x.getString("note"),x.getLong("updatedAtMillis"),x.optString("auditTrail",""))}else emptyList(),
             formatVersion = version
         )
         validate(data)
