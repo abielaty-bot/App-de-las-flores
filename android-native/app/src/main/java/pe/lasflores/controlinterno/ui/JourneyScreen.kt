@@ -30,6 +30,7 @@ import pe.lasflores.controlinterno.data.*
 import pe.lasflores.controlinterno.domain.CommandCenterRules
 import pe.lasflores.controlinterno.domain.JourneyRules
 import pe.lasflores.controlinterno.domain.JourneyTask
+import pe.lasflores.controlinterno.journey.PulseSensory
 import pe.lasflores.controlinterno.journey.JourneyAlerts
 import pe.lasflores.controlinterno.journey.JourneyEngine
 import pe.lasflores.controlinterno.journey.JourneyNavigation
@@ -293,6 +294,7 @@ private fun JourneyPreferencesEditor(engine:JourneyEngine,saved:JourneyPreferenc
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
         Text("Configuración de jornada",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+        PulseSensoryPanel()
         Card(Modifier.fillMaxWidth()){
             Column(Modifier.padding(13.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
                 Toggle("Activar notificaciones operativas",p.enabled){p=p.copy(enabled=it)}
@@ -348,5 +350,66 @@ private fun JourneyPreferencesEditor(engine:JourneyEngine,saved:JourneyPreferenc
             }
         }
         Button(enabled=JourneyRules.validPreferences(p)&&p!=saved,onClick={engine.savePreferences(p)},modifier=Modifier.fillMaxWidth()){Text("Guardar configuración")}
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PulseSensoryPanel(){
+    val context=LocalContext.current
+    var profile by remember{mutableStateOf(PulseSensory.profile(context))}
+    var automatic by remember{mutableStateOf(PulseSensory.automatic(context))}
+    var critical by remember{mutableStateOf(PulseSensory.criticalSound(context))}
+    var category by remember{mutableStateOf("briefings")}
+    var tone by remember{mutableStateOf("signature")}
+    var revision by remember{mutableIntStateOf(0)}
+    var expanded by rememberSaveable{mutableStateOf(false)}
+    var message by remember{mutableStateOf("")}
+    val names=listOf("NORMAL" to "Normal","SALON" to "Salón","OFFICE" to "Oficina","SILENT" to "Silencioso")
+    val categories=listOf("briefings" to "Briefings","uniformes" to "Uniformes","celulares" to "Celulares","funciones" to "Funciones","operativo" to "Correcciones","incidentes" to "Incidentes","inicio" to "Resumen y agenda","manual" to "Recordatorios personales")
+    val tones=PulseSensory.tones.map{it to it.replaceFirstChar{c->c.uppercase()}}
+    Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)){
+        Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
+            Text("LAS FLORES · PULSE SENSORY",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
+            Text("Identidad sonora y háptica",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
+            Text("Perfiles, sonidos originales y pruebas nativas. Android conserva el control final de cada canal.")
+            CompactChoice("Perfil sensorial",names.first{it.first==profile}.second,names,{profile=it;PulseSensory.setProfile(context,it)})
+            Toggle("Modo salón automático en horario silencioso",automatic){automatic=it;PulseSensory.setAutomatic(context,it)}
+            Toggle("Sonido crítico en modo salón",critical){critical=it;PulseSensory.setCriticalSound(context,it)}
+            OutlinedButton(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth()){Text(if(expanded)"Cerrar Pulse Lab" else "Abrir Pulse Lab")}
+            if(expanded){
+                Text("Pulse Lab",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+                CompactChoice("Sonido de prueba",tones.first{it.first==tone}.second,tones,{tone=it})
+                FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                    OutlinedButton(onClick={PulseSensory.preview(context,tone)}){Text("Escuchar")}
+                    OutlinedButton(onClick={message=if(PulseSensory.vibrate(context,tone))"Patrón enviado al motor de vibración." else "Este dispositivo no tiene vibrador."}){Text("Vibrar")}
+                    Button(onClick={message=if(PulseSensory.test(context,tone))"Aviso publicado en Android." else "Android bloqueó el aviso. Revisa el permiso y el canal.";revision++}){Text("Probar aviso")}
+                }
+                OutlinedButton(onClick={PulseSensory.scheduleTest(context);message="Prueba programada en 60 segundos. Bloquea la pantalla o sal de la app.";revision++},modifier=Modifier.fillMaxWidth()){Text("Probar en 60 segundos")}
+                Text("Permiso Android: "+if(JourneyAlerts.allowed(context))"Autorizado" else "Bloqueado")
+                Text("Alarmas: "+if(JourneyAlerts.exactAllowed(context))"Puntuales autorizadas" else "Aproximadas; pueden retrasarse")
+                val power=context.getSystemService(android.os.PowerManager::class.java)
+                Text("Batería: "+if(power.isIgnoringBatteryOptimizations(context.packageName))"Sin optimización" else "Optimización activa")
+                val last=remember(revision){PulseSensory.lastTest(context)}
+                val scheduled=remember(revision){PulseSensory.scheduledTest(context)}
+                Text("Última prueba publicada: "+if(last==0L)"Sin pruebas" else dateLabel(last))
+                Text("Prueba programada: "+if(scheduled==0L)"Ninguna" else dateLabel(scheduled))
+                TextButton(onClick={revision++}){Text("Actualizar diagnóstico")}
+                TextButton(onClick={context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,context.packageName))}){Text("Abrir permisos y canales Android")}
+                if(message.isNotBlank())Text(message,style=MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
+                Text("Personalizar categorías",fontWeight=FontWeight.Bold)
+                CompactChoice("Categoría",categories.first{it.first==category}.second,categories,{category=it})
+                val choices=listOf("auto" to "Según prioridad","silent" to "Sin sonido ni vibración")+tones
+                val selected=remember(category,revision){PulseSensory.categoryTone(context,category)}
+                CompactChoice("Identidad de alerta",choices.firstOrNull{it.first==selected}?.second?:"Según prioridad",choices,{PulseSensory.setCategoryTone(context,category,it);revision++})
+                Text("El sonido elegido incluye su patrón háptico. Para cambiar vibración o avisos flotantes individualmente, abre los canales de Android.",style=MaterialTheme.typography.bodySmall)
+                TextButton(onClick={
+                    PulseSensory.setup(context)
+                    val selectedTone=selected.takeIf{it in PulseSensory.tones}?: "signature"
+                    context.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,context.packageName).putExtra(Settings.EXTRA_CHANNEL_ID,PulseSensory.channel(selectedTone,"sound")))
+                }){Text("Ajustar canal de sonido")}
+            }
+        }
     }
 }
