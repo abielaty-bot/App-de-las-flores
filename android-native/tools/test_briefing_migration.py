@@ -229,5 +229,16 @@ class BriefingMigrationTest(unittest.TestCase):
             self.assertEqual(db.execute("SELECT COUNT(*) FROM "+table).fetchone()[0],1)
         db.close()
 
+class PhoneAuditMigrationTest(unittest.TestCase):
+    def test_v12_to_v13_preserves_legacy_phone_records(self):
+        db=sqlite3.connect(":memory:")
+        db.execute("CREATE TABLE phone_checks(dateIso TEXT, staffId TEXT, status TEXT, note TEXT)")
+        db.execute("INSERT INTO phone_checks VALUES ('2026-11-15','p','YES','original')")
+        source=SOURCE.read_text(encoding="utf-8")
+        sql=re.search(r'connection.execSQL\("(ALTER TABLE phone_checks ADD COLUMN auditTrail[^"]+)"\)',source).group(1)
+        db.execute(sql)
+        self.assertEqual(db.execute("SELECT status,note,auditTrail FROM phone_checks").fetchone(),("YES","original",""))
+        db.close()
+
 if __name__=="__main__":
     unittest.main()
