@@ -1,3 +1,6 @@
+import kotlin.math.exp
+import kotlin.math.sin
+import kotlin.math.PI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -96,8 +99,8 @@ val generatePulseSounds = tasks.register("generatePulseSounds") {
                 notes.forEachIndexed { j, hz ->
                     val x=t-j*step
                     if(x>=0 && x<duration) {
-                        val envelope=minOf(x/0.025,1.0)*kotlin.math.exp(-5*x/duration)
-                        sample+=kotlin.math.sin(2*kotlin.math.PI*hz*x)*envelope*0.20
+                        val envelope=minOf(x/0.025,1.0)*exp(-5*x/duration)
+                        sample+=sin(2*PI*hz*x)*envelope*0.20
                     }
                 }
                 buf.putShort((sample.coerceIn(-1.0,1.0)*32767).toInt().toShort())
