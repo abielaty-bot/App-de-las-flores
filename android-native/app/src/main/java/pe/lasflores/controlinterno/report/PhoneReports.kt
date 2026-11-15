@@ -13,8 +13,8 @@ object PhoneReports{
             val latest=items.maxBy{it.dateIso}
             val counts=PhoneRules.counts(items)
             listOf(latest.nameSnapshot,latest.roleSnapshot,counts.yes,counts.no,counts.na,counts.pending,
-                counts.reviewed,counts.percent?.let{it.toString()+"%"}?:"Sin evaluación",
-                items.filter{it.status==PhoneRules.NO}.map{it.dateIso}.sorted().joinToString(", "))
+                counts.voluntary,counts.reminded,counts.unknown,counts.initialPercent?.let{"$it%"}?:"Sin datos",counts.reviewed,counts.percent?.let{it.toString()+"%"}?:"Sin evaluación",
+                items.filter{it.status in setOf(PhoneRules.NO,PhoneRules.REMINDED)}.map{it.dateIso}.sorted().joinToString(", "))
         }.sortedBy{it[0].toString()}
         val detail=rows.sortedWith(compareBy<PhoneCheckEntity>{it.dateIso}.thenBy{it.nameSnapshot}).map{
             listOf(it.dateIso,it.nameSnapshot,it.roleSnapshot,PhoneRules.label(it.status),it.reason,it.note)
@@ -23,7 +23,7 @@ object PhoneReports{
         }else emptyList()
         return listOf(
             ExcelSheet("Celulares resumen","Control de celulares",selection.subtitle+" · Sí/(Sí + No); pendientes y N/A excluidos",
-                listOf("Trabajador","Puesto","Sí","No","No aplica","Sin revisar","Revisados","Cumplimiento","Fechas de incumplimiento"),summary),
+                listOf("Trabajador","Puesto","Sí","No","No aplica","Sin revisar","Voluntarias","Con recordatorio","Modalidad desconocida","Cumplimiento inicial","Revisados","Cumplimiento final","Fechas de incumplimiento"),summary),
             ExcelSheet("Celulares detalle","Control diario de celulares",selection.subtitle+" · No acredita custodia o devolución",
                 listOf("Fecha","Trabajador","Puesto","Resultado","Motivo","Observación"),detail))
     }
