@@ -195,9 +195,10 @@ def main():
             find_text("Identidad sonora y háptica")
             tap("Abrir Pulse Lab")
             find_text("Pulse Lab")
+            adb("shell", "input", "swipe", "360", "1250", "360", "750", "400")
             tap("Probar aviso")
             time.sleep(2)
-            if "lf_pulse_v1_signature_sound" not in adb("shell", "dumpsys", "notification"):
+            if not re.search(r"NotificationRecord[^\n]*id=4056", adb("shell", "dumpsys", "notification")):
                 raise RuntimeError("No se publicó el canal Pulse de prueba")
             print("Pulse Lab y canal nativo verificados.", flush=True)
         if code in (40022, 40030, 40031, 40032):
