@@ -100,7 +100,7 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
                 IntelligenceMetric("Observadas",metric.observed.toString(),Modifier.weight(1f))
                 IntelligenceMetric("Corregidas",metric.corrected.toString(),Modifier.weight(1f))
             }
-            Text("Borradores: "+metric.drafts+" · Conformidad final: "+UniformIntelligence.label(metric.finalRate),style=MaterialTheme.typography.bodySmall)
+            Text("Rectificadas: "+metric.rectified+" · Borradores: "+metric.drafts+" · Conformidad final: "+UniformIntelligence.label(metric.finalRate),style=MaterialTheme.typography.bodySmall)
             if(error.isNotBlank())Text(error,color=MaterialTheme.colorScheme.error)
         }
         if(worker.isEmpty()){
@@ -120,10 +120,14 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
             if(tab=="Resumen"){
                 item{
                     Card(Modifier.fillMaxWidth()){Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        Text("Racha de inspecciones conformes: "+UniformIntelligence.streak(rows),fontWeight=FontWeight.Bold)
+                        val times=detail.filter{it.corrected&&it.correctedAt!=null}.mapNotNull{d->s.events.filter{it.inspectionId==d.inspection.id&&it.requirementId==d.requirementId&&it.action=="CORREGIR"}.minByOrNull{it.atMillis}?.let{(it.atMillis-d.inspection.createdAtMillis).coerceAtLeast(0)/60000.0}}
+                        Text("Tiempo medio desde inicio de inspección hasta corrección: "+if(times.isEmpty())"Sin datos" else "%.0f min".format(times.average()))
                         Text("Evolución mensual",fontWeight=FontWeight.Bold)
                         val months=rows.groupBy{it.dateIso.take(7)}.toSortedMap().map{(month,items)->month to UniformIntelligence.metric(s,items)}
                         if(months.isEmpty())Text("Sin inspecciones en el período")
-                        months.forEach{(month,m)->IntelligenceBar(month,m.rate);Text("Final: "+UniformIntelligence.label(m.finalRate),style=MaterialTheme.typography.bodySmall)}
+                        IntelligenceTrend(months)
+                        months.forEach{(month,m)->IntelligenceBar(month+" · Inicial",m.rate);IntelligenceBar("Final",m.finalRate)}
                         Text("Comparación por puesto histórico",fontWeight=FontWeight.Bold)
                         rows.map{it.roleSnapshot}.distinct().forEach{role->
                             val own=UniformIntelligence.metric(s,rows.filter{it.roleSnapshot==role})
@@ -139,7 +143,7 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
             if(tab=="Requisitos")items(reqs,key={it.id}){q->
                 Card(Modifier.fillMaxWidth()){Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
                     IntelligenceBar(q.label,q.rate)
-                    Text(q.ok.toString()+" cumplen · "+q.bad+" incumplen · "+q.corrected+" corregidos",style=MaterialTheme.typography.bodySmall)
+                    Text(q.ok.toString()+" cumplen · "+q.bad+" incumplen · "+q.corrected+" corregidos · "+q.na+" no aplican",style=MaterialTheme.typography.bodySmall)
                     if(q.bad>0)Text(detail.filter{it.requirementId==q.id&&it.initial==UniformRules.BAD}.map{it.inspection.dateIso}.distinct().sorted().joinToString(", "),style=MaterialTheme.typography.bodySmall)
                 }}
             }
@@ -159,13 +163,14 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
                             if(d<=0)Spacer(Modifier.weight(1f))else{
                                 val iso=month.atDay(d).toString()
                                 val i=s.inspections.firstOrNull{it.staffId==worker&&it.dateIso==iso}
-                                val color=when{ i==null->MaterialTheme.colorScheme.onSurfaceVariant;i.workflow!="FINALIZED"->MaterialTheme.colorScheme.tertiary;i.initialResult==UniformRules.CONFORME->semanticForeground("success");else->MaterialTheme.colorScheme.error}
+                                val status=UniformIntelligence.dayStatus(s,worker,iso)
+                                val color=when(status){"Conforme"->semanticForeground("success");"Corregido","Rectificado"->MaterialTheme.colorScheme.primary;"En revisión","Corrección parcial"->MaterialTheme.colorScheme.tertiary;"Observado"->MaterialTheme.colorScheme.error;else->MaterialTheme.colorScheme.onSurfaceVariant}
                                 TextButton(onClick={selectedDay=iso},modifier=Modifier.weight(1f),contentPadding=PaddingValues(0.dp)){Text(d.toString(),color=color,fontWeight=if(selectedDay==iso)FontWeight.Bold else FontWeight.Normal)}
                             }
                         };repeat(7-week.size){Spacer(Modifier.weight(1f))}}
                     }
-                    Text("Verde: conforme · Rojo: observado · Gris: sin registro · Dorado: borrador",style=MaterialTheme.typography.bodySmall)
-                    if(selectedDay.isNotBlank()){Text(selectedDay,fontWeight=FontWeight.Bold);Text(s.inspections.firstOrNull{it.staffId==worker&&it.dateIso==selectedDay}?.let{it.initialResult?:it.workflow}?:"Sin inspección registrada")}
+                    Text("Verde: conforme · Rojo: observado · Gris: sin registro/no hubo revisión · Dorado: pendiente · Primario: corregido/rectificado",style=MaterialTheme.typography.bodySmall)
+                    if(selectedDay.isNotBlank()){Text(selectedDay,fontWeight=FontWeight.Bold);Text(UniformIntelligence.dayStatus(s,worker,selectedDay));s.inspections.filter{it.staffId==worker&&it.dateIso==selectedDay}.forEach{inspection->UniformIntelligence.details(s,listOf(inspection)).forEach{d->Text(d.label+" · "+d.initial+if(d.corrected)" · Corregido" else if(d.rectified)" · Rectificado" else "")}}}
                 }}
             }
             if(tab=="Historial")items(rows,key={it.id}){i->
@@ -175,7 +180,7 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
                         Text(i.initialResult?:i.workflow)
                         if(expanded==i.id){
                             detail.filter{it.inspection.id==i.id}.forEach{d->Text(d.label+" · "+d.initial+if(d.corrected)" · Corregido" else if(d.rectified)" · Rectificado" else "",style=MaterialTheme.typography.bodySmall)}
-                            s.events.filter{it.inspectionId==i.id}.sortedBy{it.atMillis}.forEach{e->Text(e.action+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
+                            s.events.filter{it.inspectionId==i.id}.sortedBy{it.atMillis}.forEach{e->Text(java.time.Instant.ofEpochMilli(e.atMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().toString()+" · "+e.action+" · "+e.actor+" · "+e.note,style=MaterialTheme.typography.bodySmall)}
                         }else Text("Ver detalle ›",color=MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -201,4 +206,26 @@ fun UniformIntelligenceScreen(people:List<StaffEntity>,vm:UniformViewModel){
         drawLine(track,Offset(0f,size.height/2),Offset(size.width,size.height/2),strokeWidth=size.height)
         if(value!=null)drawLine(color,Offset(0f,size.height/2),Offset(size.width*(value/100).toFloat(),size.height/2),strokeWidth=size.height)
     }
+}
+
+@Composable private fun IntelligenceTrend(months:List<Pair<String,UniformIntelligence.Metric>>){
+    if(months.isEmpty())return
+    val initial=MaterialTheme.colorScheme.primary
+    val final=semanticForeground("success")
+    val grid=MaterialTheme.colorScheme.outlineVariant
+    Text("Inicial · Final",style=MaterialTheme.typography.labelSmall)
+    Canvas(Modifier.fillMaxWidth().height(120.dp)){
+        for(n in 0..4){val y=size.height*n/4;drawLine(grid,Offset(0f,y),Offset(size.width,y))}
+        fun series(values:List<Double?>,color:Color){
+            var previous:Offset?=null
+            values.forEachIndexed{index,value->
+                if(value==null){previous=null}else{
+                    val point=Offset(if(values.size==1)size.width/2 else size.width*index/(values.size-1),size.height*(1-value.toFloat()/100))
+                    previous?.let{drawLine(color,it,point,strokeWidth=3.dp.toPx())};drawCircle(color,4.dp.toPx(),point);previous=point
+                }
+            }
+        }
+        series(months.map{it.second.rate},initial);series(months.map{it.second.finalRate},final)
+    }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(months.first().first,style=MaterialTheme.typography.labelSmall);Text(months.last().first,style=MaterialTheme.typography.labelSmall)}
 }
