@@ -26,6 +26,13 @@ class UniformIntelligenceTest {
         assertEquals("BAD",d.initial);assertTrue(d.rectified);assertFalse(d.corrected)
         val m=UniformIntelligence.metric(s,listOf(i));assertEquals(0,m.corrected);assertEquals(1,m.rectified);assertEquals(100.0,m.finalRate!!,0.001)
     }
+    @Test fun coverageUsesDocumentedDaysOnly(){
+        val rows=listOf(inspection("a","CONFORME"),inspection("b",null,"DRAFT",date="2026-11-14"))
+        val overrides=listOf(StaffDayOverrideEntity("2026-11-13","melisa","working",1),StaffDayOverrideEntity("2026-11-12","melisa","rest",1))
+        val c=UniformIntelligence.coverage(rows,overrides,"2026-11-01","2026-11-30")
+        assertEquals(1,c.reviewed);assertEquals(3,c.expected);assertEquals(100.0/3,c.rate!!,0.001)
+        assertEquals("Descanso",UniformIntelligence.dayStatus(UniformDaySnapshot(""),"melisa","2026-11-12",overrides))
+    }
     @Test fun calendarDoesNotInventAttendance(){
         val s=UniformDaySnapshot("",activityDays=listOf(DailyActivityEntity("2026-11-15","uniformes","NO_REALIZADA","Motivo",1)))
         assertEquals("No hubo revisión",UniformIntelligence.dayStatus(s,"melisa","2026-11-15"))
