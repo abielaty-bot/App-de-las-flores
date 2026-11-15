@@ -46,9 +46,20 @@ object UniformIntelligence {
     fun requirements(details:List<Detail>)=details.groupBy{it.requirementId}.map{(id,items)->
         Requirement(id,items.maxBy{it.inspection.dateIso}.label,items.count{it.initial==UniformRules.OK},items.count{it.initial==UniformRules.BAD},items.count{it.corrected},items.count{it.initial==UniformRules.NA})
     }.sortedWith(compareByDescending<Requirement>{it.bad}.thenBy{it.label})
-    fun dayStatus(s:UniformDaySnapshot,staffId:String,date:String):String {
+    data class Coverage(val reviewed:Int,val expected:Int){val rate get()=percent(reviewed,expected)}
+    fun coverage(rows:List<UniformInspectionEntity>,overrides:List<StaffDayOverrideEntity>,from:String,to:String):Coverage {
+        val inspected=rows.filter{it.dateIso in from..to}.map{it.staffId to it.dateIso}.toSet()
+        val finalized=rows.filter{it.workflow=="FINALIZED"&&it.dateIso in from..to}.map{it.staffId to it.dateIso}.toSet()
+        val expected=inspected+overrides.filter{it.dateIso in from..to&&StaffScheduleRules.isScheduled(it.status)}.map{it.staffId to it.dateIso}
+        return Coverage(finalized.size,expected.size)
+    }
+    fun dayStatus(s:UniformDaySnapshot,staffId:String,date:String,overrides:List<StaffDayOverrideEntity> = emptyList(),vacations:List<StaffVacationEntity> = emptyList()):String {
         val i=s.inspections.firstOrNull{it.staffId==staffId&&it.dateIso==date}
-        return if(i!=null)s.statusFor(i) else if(s.activityDays.any{it.dateIso==date&&it.module=="uniformes"&&it.status=="NO_REALIZADA"}) "No hubo revisión" else "Sin registro"
+        val manual=overrides.lastOrNull{it.staffId==staffId&&it.dateIso==date}
+        if(i!=null)return s.statusFor(i)
+        if(manual!=null&&!StaffScheduleRules.isScheduled(manual.status))return StaffScheduleRules.label(manual.status)
+        if(vacations.any{it.staffId==staffId&&date in it.startDateIso..it.endDateIso})return "Vacaciones"
+        return if(s.activityDays.any{it.dateIso==date&&it.module=="uniformes"&&it.status=="NO_REALIZADA"}) "No hubo revisión" else if(manual!=null) "Sin revisión" else "Sin registro"
     }
     fun streak(rows:List<UniformInspectionEntity>):Int = rows.filter{it.workflow=="FINALIZED"}.sortedByDescending{it.dateIso}.takeWhile{it.initialResult==UniformRules.CONFORME}.size
     fun export(s:UniformDaySnapshot,rows:List<UniformInspectionEntity>,names:Map<String,String>,period:String):List<ExcelSheet>{
