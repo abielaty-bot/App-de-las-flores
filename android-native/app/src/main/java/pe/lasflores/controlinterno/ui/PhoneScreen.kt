@@ -297,6 +297,7 @@ private fun PhoneWorkerCard(r:PhoneCheckEntity,enabled:Boolean,onMark:(String)->
             }
             if(r.status==PhoneRules.REMINDED)Text("Incumplimiento inicial corregido",color=semanticForeground("warning"),style=MaterialTheme.typography.bodySmall)
             if(r.reason.isNotBlank())Text(r.reason,style=MaterialTheme.typography.bodySmall)
+            if(r.auditTrail.isNotBlank()){var showAudit by remember(r.staffId,r.dateIso){mutableStateOf(false)};TextButton(onClick={showAudit=!showAudit}){Text(if(showAudit)"Ocultar auditoría" else "Ver auditoría")};if(showAudit)PhoneRules.audit(r.auditTrail).forEach{a->Text(java.time.Instant.ofEpochMilli(a.at).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().toString()+" · "+PhoneRules.label(a.from)+" → "+PhoneRules.label(a.to),style=MaterialTheme.typography.bodySmall)}}
             if(r.note.isNotBlank())Text(r.note,style=MaterialTheme.typography.bodySmall)
             if(r.status!=PhoneRules.PENDING)TextButton(onClick=onNote,enabled=enabled,contentPadding=PaddingValues(0.dp)){Text("Observación",style=MaterialTheme.typography.labelMedium)}
         }
