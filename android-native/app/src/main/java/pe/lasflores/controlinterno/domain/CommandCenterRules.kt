@@ -14,7 +14,7 @@ object CommandCenterRules {
     }
     fun priority(task:JourneyTask,now:Long):Int=when {
         task.completed -> 4
-        task.priority=="HIGH" && task.module=="incidentes" -> 0
+        task.priority in setOf("HIGH","CRITICAL") && task.module=="incidentes" -> 0
         task.priority=="HIGH" -> 1
         task.dueAtMillis<=now -> 2
         else -> 3
