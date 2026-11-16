@@ -89,7 +89,8 @@ class JourneyEngine(private val context:Context,private val database:LasFloresDa
             val sessions=dao.sessions(date)
             val pending=dao.pendingBriefings(date)
             val mesa=dao.mesaCount(date)
-            val phones=PhoneRules.counts(PhoneRules.roster(date,people,vacations,overrides,database.phoneDao().dayChecks(date),day==today))
+            val phones=PhoneRules.counts(PhoneRules.rosterGroups(date,people,vacations,overrides,
+                database.phoneDao().dayChecks(date),day==today).scheduled)
             return JourneyData(scheduledCount=scheduled.size,reviewedCount=reviews.map{it.staffId}.distinct().size,
                 noUniformReview=activity.any{it.module=="uniformes"&&it.status=="NO_REALIZADA"},
                 sessions=sessions,noBriefing=activity.any{it.module=="briefings"&&it.status=="NO_REALIZADA"},

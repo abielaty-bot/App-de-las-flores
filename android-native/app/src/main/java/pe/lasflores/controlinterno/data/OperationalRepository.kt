@@ -24,8 +24,15 @@ class OperationalRepository(context:Context, private val db:LasFloresDatabase) {
                 "Uniformes: $finalized revisiones finalizadas de ${rows.size} registradas. Confirma la cobertura antes de marcar conforme."
             }
             "MAI-17-1" -> {
-                val rows=db.phoneDao().dayChecks(day)
-                "Celulares: ${rows.count{it.status=="YES"}} entregados, ${rows.count{it.status=="NO"}} no entregados, ${rows.count{it.status=="PENDING"}} pendientes, ${rows.count{it.status=="NA"}} no aplican."
+                val groups=pe.lasflores.controlinterno.domain.PhoneRules.rosterGroups(
+                    day,db.staffDao().allStaff(),db.staffDao().allVacations(),
+                    db.staffDao().allOverrides(),db.phoneDao().dayChecks(day),
+                    day==LocalDate.now().toString())
+                val counts=pe.lasflores.controlinterno.domain.PhoneRules.counts(groups.scheduled)
+                "Celulares: ${counts.yes} entregados (${counts.voluntary} voluntarios, "+
+                    "${counts.reminded} con recordatorio, ${counts.unknown} antiguos), "+
+                    "${counts.no} no entregaron, ${counts.pending} pendientes, ${counts.na} no aplican. "+
+                    "${groups.outsideSchedule.size} registros fuera de turno conservados por separado."
             }
             "MAI-18-1" -> {
                 val sessions=db.briefingDao().sessionsForDay(day)
