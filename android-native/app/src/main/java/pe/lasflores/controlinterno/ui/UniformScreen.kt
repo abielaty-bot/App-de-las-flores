@@ -126,7 +126,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 dialogStaff=row.staff.id;dialogRequirement=req.id
                 when {
                     value==UniformRules.NA && row.answers[req.id]?.status!=UniformRules.NA -> {reason="";dialog="NA"}
-                    value==UniformRules.OK && req.minQty>0 && row.answers[req.id]?.status!=UniformRules.OK -> {requiredQty="";dialog="QUANTITY"}
+                    value==UniformRules.OK && req.minQty>0 -> {requiredQty=row.answers[req.id]?.quantity?.toString().orEmpty();dialog="QUANTITY"}
                     else -> vm.choose(row.staff.id,req.id,value,
                         if(value==UniformRules.OK && req.minQty>0)row.answers[req.id]?.quantity else null)
                 }
@@ -411,7 +411,8 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             }
             Text("No aplica no es cumplimiento ni incumplimiento. Los requisitos automáticos y las excepciones quedan separados del resultado.",style=MaterialTheme.typography.bodySmall)
             if(finalized)Text("Resultado inicial cerrado; se conserva al corregir o rectificar.",style=MaterialTheme.typography.bodySmall)
-            else Text("Toca de nuevo una respuesta para desmarcarla. Guardado automático.",style=MaterialTheme.typography.bodySmall)
+            else Text("Toca otra vez para desmarcar. En requisitos con cantidad usa Contar, sin teclado. Guardado automático.",
+                style=MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick=onNext,modifier=Modifier.fillMaxWidth()){Text("Siguiente trabajador")}
             if(row.inspection!=null)TextButton(onClick=onDelete,enabled=!busy,modifier=Modifier.fillMaxWidth()){
                 Text("Eliminar revisión errónea",color=MaterialTheme.colorScheme.error)
@@ -439,7 +440,8 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
         Column(Modifier.padding(horizontal=10.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
             val details:@Composable ()->Unit={
                 Text(requirement.label,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
-                Text((if(requirement.minQty>0)"Mínimo: "+requirement.minQty+" · " else "")+
+                Text((if(requirement.minQty>0)"Mínimo: "+requirement.minQty+
+                    (answer?.quantity?.let{" · Encontrados: "+it}?: "")+" · " else "")+
                     (if(auto)"No aplica al perfil · revisa la configuración del requisito" else status),
                     style=MaterialTheme.typography.labelSmall,color=statusColor(status))
             }
@@ -449,6 +451,16 @@ private fun RequirementBox(requirement:UniformRequirement,answer:UniformAnswerEn
                         FilterChip(selected=false,onClick={},enabled=false,label={Text("Sí")})
                         FilterChip(selected=false,onClick={},enabled=false,label={Text("No")})
                         FilterChip(selected=true,onClick={},enabled=false,label={Text("✓ No aplica")})
+                    }
+                }else if(requirement.minQty>0 && !finalized){
+                    FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+                        FilterChip(selected=answer?.quantity!=null,onClick={onAnswer(UniformRules.OK)},
+                            enabled=!busy,label={Text(answer?.quantity?.let{"Contar: "+it} ?: "Contar cantidad")})
+                        if(answer?.status in setOf(UniformRules.OK,UniformRules.BAD)){
+                            TextButton(enabled=!busy,onClick={onAnswer(answer!!.status)}){Text("Limpiar")}
+                        }
+                        FilterChip(selected=answer?.status==UniformRules.NA,onClick={onAnswer(UniformRules.NA)},
+                            enabled=!busy,label={Text("No aplica")})
                     }
                 }else{
                     FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp)){
