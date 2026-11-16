@@ -230,6 +230,9 @@ jobs:
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40032" ]]; then
               NOTES=$(printf '%s\n' '## Pulse Sensory' '- Cinco sonidos originales, patrones hápticos, perfiles y canales nativos.' '- Pulse Lab, prueba diferida, diagnóstico y preferencias por categoría.' '- Conserva Room v12; activa permisos y avisos en Centro de Mando > Ajustes.')
             fi
+            if [[ "$LF_RELEASE_TAG" == "android-beta-v40035" ]]; then
+              NOTES=$(printf '%s\n' '## Celulares: personal programado y registros fuera de turno' '- Registro diario: solo se presentan como programados los trabajadores que trabajan o apoyan en la fecha seleccionada.' '- Los registros de celulares de personas en descanso, permiso o vacaciones se conservan en una sección de solo lectura con auditoría.' '- El progreso de la jornada, Centro de Mando y Control Operativo usan únicamente el personal programado.' '- Se corrigen los conteos de entregas voluntarias, con recordatorio y antiguas en Control Operativo.' '- Sin migración de base de datos: Room v13, respaldo JSON y registros históricos conservados.' 'Antes de actualizar: exporta una copia externa desde Respaldos; instala sin desinstalar.')
+            fi
             if [[ "$LF_RELEASE_TAG" == "android-beta-v40034" ]]; then
               NOTES=$(printf '%s\n' '## Uniform Intelligence y disciplina de celulares' '- Ficha individual, evolución, requisitos, calendario, auditoría y Excel.' '- Cobertura limitada a jornadas documentadas; sin inferir asistencia histórica.' '- Entrega voluntaria, con recordatorio y modalidad histórica desconocida; historial de cambios de estado.' '- Room 12→13 conserva registros; respaldo JSON incluye auditoría. Exporta una copia antes de actualizar y no desinstales.')
             fi
