@@ -60,6 +60,7 @@ private data class WorkerInspection(val staff:StaffEntity,val inspection:Uniform
     fun validAnswer(req:UniformRequirement):Boolean { val a=answers[req.id]; return UniformRules.evaluated(a?.status) && (a?.status!=UniformRules.OK || req.minQty==0 || (a.quantity?:0)>=req.minQty) }
     val reviewed get()=requirements.count{it.applicable && validAnswer(it)}
     val exempt get()=requirements.count{!it.applicable || answers[it.id]?.status==UniformRules.NA}
+    val quickCount get()=UniformRules.quickConformingIds(requirements,answers.keys).size
     val ok get()=requirements.count{it.applicable && answers[it.id]?.status==UniformRules.OK && validAnswer(it)}
     val bad get()=requirements.count{it.applicable && answers[it.id]?.status==UniformRules.BAD}
     val profile get()=inspection?.uniformProfileSnapshot?:staff.uniformProfile
@@ -132,6 +133,7 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             },
             onCorrect={req->dialogStaff=row.staff.id;dialogRequirement=req.id;verifier="";reason="";dialog="CORRECT"},
             onRectify={req->dialogStaff=row.staff.id;dialogRequirement=req.id;verifier="";reason="";dialog="RECTIFY"},
+            onMarkRemaining={dialogStaff=row.staff.id;dialog="QUICK"},
             onFinalize={dialogStaff=row.staff.id;dialog="FINALIZE"},
             onNext={selectNext(row)},onClose={expandedId=""},onDelete={deletingInspection=row.inspection})
         if(row.inspection?.workflow=="FINALIZED" && dateIso==java.time.LocalDate.now().toString()){
@@ -232,7 +234,8 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
             title = { Text(when(action) {
                 "SUPPLEMENT" -> "Revisión complementaria"
                 "NO_REVIEW" -> "No se realizó revisión"
-                "QUANTITY" -> "Verificar cantidad mínima"
+                "QUANTITY" -> "¿Cuántos implementos tiene?" 
+                "QUICK" -> "Confirmar inspección rápida" 
                 "FINALIZE" -> "Finalizar inspección"
                 "CORRECT" -> "Verificar corrección"
                 "NA" -> "Justificar No aplica"
@@ -243,16 +246,44 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                     when(action) {
                         "SUPPLEMENT" -> Text("Se registra por separado; no cambia la inspección original.")
                         "NO_REVIEW" -> Text("No podrás declararlo si ya existen inspecciones iniciadas.")
-                        "QUANTITY" -> Text("Introduce la cantidad comprobada antes de marcar Cumple.")
+                        "QUANTITY" -> Text("Selecciona la cantidad que acabas de comprobar. Si tiene 0, se registrará No cumple; no se asumirá el mínimo.") 
+                        "QUICK" -> Text("Marcará como conformes únicamente los requisitos pendientes sin cantidad mínima del trabajador seleccionado. No modifica faltas, excepciones ni cantidades ya registradas y no finaliza la inspección.")
                         "FINALIZE" -> Text("Se guardará el resultado inicial. Después no podrás desmarcar las faltas sin dejar constancia.")
                         "CORRECT" -> Text("El trabajador solucionó una falta real. El resultado inicial continuará siendo Observado.")
                         "RECTIFY" -> Text("El requisito estaba mal marcado. Esta rectificación conservará un evento de auditoría.")
                         "NA" -> Text("Este requisito normalmente corresponde. Indica por qué no aplica en esta inspección. Quedará en auditoría y no contará como cumplimiento.")
                     }
                     if (action == "QUANTITY" || (action=="SUPPLEMENT" && supplementValue==UniformRules.OK && (catalog.firstOrNull{it.id==dialogRequirement}?.minQty?:0)>0)) {
-                        OutlinedTextField(value = requiredQty, onValueChange = {
-                            requiredQty = it.filter(Char::isDigit).take(3)
-                        }, label = { Text("Cantidad encontrada") }, singleLine = true)
+                        val requirement=rows.firstOrNull{it.staff.id==dialogStaff}
+                            ?.requirements?.firstOrNull{it.id==dialogRequirement}
+                        val minimum=requirement?.minQty?:catalog.firstOrNull{it.id==dialogRequirement}?.minQty?:0
+                        val selected=requiredQty.toIntOrNull()
+                        Text("Mínimo requerido: "+minimum,style=MaterialTheme.typography.bodyMedium)
+                        FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),
+                            verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            val options=(0..5).toList()+listOf(minimum).filter{it>5}
+                            options.distinct().forEach{n->
+                                FilterChip(selected=selected==n,onClick={requiredQty=n.toString()},
+                                    label={Text(if(n==0)"0 · Ninguno" else n.toString())})
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                            horizontalArrangement=Arrangement.spacedBy(12.dp)){
+                            OutlinedButton(enabled=selected!=null&&selected>0,
+                                onClick={requiredQty=((selected?:1)-1).toString()}){Text("−")}
+                            Text(if(selected==null)"Sin seleccionar" else "${selected} unidad(es)",
+                                modifier=Modifier.weight(1f),style=MaterialTheme.typography.titleMedium)
+                            OutlinedButton(enabled=(selected?:0)<100,
+                                onClick={requiredQty=((selected?:0)+1).toString()}){Text("+")}
+                        }
+                        if(selected!=null){
+                            val complies=selected>=minimum
+                            Text(if(complies)"Cumple la cantidad mínima." else "No cumple la cantidad mínima.",
+                                color=semanticForeground(if(complies)"success" else "danger"),
+                                style=MaterialTheme.typography.bodySmall)
+                        }
+                        Text("Sin teclado: toca un número o ajusta con − / +.",
+                            style=MaterialTheme.typography.labelSmall)
                     }
                     if (action == "CORRECT" || action == "RECTIFY") {
                         OutlinedTextField(value = verifier, onValueChange = { verifier = it.take(90) },
@@ -269,7 +300,14 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                     when(action) {
                         "SUPPLEMENT" -> vm.supplement(dialogStaff,dialogRequirement,supplementValue,requiredQty.toIntOrNull(),reason)
                         "NO_REVIEW" -> vm.markNotPerformed(reason)
-                        "QUANTITY" -> vm.choose(dialogStaff, dialogRequirement, UniformRules.OK, requiredQty.toIntOrNull())
+                        "QUANTITY" -> {
+                            val quantity=requiredQty.toInt()
+                            val min=rows.first{it.staff.id==dialogStaff}
+                                .requirements.first{it.id==dialogRequirement}.minQty
+                            vm.choose(dialogStaff,dialogRequirement,
+                                UniformRules.quantityStatus(quantity,min),quantity,force=true)
+                        }
+                        "QUICK" -> vm.markPendingConforming(dialogStaff)
                         "FINALIZE" -> vm.finalize(dialogStaff)
                         "CORRECT" -> vm.correct(dialogStaff, dialogRequirement, verifier)
                         "RECTIFY" -> vm.rectify(dialogStaff, dialogRequirement, verifier, reason)
@@ -279,7 +317,10 @@ fun UniformInspectionScreen(people: List<StaffEntity>, vm: UniformViewModel, sta
                 }, enabled = when(action) {
                     "SUPPLEMENT" -> when(supplementValue){UniformRules.NA->reason.trim().length>=5;UniformRules.OK->(catalog.firstOrNull{it.id==dialogRequirement}?.minQty?:0).let{it==0||(requiredQty.toIntOrNull()?:0) in it..100};else->true}
                     "NO_REVIEW" -> reason.trim().length >= 3
-                    "QUANTITY" -> (requiredQty.toIntOrNull() ?: 0) in 1..100
+                    "QUANTITY" -> (requiredQty.toIntOrNull() ?: -1) in 0..100
+                    "QUICK" -> rows.firstOrNull{it.staff.id==dialogStaff}?.let{
+                        it.scheduled&&it.pending&&it.quickCount>0
+                    }==true
                     "CORRECT" -> verifier.trim().length >= 2
                     "RECTIFY" -> verifier.trim().length >= 2 && reason.trim().length >= 5
                     "NA" -> reason.trim().length >= 5
@@ -324,7 +365,8 @@ private fun WorkerSummary(row:WorkerInspection,selected:Boolean,enabled:Boolean,
 @Composable
 private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolean,
     onAnswer:(UniformRequirement,String)->Unit,onCorrect:(UniformRequirement)->Unit,
-    onRectify:(UniformRequirement)->Unit,onFinalize:()->Unit,onNext:()->Unit,onClose:()->Unit,onDelete:()->Unit){
+    onRectify:(UniformRequirement)->Unit,onMarkRemaining:()->Unit,
+    onFinalize:()->Unit,onNext:()->Unit,onClose:()->Unit,onDelete:()->Unit){
     val finalized=row.inspection?.workflow=="FINALIZED"
     Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)){
         Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -348,6 +390,14 @@ private fun UniformChecklist(row:WorkerInspection,hideExempt:Boolean,busy:Boolea
             if(row.profile=="SIN_DEFINIR")Text("Selecciona el perfil en Personal. Las revisiones finalizadas conservan su configuración original.",
                 style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.tertiary)
             HorizontalDivider()
+            if(!finalized && row.scheduled && row.quickCount>0){
+                OutlinedButton(onClick=onMarkRemaining,enabled=!busy,
+                    modifier=Modifier.fillMaxWidth()){
+                    Text("Marcar "+row.quickCount+" pendientes como conformes")
+                }
+                Text("Solo requisitos revisados sin cantidad mínima. Se conservan los No y No aplica; los implementos con cantidad se cuentan aparte.",
+                    style=MaterialTheme.typography.bodySmall)
+            }
             row.requirements.filter{!hideExempt || (it.applicable && row.answers[it.id]?.status!=UniformRules.NA)}.forEach{req->
                 RequirementBox(req,row.answers[req.id],finalized,busy||(!row.scheduled&&!finalized),
                     onAnswer={onAnswer(req,it)},onCorrect={onCorrect(req)},onRectify={onRectify(req)})

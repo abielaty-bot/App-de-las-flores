@@ -32,6 +32,26 @@ class UniformRulesTest {
     @Test(expected=IllegalArgumentException::class)
     fun allExemptCannotBeDeclaredConforming(){UniformRules.result(listOf("NA","NA"))}
 
+    @Test fun quantitySelectionIncludesZeroAndMatchesMinimum(){
+        assertEquals(UniformRules.BAD,UniformRules.quantityStatus(0,3))
+        assertEquals(UniformRules.BAD,UniformRules.quantityStatus(2,3))
+        assertEquals(UniformRules.OK,UniformRules.quantityStatus(3,3))
+        assertEquals(UniformRules.OK,UniformRules.quantityStatus(7,3))
+        assertEquals(UniformRules.BAD,UniformRules.quantityStatus(6,7))
+    }
+    @Test(expected=IllegalArgumentException::class)
+    fun quantityRejectsOutOfRange(){UniformRules.quantityStatus(101,3)}
+    @Test fun quickInspectionSkipsAnsweredExemptAndQuantified(){
+        val requirements=listOf(
+            UniformRequirement("u","Uñas","Presentación"),
+            UniformRequirement("t","Trapo","Implementos"),
+            UniformRequirement("n","Moñera","Uniforme",0,false),
+            UniformRequirement("l","Lapiceros","Implementos",3),
+            UniformRequirement("s","Sacacorchos","Implementos"))
+        assertEquals(listOf("u","t","s"),UniformRules.quickConformingIds(requirements,emptySet()))
+        assertEquals(listOf("u","s"),UniformRules.quickConformingIds(requirements,setOf("t","l")))
+        assertEquals(emptyList<String>(),UniformRules.quickConformingIds(requirements,setOf("u","t","s")))
+    }
     @Test fun moñeraProfileRuleAndFrozenSnapshot(){
         val req=pe.lasflores.controlinterno.data.UniformRequirementEntity("m","Moñera","Implementos",1,"|Mozo|",true,0,0,UniformRules.defaultProfiles("Moñera"))
         assertTrue(!req.appliesToProfile("MASCULINO"))

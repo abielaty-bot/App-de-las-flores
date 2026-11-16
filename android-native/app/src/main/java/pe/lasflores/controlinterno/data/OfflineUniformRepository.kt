@@ -145,7 +145,7 @@ class OfflineUniformRepository(
         }
     }
 
-    override suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int?, exemptionReason:String) {
+    override suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int?, exemptionReason:String, force:Boolean) {
         database.withWriteTransaction {
             require(value in setOf(UniformRules.OK,UniformRules.BAD,UniformRules.NA)) { "Respuesta desconocida" }
             require(dao.getDayStatus(dateIso)?.status != "NO_REALIZADA") { "El día figura sin revisión." }
@@ -182,7 +182,7 @@ class OfflineUniformRepository(
             require(requirement.applicable) { "Este requisito no corresponde al perfil congelado." }
             if (quantity != null) require(quantity in 0..100) { "Cantidad inválida." }
             val previous = dao.getAnswer(inspection.id, requirementId)
-            val next = UniformRules.toggle(previous?.status, value)
+            val next = if(force) value else UniformRules.toggle(previous?.status, value)
             if (next == UniformRules.OK && requirement.minQtySnapshot > 0) {
                 require(quantity != null && quantity >= requirement.minQtySnapshot) {
                     "${requirement.labelSnapshot}: registra al menos ${requirement.minQtySnapshot} unidades."
@@ -205,6 +205,52 @@ class OfflineUniformRepository(
                 dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,requirementId,
                     "DESCARTAR_BORRADOR",previous?.status,null,"","Sin respuestas en borrador",now))
             } else dao.upsertInspection(inspection.copy(updatedAtMillis = now))
+        }
+    }
+
+    /** Marca como conformes solo los requisitos pendientes sin mínimo cuantitativo.
+     * Todo en una única transacción: no sobrescribe No, No aplica ni cantidades existentes,
+     * y nunca finaliza automáticamente una inspección. */
+    override suspend fun markPendingConforming(dateIso:String,staffId:String) {
+        database.withWriteTransaction {
+            require(dao.getDayStatus(dateIso)?.status!="NO_REALIZADA"){"El día figura sin revisión."}
+            val worker=staffDao.getById(staffId)?:error("Trabajador no encontrado")
+            val status=StaffScheduleRules.status(worker,dateIso,
+                staffDao.vacationsOnDate(staffId,dateIso),listOfNotNull(staffDao.overrideOnDate(staffId,dateIso)))
+            require(StaffScheduleRules.isScheduled(status)){"El trabajador no está programado para este día."}
+            if(catalogDao.allRequirements().isEmpty()){
+                defaultRequirements().forEach{catalogDao.upsertRequirement(it)}
+            }
+            val now=System.currentTimeMillis()
+            var inspection=dao.getInspection(dateIso,staffId)
+            if(inspection==null){
+                val active=catalogDao.allRequirements().filter{it.appliesTo(worker.role)}
+                require(active.isNotEmpty()){"No hay requisitos activos para este puesto."}
+                inspection=UniformInspectionEntity(UUID.randomUUID().toString(),dateIso,
+                    staffId,worker.role,"DRAFT",null,now,now,worker.uniformProfile)
+                dao.insertInspection(inspection)
+                active.forEach{item->
+                    catalogDao.upsertSnapshot(InspectionRequirementEntity(inspection.id,item.id,
+                        item.label,item.category,item.minQty,item.appliesToProfile(worker.uniformProfile)))
+                }
+            }
+            check(inspection.workflow=="DRAFT"){"La inspección ya fue finalizada."}
+            inspection=syncDraft(inspection,worker)
+            val requirements=catalogDao.forInspection(inspection.id)
+            val answered=dao.getAnswers(inspection.id)
+            val ids=UniformRules.quickConformingIds(requirements.map{
+                pe.lasflores.controlinterno.domain.UniformRequirement(it.requirementId,
+                    it.labelSnapshot,it.categorySnapshot,it.minQtySnapshot,it.applicable)
+            },answered.map{it.requirementId}.toSet()).toSet()
+            require(ids.isNotEmpty()){"No hay requisitos pendientes sin cantidad para marcar."}
+            requirements.filter{it.requirementId in ids}.forEach{item->
+                dao.upsertAnswer(UniformAnswerEntity(inspection.id,item.requirementId,
+                    item.labelSnapshot,item.categorySnapshot,UniformRules.OK,null,null,null))
+            }
+            dao.insertEvent(UniformEventEntity(UUID.randomUUID().toString(),inspection.id,"",
+                "MARCAR_PENDIENTES_CONFORMES",null,UniformRules.OK,"",
+                "Confirmación de revisión rápida: ${ids.size} requisitos pendientes sin cantidad; no altera respuestas previas.",now))
+            dao.upsertInspection(inspection.copy(updatedAtMillis=now))
         }
     }
 

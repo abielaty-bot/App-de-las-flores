@@ -50,7 +50,8 @@ interface UniformRepository {
     val auditHistory: Flow<List<UniformEventEntity>>
     val catalog: Flow<List<UniformRequirementEntity>>
     fun observeDay(dateIso: String): Flow<UniformDaySnapshot>
-    suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String = "")
+    suspend fun choose(dateIso: String, staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String = "", force:Boolean=false)
+    suspend fun markPendingConforming(dateIso:String,staffId:String)
     suspend fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String> = UniformRules.PROFILES.toSet())
     suspend fun applyRoleProposal(role:String)
     suspend fun setRequirementActive(id: String, active: Boolean)

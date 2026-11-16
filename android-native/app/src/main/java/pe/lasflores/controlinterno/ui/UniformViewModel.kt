@@ -67,9 +67,15 @@ class UniformViewModel(private val repository: UniformRepository, private val ma
         }
     }
 
-    fun choose(staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String="") {
+    fun choose(staffId: String, requirementId: String, value: String, quantity: Int? = null, exemptionReason:String="", force:Boolean=false) {
         val date=_dateIso.value
-        perform { repository.choose(date, staffId, requirementId, value, quantity,exemptionReason) }
+        perform { repository.choose(date, staffId, requirementId, value, quantity,exemptionReason,force) }
+    }
+    fun markPendingConforming(staffId:String){
+        val date=_dateIso.value
+        perform("Requisitos pendientes conformes guardados"){
+            repository.markPendingConforming(date,staffId)
+        }
     }
     fun saveRequirement(id: String?, label: String, category: String, minQty: Int, roles: Set<String>, profiles:Set<String>) =
         perform { repository.saveRequirement(id, label, category, minQty, roles,profiles) }

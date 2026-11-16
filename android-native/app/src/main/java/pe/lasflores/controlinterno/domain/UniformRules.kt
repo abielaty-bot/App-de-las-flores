@@ -26,6 +26,16 @@ object UniformRules {
         return if (current == tapped) null else tapped
     }
 
+    /** Inspección por excepciones: solo requisitos pendientes, aplicables y sin cantidad. */
+    fun quickConformingIds(requirements:List<UniformRequirement>,answeredIds:Set<String>):List<String> =
+        requirements.filter{it.applicable && it.minQty==0 && it.id !in answeredIds}.map{it.id}
+
+    /** Nunca se infiere una cantidad: cero es un incumplimiento real, no una exención. */
+    fun quantityStatus(count:Int,minimum:Int):String{
+        require(minimum in 1..100 && count in 0..100){"Cantidad fuera de rango."}
+        return if(count>=minimum) OK else BAD
+    }
+
     fun result(statuses: Collection<String?>): String {
         require(statuses.isNotEmpty() && statuses.all { it in setOf(OK,BAD,NA) })
         require(statuses.any { evaluated(it) }) { "No hay requisitos aplicables evaluados." }
