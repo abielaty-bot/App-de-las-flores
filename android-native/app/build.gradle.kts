@@ -18,8 +18,8 @@ android {
         applicationId = "pe.lasflores.controlinterno"
         minSdk = 26
         targetSdk = 35
-        versionCode = 40035
-        versionName = "4.0035"
+        versionCode = 40036
+        versionName = "4.0036"
     }
 
     signingConfigs {
