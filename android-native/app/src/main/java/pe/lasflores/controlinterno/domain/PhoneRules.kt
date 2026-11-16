@@ -41,6 +41,27 @@ object PhoneRules{
         return (result+stored.filter{(it.status!=PENDING||it.auditTrail.isNotBlank())&&it.staffId !in result.map{r->r.staffId}.toSet()})
             .sortedBy{it.nameSnapshot.lowercase()}
     }
+    /** La lista activa solo incluye jornadas programadas. Los registros de personas fuera
+     * de turno se conservan por separado para auditoría, sin contarlos como pendientes. */
+    data class DayRoster(
+        val scheduled:List<PhoneCheckEntity>,
+        val outsideSchedule:List<PhoneCheckEntity>
+    )
+    fun rosterGroups(day:String,people:List<StaffEntity>,vacations:List<StaffVacationEntity>,
+        overrides:List<StaffDayOverrideEntity>,stored:List<PhoneCheckEntity>,sync:Boolean):DayRoster{
+        val scheduledIds=people.filter{
+            StaffScheduleRules.isScheduled(StaffScheduleRules.status(it,day,vacations,overrides))
+        }.map{it.id}.toSet()
+        val combined=roster(day,people,vacations,overrides,stored,sync)
+        return DayRoster(
+            scheduled=combined.filter{it.staffId in scheduledIds},
+            outsideSchedule=combined.filter{
+                it.staffId !in scheduledIds &&
+                    (it.status!=PENDING || it.auditTrail.isNotBlank() ||
+                        it.updatedAtMillis>0 || it.note.isNotBlank() || it.reason.isNotBlank())
+            }
+        )
+    }
     fun toggle(old:PhoneCheckEntity,status:String,reason:String="",note:String="",now:Long):PhoneCheckEntity{
         require(status in STATUSES)
         val priorFailure=old.status in setOf(NO,REMINDED)||audit(old.auditTrail).any{it.from in setOf(NO,REMINDED)||it.to in setOf(NO,REMINDED)}

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pe.lasflores.controlinterno.data.*
 import pe.lasflores.controlinterno.domain.PhoneRules
+import pe.lasflores.controlinterno.domain.StaffScheduleRules
 import pe.lasflores.controlinterno.report.*
 
 private fun phoneKind(status:String)=when(status){
@@ -50,6 +51,7 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
     var monthText by rememberSaveable{mutableStateOf(YearMonth.now().toString())}
     var periodName by rememberSaveable{mutableStateOf("MONTH")}
     var detailId by rememberSaveable{mutableStateOf("")}
+    var showOutsideSchedule by rememberSaveable(date){mutableStateOf(false)}
     var exceptionId by remember(date){mutableStateOf("")}
     var noteId by remember(date){mutableStateOf("")}
     var noReviewDialog by remember(date){mutableStateOf(false)}
@@ -77,7 +79,9 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
     val noReview=days.firstOrNull{it.dateIso==date}
     val today=LocalDate.now().toString()
     val future=date>today
-    val rows=PhoneRules.roster(date,people,vacations,overrides,dayRecords,date==today)
+    val roster=PhoneRules.rosterGroups(date,people,vacations,overrides,dayRecords,date==today)
+    val rows=roster.scheduled
+    val outsideSchedule=roster.outsideSchedule
     val counts=PhoneRules.counts(rows)
     val visible=rows.filter{(filter=="all"||it.status==filter||(filter==PhoneRules.YES&&it.status in setOf(PhoneRules.VOLUNTARY,PhoneRules.REMINDED)))&&it.nameSnapshot.contains(search,true)}
     val busy=message=="Guardando…"
@@ -130,9 +134,56 @@ fun PhoneScreen(people:List<StaffEntity>,staffVm:StaffViewModel,vm:PhoneViewMode
                             else vm.mark(r.staffId,status)
                         },onNote={noteId=r.staffId;note=r.note})
                     }
-                    if(visible.isEmpty())item{Text("No hay trabajadores con este filtro.")}
+                    if(visible.isEmpty())item{Text("No hay trabajadores programados con este filtro.")}
+                    if(outsideSchedule.isNotEmpty()){
+                        item{
+                            HorizontalDivider()
+                            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+                                horizontalArrangement=Arrangement.SpaceBetween){
+                                Column(Modifier.weight(1f)){
+                                    Text("Registros fuera de turno · "+outsideSchedule.size,
+                                        fontWeight=FontWeight.SemiBold)
+                                    Text("Conservados para auditoría; no cuentan como pendientes de hoy.",
+                                        style=MaterialTheme.typography.bodySmall)
+                                }
+                                TextButton(onClick={showOutsideSchedule=!showOutsideSchedule}){
+                                    Text(if(showOutsideSchedule)"Ocultar" else "Ver")
+                                }
+                            }
+                        }
+                        if(showOutsideSchedule)items(outsideSchedule,key={"fuera:"+it.staffId}){r->
+                            val person=people.firstOrNull{it.id==r.staffId}
+                            val scheduleStatus=person?.let{
+                                StaffScheduleRules.label(StaffScheduleRules.status(it,date,vacations,overrides))
+                            }?:"Sin ficha activa"
+                            Card(Modifier.fillMaxWidth()){
+                                Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
+                                    Text(r.nameSnapshot,fontWeight=FontWeight.Bold)
+                                    Text(scheduleStatus+" · "+PhoneRules.label(r.status),
+                                        style=MaterialTheme.typography.bodySmall)
+                                    if(r.note.isNotBlank())Text(r.note,style=MaterialTheme.typography.bodySmall)
+                                    if(r.auditTrail.isNotBlank()){
+                                        var auditExpanded by remember(r.staffId,r.dateIso){mutableStateOf(false)}
+                                        TextButton(onClick={auditExpanded=!auditExpanded}){
+                                            Text(if(auditExpanded)"Ocultar auditoría" else "Ver auditoría")
+                                        }
+                                        if(auditExpanded)PhoneRules.audit(r.auditTrail).forEach{a->
+                                            Text(java.time.Instant.ofEpochMilli(a.at)
+                                                .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime().toString()+
+                                                " · "+PhoneRules.label(a.from)+" → "+PhoneRules.label(a.to),
+                                                style=MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                    Text("Solo lectura. Si trabajó, registra el apoyo o corrige su programación en Personal.",
+                                        style=MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    }
                     item{
-                        if(counts.reviewed==0&&!future)TextButton(enabled=!busy,onClick={reason="";noReviewDialog=true}){Text("No hubo revisión")}
+                        if(counts.reviewed==0&&!future &&
+                            dayRecords.none{it.status!=PhoneRules.PENDING||it.auditTrail.isNotBlank()})
+                            TextButton(enabled=!busy,onClick={reason="";noReviewDialog=true}){Text("No hubo revisión")}
                         Text("Retirar el celular al salir no cambia el resultado. Los pendientes no se consideran incumplimientos.",style=MaterialTheme.typography.bodySmall)
                     }
                 }

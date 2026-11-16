@@ -23,9 +23,13 @@ class OfflinePhoneRepository(private val db:LasFloresDatabase){
     suspend fun mark(date:String,staffId:String,status:String,reason:String="",note:String="")=db.withWriteTransaction{
         validDay(date)
         require(dao.dayStatus(date)==null){"Reabre la jornada antes de registrar."}
-        val rows=roster(date,date==LocalDate.now().toString())
-        val current=rows.firstOrNull{it.staffId==staffId}?:error("El trabajador no está programado para esta revisión.")
-        saveRoster(date,rows)
+        val stored=dao.dayChecks(date)
+        val groups=PhoneRules.rosterGroups(date,db.staffDao().allStaff(),
+            db.staffDao().allVacations(),db.staffDao().allOverrides(),stored,
+            date==LocalDate.now().toString())
+        val current=groups.scheduled.firstOrNull{it.staffId==staffId}
+            ?:error("El trabajador no está programado para esta revisión. Corrige la programación en Personal si corresponde.")
+        saveRoster(date,groups.scheduled+groups.outsideSchedule)
         dao.save(PhoneRules.toggle(current,status,reason,note,System.currentTimeMillis()))
     }
     suspend fun saveNote(date:String,id:String,note:String)=db.withWriteTransaction{

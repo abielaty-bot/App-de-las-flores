@@ -41,6 +41,47 @@ class PhoneRulesTest{
         assertFalse(PhoneRules.valid(corrected.copy(status=PhoneRules.VOLUNTARY)))
         assertEquals(listOf(pending),PhoneRules.roster(date,emptyList(),emptyList(),emptyList(),listOf(pending),true))
     }
+    @Test fun offShiftRecordsAreSeparatedWithoutDeletingHistory(){
+        val monday="2026-11-16"
+        val rest=worker.copy(id="rest",fullName="Dina",
+            restDaysMask=StaffScheduleRules.restMask(listOf(1)))
+        val scheduled=worker.copy(id="on",fullName="Edith")
+        val archived=PhoneCheckEntity(monday,"rest","Dina","Mozo",PhoneRules.YES,"","",15)
+        val people=listOf(rest,scheduled)
+        val groups=PhoneRules.rosterGroups(monday,people,emptyList(),emptyList(),listOf(archived),true)
+        assertEquals(listOf("on"),groups.scheduled.map{it.staffId})
+        assertEquals(listOf(archived),groups.outsideSchedule)
+        assertEquals(0,PhoneRules.counts(groups.scheduled).reviewed)
+        assertEquals(1,PhoneRules.counts(listOf(archived)).reviewed)
+        assertEquals(archived.status,groups.outsideSchedule.single().status)
+    }
+    @Test fun offShiftPendingWithoutAuditIsNotShownButAuditIsPreserved(){
+        val monday="2026-11-16"
+        val rest=worker.copy(restDaysMask=StaffScheduleRules.restMask(listOf(1)))
+        val unmarked=PhoneCheckEntity(monday,"p","Prueba","Mozo",PhoneRules.PENDING,"","",0)
+        val first=PhoneRules.rosterGroups(monday,listOf(rest),emptyList(),emptyList(),listOf(unmarked),true)
+        assertTrue(first.scheduled.isEmpty())
+        assertTrue(first.outsideSchedule.isEmpty())
+        val recorded=PhoneRules.toggle(unmarked,PhoneRules.NO,now=10)
+        val cleared=PhoneRules.toggle(recorded,PhoneRules.NO,now=11)
+        val second=PhoneRules.rosterGroups(monday,listOf(rest),emptyList(),emptyList(),listOf(cleared),true)
+        assertTrue(second.scheduled.isEmpty())
+        assertEquals(listOf(cleared),second.outsideSchedule)
+        assertEquals(2,PhoneRules.audit(second.outsideSchedule.single().auditTrail).size)
+    }
+    @Test fun explicitSupportAndVacationControlDailyRoster(){
+        val monday="2026-11-16"
+        val rest=worker.copy(restDaysMask=StaffScheduleRules.restMask(listOf(1)))
+        val support=listOf(StaffDayOverrideEntity(monday,"p","support",1))
+        assertEquals(listOf("p"),PhoneRules.rosterGroups(monday,listOf(rest),emptyList(),
+            support,emptyList(),true).scheduled.map{it.staffId})
+        val vacations=listOf(StaffVacationEntity("vac","p",monday,monday,"Descanso",1))
+        assertTrue(PhoneRules.rosterGroups(monday,listOf(worker),vacations,emptyList(),
+            emptyList(),true).scheduled.isEmpty())
+        val leave=listOf(StaffDayOverrideEntity(monday,"p","leave",1))
+        assertTrue(PhoneRules.rosterGroups(monday,listOf(worker),emptyList(),leave,
+            emptyList(),true).scheduled.isEmpty())
+    }
     @Test fun toggleAndException(){
         val yes=PhoneRules.toggle(row(),PhoneRules.YES,now=10)
         assertEquals(PhoneRules.YES,yes.status)
